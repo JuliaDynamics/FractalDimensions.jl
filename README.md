@@ -1,7 +1,7 @@
 # FractalDimensions.jl
 
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaDynamics.github.io/FractalDimensions.jl/stable)
-[![](https://img.shields.io/badge/DOI-10.1177/00375497211068820-purple)](https://journals.sagepub.com/doi/10.1177/00375497211068820)
+[![](https://img.shields.io/badge/DOI-10.48550/ARXIV.2109.05937-purple)](https://arxiv.org/abs/2109.05937)
 [![CI](https://github.com/JuliaDynamics/FractalDimensions.jl/workflows/CI/badge.svg)](https://github.com/JuliaDynamics/FractalDimensions.jl/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/JuliaDynamics/FractalDimensions.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaDynamics/FractalDimensions.jl)
 [![Package Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/FractalDimensions)](https://pkgs.genieframework.com?packages=FractalDimensions)

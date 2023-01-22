@@ -2,7 +2,9 @@ export kaplanyorke_dim
 
 """
     kaplanyorke_dim(λs::AbstractVector)
-Calculate the Kaplan-Yorke dimension, a.k.a. Lyapunov dimension[^Kaplan1970].
+
+Calculate the Kaplan-Yorke dimension, a.k.a. Lyapunov dimension[^Kaplan1970]
+from the given Lyapunov exponents `λs`.
 
 ## Description
 The Kaplan-Yorke dimension is simply the point where
@@ -14,15 +16,15 @@ The Kaplan-Yorke dimension is simply the point where
 If the sum of the exponents never becomes negative the function
 will return the length of the input vector.
 
-Useful in combination with [`lyapunovspectrum`](@ref).
+Useful in combination with `lyapunovspectrum` from ChaosTools.jl.
 
-[^Kaplan1970]: J. Kaplan & J. Yorke, *Chaotic behavior of multidimensional difference equations*, Lecture Notes in Mathematics vol. **730**, Springer (1979)
+[^Kaplan1970]:
+    J. Kaplan & J. Yorke, *Chaotic behavior of multidimensional difference equations*,
+    Lecture Notes in Mathematics vol. **730**, Springer (1979)
 """
-function kaplanyorke_dim(v::AbstractVector)
-    issorted(v, rev = true) || throw(ArgumentError(
-    "The lyapunov vector must be sorted from most positive to most negative"))
-
-    s = cumsum(v); k = length(v)
+function kaplanyorke_dim(λs::AbstractVector{<:Real})
+    λs = sort(λs; rev = true)
+    s, k =  cumsum(λs), length(λs)
     # Find k such that sum(λ_i for i in 1:k) is still possitive
     for i in eachindex(s)
         if s[i] < 0
@@ -32,10 +34,10 @@ function kaplanyorke_dim(v::AbstractVector)
     end
 
     if k == 0
-        return zero(v[1])
-    elseif k < length(v)
-        return k + s[k]/abs(v[k+1])
+        return zero(λs[1])
+    elseif k < length(λs)
+        return k + s[k]/abs(λs[k+1])
     else
-        return typeof(v[1])(length(v))
+        return typeof(λs[1])(length(λs))
     end
 end

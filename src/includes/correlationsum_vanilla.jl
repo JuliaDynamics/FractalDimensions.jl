@@ -1,8 +1,8 @@
 import ProgressMeter
+using Distances
 #######################################################################################
 # Original correlation sum
 #######################################################################################
-using Distances, Roots
 export correlationsum, boxed_correlationsum,
 estimate_r0_buenoorovio, data_boxing, autoprismdim, estimate_r0_theiler
 
@@ -23,7 +23,7 @@ The function [`boxed_correlationsum`](@ref) is faster and should be preferred ov
 ## Description
 The correlation sum is defined as follows for `q=2`:
 ```math
-C_2(\\epsilon) = \\frac{2}{(N-w)(N-w-1)}\\sum_{i=1}^{N}\\sum_{j=1+w+i}^{N} 
+C_2(\\epsilon) = \\frac{2}{(N-w)(N-w-1)}\\sum_{i=1}^{N}\\sum_{j=1+w+i}^{N}
 B(||X_i - X_j|| < \\epsilon)
 ```
 for as follows for `q≠2`
@@ -36,8 +36,8 @@ where
 \\alpha = (N-2w)(N-2w-1)^{(q-1)}
 ```
 with ``N`` the length of `X` and ``B`` gives 1 if its argument is
-`true`. `w` is the [Theiler window](@ref). 
-See the article of Grassberger for the general definition [^Grassberger2007] and 
+`true`. `w` is the [Theiler window](@ref).
+See the article of Grassberger for the general definition [^Grassberger2007] and
 the book "Nonlinear Time Series Analysis" [^Kantz2003], Ch. 6, for
 a discussion around choosing best values for `w`, and Ch. 11.3 for the
 explicit definition of the q-order correlationsum.
@@ -45,12 +45,12 @@ explicit definition of the q-order correlationsum.
 The scaling of ``\\log C_q`` versus ``\\log \\epsilon`` approximates the q-order
 generalized (Rényi) dimension.
 
-[^Grassberger2007]: 
-    Peter Grassberger (2007) [Grassberger-Procaccia algorithm. Scholarpedia, 
+[^Grassberger2007]:
+    Peter Grassberger (2007) [Grassberger-Procaccia algorithm. Scholarpedia,
     2(5):3043.](http://dx.doi.org/10.4249/scholarpedia.3043)
 
-[^Kantz2003]: 
-    Kantz, H., & Schreiber, T. (2003). [Nonlinear Time Series Analysis, 
+[^Kantz2003]:
+    Kantz, H., & Schreiber, T. (2003). [Nonlinear Time Series Analysis,
     Cambridge University Press.](https://doi.org/10.1017/CBO9780511755798)
 """
 function correlationsum(X, ε; q = 2, norm = Euclidean(), w = 0, show_progress = false)
