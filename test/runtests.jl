@@ -1,8 +1,8 @@
 using Test
-using FractalDimension
+using FractalDimensions
 
 defaultname(file) = uppercasefirst(replace(splitext(basename(file))[1], '_' => ' '))
 testfile(file, testname=defaultname(file)) = @testset "$testname" begin; include(file); end
-@testset "FractalDimension" begin
+@testset "FractalDimensions" begin
     # include("multiscale/multiscale.jl")
 end

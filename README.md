@@ -1,12 +1,12 @@
 # FractalDimensions.jl
 
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaDynamics.github.io/FractalDimension.jl/stable)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaDynamics.github.io/FractalDimensions.jl/stable)
 [![](https://img.shields.io/badge/DOI-10.1177/00375497211068820-purple)](https://journals.sagepub.com/doi/10.1177/00375497211068820)
-[![CI](https://github.com/JuliaDynamics/FractalDimension.jl/workflows/CI/badge.svg)](https://github.com/JuliaDynamics/FractalDimension.jl/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/JuliaDynamics/FractalDimension.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaDynamics/FractalDimension.jl)
-[![Package Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/FractalDimension)](https://pkgs.genieframework.com?packages=FractalDimension)
+[![CI](https://github.com/JuliaDynamics/FractalDimensions.jl/workflows/CI/badge.svg)](https://github.com/JuliaDynamics/FractalDimensions.jl/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/JuliaDynamics/FractalDimensions.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaDynamics/FractalDimensions.jl)
+[![Package Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/FractalDimensions)](https://pkgs.genieframework.com?packages=FractalDimensions)
 
-A Julia package that estimates fractal dimension(s) from data.
+A Julia package that estimates various definitions of fractal dimension from data.
 It can be used as a standalone package, or as part of
 [DynamicalSystems.jl](https://juliadynamics.github.io/DynamicalSystems.jl/dev/).
 
@@ -27,6 +27,8 @@ If you use this package in a publication, please cite the paper below:
   author    = "Datseris, George and Kottlarz, Inga and Braun, Anton P and
                Parlitz, Ulrich",
   publisher = "arXiv",
-  year      =  2021
+  year      =  2021,
+  doi = {10.48550/ARXIV.2109.05937},
+  url = {https://arxiv.org/abs/2109.05937},
 }
 ```
