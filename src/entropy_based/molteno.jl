@@ -1,10 +1,5 @@
-export molteno_boxing
-export molteno_dim
-export MoltenoBoxing
+export molteno_boxing, molteno_dim
 
-################################################################################
-# Molteno histogram based dimension by boxing values
-################################################################################
 """
     molteno_dim(X::AbstractDataset; k0::Int = 10, q = 1.0, base = 2)
 

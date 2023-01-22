@@ -7,4 +7,5 @@ testfile(file, testname=defaultname(file)) = @testset "$testname" begin; include
     include("entropydim.jl")
     include("correlationdim.jl")
     include("higuchi.jl")
+    include("misc.jl")
 end

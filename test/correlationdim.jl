@@ -1,4 +1,4 @@
-using ChaosTools
+using FractalDimensions
 using Test
 using Statistics
 using ChaosTools.DynamicalSystemsBase

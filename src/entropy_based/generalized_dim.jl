@@ -2,10 +2,10 @@ using ComplexityMeasures: Renyi, ValueHistogram, entropy
 export generalized_dim
 
 """
-    generalized_dim(A::AbstractDataset [, sizes]; q = 1, base = 2) -> Δ_q
+    generalized_dim(X::AbstractDataset [, sizes]; q = 1, base = 2) -> Δ_q
 
-Return the `q` order generalized dimension of the dataset `A`,
-by calculating  its histogram-based entropy for each `ε ∈ sizes`.
+Return the `q` order generalized dimension of the dataset `X`,
+by calculating  its histogram-based Rényi entropy for each `ε ∈ sizes`.
 
 The case of `q = 0` is often called "capacity" or "box-counting" dimension, while
 `q = 1` is the "information" dimension.

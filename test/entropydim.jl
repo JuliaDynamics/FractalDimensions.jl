@@ -1,11 +1,14 @@
-using ChaosTools
-using ChaosTools.DynamicalSystemsBase
-using ChaosTools.Entropies
-using ChaosTools.StatsBase
+using FractalDimensions
+using DynamicalSystemsBase
 using Test
 using Statistics
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
+
+# Convenience syntax going back to the old `genentropy`
+function quickentropy(x, e; q = 1)
+    return entropy(Renyi(;q), ValueHistogram(e), x)
+end
 
 println("\nTesting generalized entropy (genentropy) & linear scaling...")
 @testset "Generalized Dimensions" begin

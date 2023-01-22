@@ -15,12 +15,13 @@ to display a progress bar for large `X`.
     correlationsum(X, εs::AbstractVector; w, norm, q) → C_q(ε)
 
 If `εs` is a vector, `C_q` is calculated for each `ε ∈ εs` more efficiently.
-If also `q=2`, we attempt to do further optimizations, if the allocation
+If also `q=2`, we attempt to do further optimizations, if the allocation of
 a matrix of size `N×N` is possible.
 
 The function [`boxed_correlationsum`](@ref) is faster and should be preferred over this one.
 
 ## Description
+
 The correlation sum is defined as follows for `q=2`:
 ```math
 C_2(\\epsilon) = \\frac{2}{(N-w)(N-w-1)}\\sum_{i=1}^{N}\\sum_{j=1+w+i}^{N}
