@@ -8,8 +8,7 @@ module FractalDimensions
 end FractalDimensions
 
 using Reexport
-@reexport using StateSpaceSets
-
+@reexport using ComplexityMeasures
 
 include("linear_regions.jl")
 
