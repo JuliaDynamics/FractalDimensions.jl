@@ -113,7 +113,7 @@ and its slope. The region starts and stops at `x[ind1:ind2]`.
 The keywords `dxi, tol` are propagated as-is to [`linear_regions`](@ref).
 The keyword `ignore_saturation = true` ignores saturation that (sometimes) happens
 at the start and end of the curve `y(x)`, where the curve flattens.
-The keyword `sat = 0.01` decides what saturation is (while `abs(y[i]-y[i+1])<sat` we 
+The keyword `sat = 0.01` decides what saturation is (while `abs(y[i]-y[i+1])<sat` we
 are in a saturation regime).
 
 The keyword `warning = true` prints a warning if the linear region is less than 1/3
@@ -166,7 +166,7 @@ distance.
 
 ## Keywords
 * `w = 1, z = -1, k = 20` : as explained above.
-* `base = MathConstants.e` : the base used in the `log` function.
+* `base = 2` : the base used in the `log` function.
 * `warning = true`: Print some warnings for bad estimates.
 * `autoexpand = true`: If the final estimated range does not cover at least 2 orders of
   magnitude, it is automatically expanded by setting `w -= we` and `z -= ze`.
@@ -174,7 +174,7 @@ distance.
 """
 function estimate_boxsizes(
         A::AbstractDataset;
-        k::Int = 20, z = -1, w = 1, base = MathConstants.e,
+        k::Int = 20, z = -1, w = 1, base = 2,
         warning = true, autoexpand = true, ze = z, we = w
     )
 
@@ -212,6 +212,8 @@ function estimate_boxsizes(
     return εs
 end
 
+
+using Neighborhood
 """
     minimum_pairwise_distance(A::Dataset, metric = Euclidean())
 Return `min_d, min_pair`: the minimum pairwise distance
@@ -220,11 +222,10 @@ of all points in the dataset, and the corresponding point pair.
 function minimum_pairwise_distance(A::AbstractDataset, metric = Euclidean())
     tree = KDTree(A, metric)
     min_d = eltype(A[1])(Inf)
-    max_d = -min_d
-    min_pair = max_pair = (0, 0)
+    min_pair = (0, 0)
     theiler = Theiler(0)
-    for i in 1:length(A)
-        inds, dists = Neighborhood.knn(tree, A[i], 1, theiler(i); sortds=false)
+    for (i, a) in enumerate(A)
+        inds, dists = Neighborhood.knn(tree, a, 1, theiler(i); sortds=false)
         ind, dist = inds[1], dists[1]
         if dist < min_d
             min_d = dist

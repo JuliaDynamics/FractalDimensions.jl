@@ -80,7 +80,7 @@ function real_to_uint64(data::AbstractDataset{D,T}) where {D,T<:Real}
     Dataset(res), ε0
 end
 
-function _molteno_boxing(data::Dataset{D,T}; k0 = 10) where {D,T<:UInt}
+function _molteno_boxing(data::AbstractDataset{D,T}; k0 = 10) where {D,T<:UInt}
     N = length(data)
     box_probs = Vector{Float64}[]
     iteration = 1
