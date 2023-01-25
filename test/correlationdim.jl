@@ -10,6 +10,8 @@ A = Dataset(rand(Xoshiro(1234), 10_000, 2))
 B = Dataset(cos.(θ), sin.(θ))
 sizesA = estimate_boxsizes(A)
 sizesB = estimate_boxsizes(B)
+X = standardize(trajectory(Systems.henon(), 10_000; Ttr = 100))
+sizesX = estimate_boxsizes(X)
 
 @testset "correlation sums" begin
     X = Dataset([SVector(0.0, 0.0), SVector(0.5, 0.0)])
@@ -26,7 +28,6 @@ sizesB = estimate_boxsizes(B)
 end
 
 @testset "Correlation dim; automated" begin
-
     # We can't test q != 1 here; it doesn't work. It doesn't give correct results.
     @testset "Grassberger" begin
         dA = grassberger_proccacia_dim(A, sizesA; q = 2.0)
@@ -44,7 +45,6 @@ end
         test_value(dB, 0.9, 1.1)
     end
     @testset "Boxed, Henon" begin
-        X = standardize(trajectory(Systems.henon(), 10_000; Ttr = 100))
         dX = boxassisted_correlation_dim(X)
         test_value(dX, 1.2, 1.3)
         # Also ensure that the values match with vanilla version
@@ -61,29 +61,20 @@ end
 end
 
 @testset "Fixed mass correlation sum" begin
-    rs, ys = fixedmass_correlationsum(A)
+    @testset "Analytic" begin
+        rs, ys = fixedmass_correlationsum(A, 64)
+        @test all(<(0), rs) # since max is 1, log(r) must be negative
+        reg, tan = linear_region(rs, ys)
+        test_value(tan, 1.8, 2.0)
+        reg, tan = linear_region(rs[40:end], ys[40:end])
+        test_value(tan, 1.9, 2.0)
 
-
-
-    @testset "Henon Map" begin
-        ds = Systems.henon()
-        X = trajectory(ds, 10000)
-        rs, ys = fixedmass_correlationsum(A, 30)
-        test_value(linear_region(rs, ys)[2], 1.0, 1.3)
-        rs, ys = correlationsum_fixedmass(X, 30; M = 2000)
-        test_value(linear_region(rs, ys)[2], 1.0, 1.3)
-        rs, ys = correlationsum_fixedmass(X, 30; w = 5)
-        test_value(linear_region(rs, ys)[2], 1.0, 1.3)
+        dB = fixedmass_correlation_dim(B)
+        test_value(dB, 0.9, 1.0)
     end
-    @testset "Lorenz System" begin
-        ds = Systems.lorenz()
-        X = trajectory(ds, 1000; Δt = 0.1)
-        rs, ys = correlationsum_fixedmass(X, 30)
-        test_value(linear_region(rs, ys)[2], 1.7, 2.2)
-        rs, ys = correlationsum_fixedmass(X, 30; M = 2000)
-        test_value(linear_region(rs, ys)[2], 1.7, 2.2)
-        rs, ys = correlationsum_fixedmass(X, 30; w = 5)
-        test_value(linear_region(rs, ys)[2], 1.7, 2.2)
+    @testset "Henon" begin
+        dX = fixedmass_correlation_dim(X)
+        testvalue(dX, 1.11, 1.31)
     end
 end
 
