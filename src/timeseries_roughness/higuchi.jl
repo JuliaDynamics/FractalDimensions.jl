@@ -1,4 +1,4 @@
-export higuchi
+export higuchi_dim
 
 # Super duper inefficient version, but quickly coding it for now.
 # I am certain that there can be algorithmic optimizations, as it feels like
@@ -7,7 +7,7 @@ export higuchi
 # as we do in our fractal dimension paper. Higuchi doesn't describe this.
 
 """
-    higuchi(x::AbstractVector [, ks])
+    higuchi_dim(x::AbstractVector [, ks])
 
 Estimate the Higuchi dimension[^Higuchi1988] of the graph of `x`.
 
@@ -38,7 +38,7 @@ Use `ChaosTools.higuchi_length(x, ks)` to obtain ``L(k)`` directly.
     Higuchi, _Approach to an irregular time series on the basis of the fractal theory_,
     [Physica D: Nonlinear Phenomena (1988)](www.doi.org/10.1016/0167-2789(88)90081-4)
 """
-function higuchi(x::AbstractVector, ks = higuchi_default_ks(x))
+function higuchi_dim(x::AbstractVector, ks = higuchi_default_ks(x))
     L = higuchi_length(x, ks)
     return linear_region(-log2.(ks), log2.(L))[2]
 end
