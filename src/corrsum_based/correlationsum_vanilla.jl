@@ -13,7 +13,7 @@ Theiler[^Theiler1986], to estimate the correlation dimension `Δ_C` of  `X`.
 This function does something extremely simple:
 ```julia
 cm = correlationsum(data, εs; kwargs...)
-return linear_region(log.(sizes), log.(cm))[2]
+Δ_C = linear_region(log2.(sizes), log2.(cm))[2]
 ```
 i.e. it calculates [`correlationsum`](@ref) for various radii and then tries to find
 a linear region in the plot of the log of the correlation sum versus log(ε).
@@ -28,9 +28,9 @@ See also [`takens_best_estimate`](@ref), [`boxassisted_correlation_dim`](@ref).
     Theiler, [Spurious dimension from correlation algorithms applied to limited time-series
     data. Physical Review A, 34](https://doi.org/10.1103/PhysRevA.34.2427)
 """
-function grassberger_dim(X::AbstractDataset, εs = estimate_boxsizes(data); kwargs...)
+function grassberger_proccacia_dim(X::AbstractDataset, εs = estimate_boxsizes(data); kwargs...)
     cm = correlationsum(X, εs; kwargs...)
-    return linear_region(log.(εs), log.(cm))[2]
+    return linear_region(log2.(εs), log2.(cm))[2]
 end
 
 

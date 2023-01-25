@@ -1,5 +1,5 @@
 import ProgressMeter
-export boxed_correlationsum
+export boxed_correlationsum, boxassisted_correlation_dim
 export estimate_r0_buenoorovio, autoprismdim, estimate_r0_theiler
 
 """
@@ -11,7 +11,7 @@ to estimate the correlation dimension `Δ_C` of `X`.
 This function does something extremely simple:
 ```julia
 εs, Cs = boxed_correlationsum(X; kwargs...)
-return linear_region(log.(Cs), log.(εs))[2]
+return linear_region(log2.(Cs), log2.(εs))[2]
 ```
 
 and hence see [`boxed_correlationsum`](@ref) for more information and available keywords.
@@ -20,11 +20,10 @@ and hence see [`boxed_correlationsum`](@ref) for more information and available 
     Bueno-Orovio and Pérez-García, [Enhanced box and prism assisted algorithms for
     computing the correlation dimension. Chaos Solitons & Fractrals, 34(5)
     ](https://doi.org/10.1016/j.chaos.2006.03.043)
-
 """
 function boxassisted_correlation_dim(X::AbstractDataset; kwargs...)
     εs, Cs = boxed_correlationsum(X; kwargs...)
-    return linear_region(log.(Cs), log.(εs))[2]
+    return linear_region(log2.(εs), log2.(Cs))[2]
 end
 
 ################################################################################
@@ -45,7 +44,7 @@ See [`correlationsum`](@ref) for the definition of the correlation sum.
     boxed_correlationsum(X::AbstractDataset; kwargs...) → εs, Cs
 
 In this method the minimum inter-point distance and [`estimate_r0_buenoorovio`](@ref)
-are used to estimate good `εs` for the calculation, which are also returned.
+of `X` are used to estimate good `εs` for the calculation, which are also returned.
 
 ## Keyword arguments
 
@@ -71,12 +70,11 @@ See [`correlationsum`](@ref) for the definition of `C_q`.
     Theiler, [Efficient algorithm for estimating the correlation dimension from a set
     of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
 """
-function boxed_correlationsum(X; q=2, P=autoprismdim(X), w=0, show_progress=false)
+function boxed_correlationsum(X; P = 2, kwargs...)
     r0, ε0 = estimate_r0_buenoorovio(X, P)
-    @assert r0 < ε0 "The calculated box size was smaller than the minimum interpoint " *
-    "distance. Please choose manually."
-    εs = 10.0 .^ range(log10(ε0), log10(r0), length = 16)
-    boxed_correlationsum(X, εs, r0; q, P, w, show_progress)
+    εs = 2.0 .^ range(log2(ε0), log2(r0); length = 16)
+    Cs = boxed_correlationsum(X, εs, r0; P, kwargs...)
+    return εs, Cs
 end
 
 function boxed_correlationsum(
@@ -86,11 +84,12 @@ function boxed_correlationsum(
     )
     @assert P ≤ size(X, 2) "Prism dimension has to be ≤ than X dimension."
     boxes, contents = data_boxing(X, r0, P)
-    if q == 2
+    Cs = if q == 2
         boxed_correlationsum_2(boxes, contents, X, εs; w, show_progress)
     else
         boxed_correlationsum_q(boxes, contents, X, εs, q; w, show_progress)
     end
+    return Cs
 end
 
 """
@@ -218,7 +217,7 @@ function inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean()
     @assert issorted(εs) "Sorted εs required for optimized version."
     Cs, Ny, Nε = zeros(length(εs)), length(indices_Y), length(εs)
     for (i, index_X) in enumerate(indices_X)
-    	x = data[index_X]
+    	x = X[index_X]
         for j in i+1:Ny
             index_Y = indices_Y[j]
             # Check for Theiler window.
@@ -325,8 +324,9 @@ end
 #######################################################################################
 # Good boxsize estimates for boxed correlation sum
 #######################################################################################
+using Statistics: mean
 """
-    estimate_r0_theiler(X::Dataset) → r0, ε0
+    estimate_r0_theiler(X::AbstractDataset) → r0, ε0
 Estimate a reasonable size for boxing the data `X` before calculating the
 [`boxed_correlationsum`](@ref) proposed by Theiler[^Theiler1987].
 Return the boxing size `r0` and minimum inter-point distance in `X`, `ε0`.
@@ -372,11 +372,14 @@ function estimate_r0_theiler(data)
 end
 
 """
-    estimate_r0_buenoorovio(X::Dataset, P = autoprismdim(X))
+    estimate_r0_buenoorovio(X::AbstractDataset, P = autoprismdim(X)) → r0, ε0
 
-Estimates a reasonable size for boxing the time series `X` proposed by
-Bueno-Orovio and Pérez-García[^Bueno2007] before calculating the correlation
-dimension as presented by Theiler[^Theiler1983]. If instead of boxes, prisms
+Estimate a reasonable size for boxing `X`, proposed by
+Bueno-Orovio and Pérez-García[^Bueno2007], before calculating the correlation
+dimension as presented by Theiler[^Theiler1983].
+Return the size `r0` and the minimum interpoint distance `ε0` in the data.
+
+If instead of boxes, prisms
 are chosen everything stays the same but `P` is the dimension of the prism.
 To do so the dimension `ν` is estimated by running the algorithm by Grassberger
 and Procaccia[^Grassberger1983] with `√N` points where `N` is the number of
@@ -448,6 +451,12 @@ function estimate_r0_buenoorovio(X, P = autoprismdim(X))
         # to the power of the inverse dimension.
         r0 = ℓ / η_opt^(1/ν)
         !isnan(r0) && break
+    end
+    if r0 < min_d
+        warn("The calculated `r0` box size was smaller than the minimum interpoint " *
+        "distance. Please provide `r0` manually. For now, setting `r0` to "*
+        "average attractor length divided by 16")
+        r0 = max(4min_d, R/16)
     end
     return r0, min_d
 end
