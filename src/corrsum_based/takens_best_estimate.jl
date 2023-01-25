@@ -1,4 +1,5 @@
-export takens_best_estimate
+export takens_best_estimate_dim
+import Roots
 
 """
     takens_best_estimate_dim(X, εmax, metric = Chebyshev(), εmin = 0)
@@ -25,7 +26,7 @@ for ``\\epsilon_\\text{max}`` is `std(x)/4`.
 
 You may also use
 ```julia
-Δ_C, Δu_C, Δ_Cl = FractalDimensions.takens_best_estimate(args...)
+Δ_C, Δu_C, Δl_C = FractalDimensions.takens_best_estimate(args...)
 ```
 to obtain the upper and lower 95% confidence intervals.
 The intervals are estimated from the log-likelihood function by finding
@@ -72,7 +73,7 @@ function takens_best_estimate(X, εmax, metric = Chebyshev(); εmin=0)
     # -> log_l(x) - mxl + 2 = 0
     # this is a result of the invariance of the MLE, a really nice property
     # these limits are not going to be perfectly symmetric (CLT does not apply)
-    mn, mx = fzeros(x-> n * log(x) + η * x - mxl +2 , 0,2*α)
+    mn, mx = Roots.fzeros(x -> n*log(x) + η*x - mxl + 2 , 0, 2α)
 
     # Since the bias-correction is just a shift of the log-l function on the
     # x-axis, we can easily shift the confidence limits by the bias α-α_b

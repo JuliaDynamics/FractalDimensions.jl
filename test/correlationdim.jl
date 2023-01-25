@@ -74,32 +74,23 @@ end
     end
     @testset "Henon" begin
         dX = fixedmass_correlation_dim(X)
-        testvalue(dX, 1.11, 1.31)
+        test_value(dX, 1.11, 1.31)
     end
 end
 
 
-println("\nTesting Takens' best estimate")
-@testset "Takens best" begin
-    @testset "Henon Map" begin
-        ds = Systems.henon()
-        X = trajectory(ds, 5000)
-        x = X[:, 1]
-        X = embed(x, 2, 1)
-        D_C, D_C_95u, D_C_95l = takens_best_estimate(X, std(x)/4)
-        @test 1.15 < D_C < 1.25
-        @test D_C_95u < 1.05*D_C
-        @test D_C_95l > 0.95*D_C
-    end
-    @testset "Lorenz System" begin
-        ds = Systems.lorenz()
-        tr = trajectory(ds, 2000; Δt = 0.1)
-        x = tr[:, 1]
-        τ = estimate_delay(x, "mi_min", 1:20)
-        X = embed(x, 4, τ)
-        D_C, D_C_95u, D_C_95l = takens_best_estimate(X, std(x)/4)
-        @test 1.85 < D_C < 2.1
-        @test D_C_95u < 1.05*D_C
-        @test D_C_95l > 0.95*D_C
-    end
+@testset "Takens best est" begin
+    D_C, D_C_95u, D_C_95l = FractalDimensions.takens_best_estimate(A, 0.1)
+    test_value(D_C, 1.9, 2.0)
+    @test D_C_95u < 1.05*D_C
+    @test D_C_95l > 0.95*D_C
+
+    D_C = takens_best_estimate_dim(A, 0.01)
+    test_value(D_C, 1.9, 2.0)
+
+    D_C = takens_best_estimate_dim(B, 0.1)
+    test_value(D_C, 0.9, 1.1)
+
+    D_C = takens_best_estimate_dim(X, 0.05)
+    test_value(D_C, 1.2, 1.26)
 end
