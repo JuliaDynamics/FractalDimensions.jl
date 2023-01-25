@@ -1,14 +1,8 @@
-#=
-this file includes functionality for estimating linear scaling regions and
-defines the `generalized_dim` function.
-=#
-
 export linear_region, linear_regions, estimate_boxsizes, linreg
 #####################################################################################
 # Functions and methods to deduce linear scaling regions
 #####################################################################################
-using Statistics
-using Statistics: covm, varm
+import Statistics
 # The following function comes from a version in StatsBase that is now deleted
 # StatsBase is copyrighted under the MIT License with
 # Copyright (c) 2012-2016: Dahua Lin, Simon Byrne, Andreas Noack, Douglas Bates,
@@ -32,7 +26,7 @@ function linreg(x::AbstractVector, y::AbstractVector)
     my = Statistics.mean(y)
     # don't need to worry about the scaling (n vs n - 1)
     # since they cancel in the ratio
-    b = covm(x, mx, y, my)/varm(x, mx)
+    b = Statistics.covm(x, mx, y, my)/Statistics.varm(x, mx)
     a = my - b*mx
     return a, b
 end
@@ -42,17 +36,18 @@ slope(x, y) = linreg(x, y)[2]
 
 """
     linear_regions(x, y; dxi::Int = 1, tol = 0.25) -> (lrs, tangents)
+
 Identify regions where the curve `y(x)` is linear, by scanning the
 `x`-axis every `dxi` indices sequentially
-(e.g. at `x[1] to x[5], x[5] to x[10], x[10] to x[15]` and so on if `dxi=5`).
+(e.g. at `x[1]` to `x[5]`, `x[5]` to `x[10]`, `x[10]` to `x[15]` and so on if `dxi=5`).
 
 If the slope (calculated via linear regression) of a region of width `dxi` is
 approximatelly equal to that of the previous region,
 within tolerance `tol`,
 then these two regions belong to the same linear region.
 
-Return the indices of `x` that correspond to linear regions, `lrs`,
-and the _correct_ `tangents` at each region
+Return the indices of `x` that correspond to the linear regions, `lrs`,
+and the correct `tangents` at each region
 (obtained via a second linear regression at each accumulated region).
 """
 function linear_regions(
@@ -61,6 +56,7 @@ function linear_regions(
     )
     @assert length(x) == length(y)
     return if method == :overlap
+        # TODO: Implement this...
         linear_regions_overlap(x, y, dxi, tol)
     elseif method == :sequential
         linear_regions_sequential(x, y, dxi, tol)
@@ -69,40 +65,34 @@ end
 
 function linear_regions_sequential(x, y, dxi, tol)
     maxit = length(x) ÷ dxi
-
-    tangents = Float64[slope(view(x, 1:max(dxi, 2)), view(y, 1:max(dxi, 2)))]
-
-    prevtang = tangents[1]
+    prevtang = slope(view(x, 1:max(dxi, 2)), view(y, 1:max(dxi, 2)))
     lrs = Int[1] #start of first linear region is always 1
     lastk = 1
 
     # Start loop over all partitions of `x` into `dxi` intervals:
     for k in 1:maxit-1
-        tang = slope(view(x, k*dxi:(k+1)*dxi), view(y, k*dxi:(k+1)*dxi))
+        r = k*dxi:(k+1)*dxi
+        tang = slope(view(x, r), view(y, r))
         if isapprox(tang, prevtang, rtol=tol, atol = 0)
             # Tanget is similar with initial previous one (based on tolerance)
             continue
         else
-            # Tangent is not similar.
-            # Push new tangent for a new linear region
-            push!(tangents, tang)
-
+            # Tangent is not similar enougn
             # Set the START of a new linear region
             # which is also the END of the previous linear region
             push!(lrs, k*dxi)
             lastk = k
+            # Set new previous tangent (only if it was not the same as current)
+            prevtang = tang
         end
-
-        # Set new previous tangent (only if it was not the same as current)
-        prevtang = tang
     end
+    # final linear region always ends here:
     push!(lrs, length(x))
+    # Reformat into ranges
+    lranges = [lrs[i]:lrs[i+1] for i in 1:length(lrs)-1]
     # create new tangents that do have linear regression weighted
-    tangents = Float64[]
-    for i in 1:length(lrs)-1
-        push!(tangents, linreg(view(x, lrs[i]:lrs[i+1]), view(y ,lrs[i]:lrs[i+1]))[2])
-    end
-    return lrs, tangents
+    tangents = [slope(view(x, r), view(y, r)) for r in lranges]
+    return lranges, tangents
 end
 
 """
@@ -136,25 +126,25 @@ function linear_region(x::AbstractVector, y::AbstractVector;
         end
     end
 
-    lrs, tangents = linear_regions(x,y; dxi, tol)
+    lregions, tangents = linear_regions(x, y; dxi, tol)
     # Find biggest linear region:
-    j = findmax(diff(lrs))[2]
-    if lrs[j+1] - lrs[j] ≤ length(x)÷3 && warning
+    j = findmax(length, lregions)[2]
+    if length(lregions[j]) ≤ length(x)÷3 - isat && warning
         @warn "Found linear region spans less than a 3rd of the available x-axis "*
               "and might imply inaccurate slope or insufficient data. "*
               "Recommended: plot `x` vs `y`."
     end
-    return (lrs[j] + isat, lrs[j+1] + isat), tangents[j]
+    return lregions[j] .+ isat, tangents[j]
 end
 
 #####################################################################################
 # Autotomatic estimation for proper `ε` from a Dataset
 #####################################################################################
 """
-    estimate_boxsizes(A::Dataset; kwargs...) → εs
+    estimate_boxsizes(X::AbstractDataset; kwargs...) → εs
 Return `k` exponentially spaced values: `εs = base .^ range(lower + w, upper + z; length = k)`,
 that are a good estimate for sizes ε that are used in calculating a [Fractal Dimension](@ref).
-It is strongly recommended to [`regularize`](@ref) input dataset `A` before using this
+It is strongly recommended to [`standardize`](@ref) input dataset before using this
 function.
 
 Let `d₋` be the minimum pair-wise distance in `A` and `d₊` the average total length of `A`
@@ -166,7 +156,7 @@ distance.
 
 ## Keywords
 * `w = 1, z = -1, k = 20` : as explained above.
-* `base = 2` : the base used in the `log` function.
+* `base = MathConstants.e` : the base used in the `log` function.
 * `warning = true`: Print some warnings for bad estimates.
 * `autoexpand = true`: If the final estimated range does not cover at least 2 orders of
   magnitude, it is automatically expanded by setting `w -= we` and `z -= ze`.
@@ -174,12 +164,12 @@ distance.
 """
 function estimate_boxsizes(
         A::AbstractDataset;
-        k::Int = 20, z = -1, w = 1, base = 2,
+        k::Int = 20, z = -1, w = 1, base = MathConstants.e,
         warning = true, autoexpand = true, ze = z, we = w
     )
 
     mi, ma = minmaxima(A)
-    max_d = mean(ma - mi)
+    max_d = Statistics.mean(ma - mi)
     min_d, _ = minimum_pairwise_distance(A)
     if min_d == 0 && warning
         @warn(
@@ -213,19 +203,19 @@ function estimate_boxsizes(
 end
 
 
-using Neighborhood
+import Neighborhood
 """
     minimum_pairwise_distance(A::Dataset, metric = Euclidean())
 Return `min_d, min_pair`: the minimum pairwise distance
 of all points in the dataset, and the corresponding point pair.
 """
 function minimum_pairwise_distance(A::AbstractDataset, metric = Euclidean())
-    tree = KDTree(A, metric)
+    tree = Neighborhood.KDTree(A, metric)
     min_d = eltype(A[1])(Inf)
     min_pair = (0, 0)
-    theiler = Theiler(0)
-    for (i, a) in enumerate(A)
-        inds, dists = Neighborhood.knn(tree, a, 1, theiler(i); sortds=false)
+    theiler = Neighborhood.Theiler(0)
+    for i in eachindex(A)
+        inds, dists = Neighborhood.knn(tree, A[i], 1, theiler(i); sortds=false)
         ind, dist = inds[1], dists[1]
         if dist < min_d
             min_d = dist
