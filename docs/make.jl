@@ -1,12 +1,10 @@
 cd(@__DIR__)
 CI = get(ENV, "CI", nothing) == "true" || get(ENV, "GITHUB_TOKEN", nothing) !== nothing
-using ComplexityMeasures # comes from global environment in CI
+using FractalDimensions # comes from global environment in CI
 using Documenter
 using DocumenterTools: Themes
 ENV["JULIA_DEBUG"] = "Documenter"
 using CairoMakie
-using ComplexityMeasures.DelayEmbeddings
-import ComplexityMeasures.Wavelets
 
 # %% JuliaDynamics theme
 # It includes themeing for the HTML build
@@ -32,20 +30,13 @@ Themes.compile(joinpath(@__DIR__, "juliadynamics-dark.scss"), joinpath(@__DIR__,
 # %% Build docs
 ENV["JULIA_DEBUG"] = "Documenter"
 
-ENTROPIES_PAGES = [
+FRACTALDIMENSION_PAGES = [
     "index.md",
-    "probabilities.md",
-    "encodings.md",
-    "entropies.md",
-    "complexity.md",
-    "convenience.md",
-    "examples.md",
-    "devdocs.md",
 ]
 include("style.jl")
 
 makedocs(
-    modules = [ComplexityMeasures, StateSpaceSets],
+    modules = [FractalDimensions, ComplexityMeasures, StateSpaceSets],
     format = Documenter.HTML(
         prettyurls = CI,
         assets = [
@@ -53,16 +44,16 @@ makedocs(
         ],
         collapselevel = 3,
     ),
-    sitename = "ComplexityMeasures.jl",
-    authors = "Kristian Agasøster Haaga, George Datseris",
-    pages = ENTROPIES_PAGES,
+    sitename = "FractalDimensions.jl",
+    authors = "George Datseris",
+    pages = FRACTALDIMENSION_PAGES,
     doctest = false,
     draft = false,
 )
 
 if CI
     deploydocs(
-        repo = "github.com/JuliaDynamics/ComplexityMeasures.jl.git",
+        repo = "github.com/JuliaDynamics/FractalDimensions.jl.git",
         target = "build",
         push_preview = true
     )

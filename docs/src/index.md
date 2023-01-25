@@ -124,3 +124,10 @@ kaplanyorke_dim
 ```@docs
 higuchi_dim
 ```
+
+## Theiler window
+
+The Theiler window is a concept that is useful when finding neighbors in a dataset that is coming from the sampling of a continuous dynamical system.
+Itt tries to eliminate spurious "correlations" (wrongly counted neighbors) due to a potentially dense sampling of the trajectory (e.g. by giving small sampling time in [`trajectory`](@ref)). Typically a good choice for `w` coincides with the choice an optimal delay time, see `DelayEmbeddings.estimate_delay`, for any of the timeseries of the dataset.
+
+For more details, see Chapter 5 of [Nonlinear Dynamics](https://link.springer.com/book/10.1007/978-3-030-91032-7), Datseris & Parlitz, Springer 2022.
