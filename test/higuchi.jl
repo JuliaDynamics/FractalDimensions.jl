@@ -1,4 +1,4 @@
-using ChaosTools
+using FractalDimensions
 using Test
 using Random
 
@@ -12,3 +12,8 @@ x = sin.(range(0, 1000; length = N))
 x = cumsum(randn(Random.MersenneTwister(1234), N))
 Δ = higuchi(x)
 @test Δ ≈ 1.5 atol=1e-2
+
+# Test pure noise (D ≈ 2)
+x = rand(Random.MersenneTwister(1234), N)
+Δ = higuchi(x)
+@test Δ ≈ 2.0 atol=1e-2

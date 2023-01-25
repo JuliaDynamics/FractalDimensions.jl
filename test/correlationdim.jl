@@ -78,7 +78,6 @@ end
     end
 end
 
-
 @testset "Takens best est" begin
     D_C, D_C_95u, D_C_95l = FractalDimensions.takens_best_estimate(A, 0.1)
     test_value(D_C, 1.9, 2.0)
