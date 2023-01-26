@@ -1,32 +1,36 @@
-#=
-This file contains the definition of the generalized dimension and related concepts
-and also uses linear_regions.jl
-=#
+using ComplexityMeasures: Renyi, ValueHistogram, entropy
 export generalized_dim
 
 """
-    generalized_dim(dataset [, sizes]; q = 1, base = MathConstants.e) -> Δ_q
-Return the `q` order generalized dimension of the `dataset`, by calculating
-the [`genentropy`](@ref) for each `ε ∈ sizes`.
+    generalized_dim(X::AbstractDataset [, sizes]; q = 1, base = 2) -> Δ_q
+
+Return the `q` order generalized dimension of the dataset `X`,
+by calculating  its histogram-based Rényi entropy for each `ε ∈ sizes`.
 
 The case of `q = 0` is often called "capacity" or "box-counting" dimension, while
 `q = 1` is the "information" dimension.
 
 ## Description
+
 The returned dimension is approximated by the
-(inverse) power law exponent of the scaling of the [`genentropy`](@ref) ``H_q``
+(inverse) power law exponent of the scaling of the Renyi entropy ``H_q``,
 versus the box size `ε`, where `ε ∈ sizes`:
 
 ```math
-H_q \\sim -\\Delta_q\\log(\\varepsilon)
+H_q \\approx -\\Delta_q\\log_{b}(\\varepsilon)
 ```
+
+``H_q`` is calculated using `entropy`, `Renyi(; base, q)` and the `ValueHistogram`
+probabilities estimator, i.e., by doing a histogram of the data with a given box size.
 
 Calling this function performs a lot of automated steps:
 
   1. A vector of box sizes is decided by calling `sizes = estimate_boxsizes(dataset)`,
      if `sizes` is not given.
-  2. For each element of `sizes` the appropriate entropy is
-     calculated, through `H = genentropy.(Ref(dataset), sizes; q, base)`.
+  2. For each element of `sizes` the appropriate entropy is calculated as
+     ```julia
+     H = [entropy(Renyi(; q, base), ValueHistogram(ε), data) for ε ∈ sizes]
+     ```
      Let `x = -log.(sizes)`.
   3. The curve `H(x)` is decomposed into linear regions,
      using [`linear_regions`](@ref)`(x, h)`.
@@ -37,10 +41,12 @@ Calling this function performs a lot of automated steps:
 
 By doing these steps one by one yourself, you can adjust the keyword arguments
 given to each of these function calls, refining the accuracy of the result.
+The source code of this function is only 3 lines of code.
 """
 function generalized_dim(data::AbstractDataset, sizes = estimate_boxsizes(data);
-        base = Base.MathConstants.e, q = 1.0
+        base = 2, q = 1.0
     )
-    dd = [genentropy(data, ε; q, base) for ε ∈ sizes]
-    return linear_region(-log.(base, sizes), dd)[2]
+    H = [entropy(Renyi(; q, base), ValueHistogram(ε), data) for ε ∈ sizes]
+    x = -log.(base, sizes)
+    return linear_region(x, H)[2]
 end

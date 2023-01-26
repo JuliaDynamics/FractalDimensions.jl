@@ -1,4 +1,4 @@
-export higuchi
+export higuchi_dim
 
 # Super duper inefficient version, but quickly coding it for now.
 # I am certain that there can be algorithmic optimizations, as it feels like
@@ -7,10 +7,12 @@ export higuchi
 # as we do in our fractal dimension paper. Higuchi doesn't describe this.
 
 """
-    higuchi(x::AbstractVector [, ks])
-Calculate the Higuchi dimension[^Higuchi1988] of the graph of `x`.
+    higuchi_dim(x::AbstractVector [, ks])
+
+Estimate the Higuchi dimension[^Higuchi1988] of the graph of `x`.
 
 ## Description
+
 The Higuchi dimension is a number `Δ ∈ [1, 2]` that quantifies the roughness of
 the graph of the function `x(t)`, assuming here that `x` is equi-sampled,
 like in the original paper.
@@ -25,10 +27,10 @@ L_m(k) = \\frac{N-1}{\\lfloor \\frac{N-m}{k} \rfloor k^2}
 L(k) = \\frac{1}{k} \\sum_{m=1}^k L_m(k)
 ```
 and then use [`linear_region`](@ref) in `-log2.(k)` vs `log2.(L)` as per usual
-when computing a [Fractal dimension](@ref).
+when computing a fractal dimension.
 
 The algorithm chooses default `ks` to be exponentially spaced in base-2, up to at most
-exponent 8. A user can provide their own `ks` as a second argument otherwise.
+`2^8`. A user can provide their own `ks` as a second argument otherwise.
 
 Use `ChaosTools.higuchi_length(x, ks)` to obtain ``L(k)`` directly.
 
@@ -36,7 +38,7 @@ Use `ChaosTools.higuchi_length(x, ks)` to obtain ``L(k)`` directly.
     Higuchi, _Approach to an irregular time series on the basis of the fractal theory_,
     [Physica D: Nonlinear Phenomena (1988)](www.doi.org/10.1016/0167-2789(88)90081-4)
 """
-function higuchi(x::AbstractVector, ks = higuchi_default_ks(x))
+function higuchi_dim(x::AbstractVector, ks = higuchi_default_ks(x))
     L = higuchi_length(x, ks)
     return linear_region(-log2.(ks), log2.(L))[2]
 end

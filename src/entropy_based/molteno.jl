@@ -1,24 +1,33 @@
-export molteno_boxing
+export molteno_boxing, molteno_dim
 
-################################################################################
-# Molteno histogram based dimension by boxing values
-################################################################################
 """
-    molteno_boxing(data::Dataset; k0 = 10) → (probs, εs)
-Distribute the `data` into boxes whose size is halved in each step, according to the
+    molteno_dim(X::AbstractDataset; k0::Int = 10, q = 1.0, base = 2)
+
+Return an estimate of the [`generalized_dim`](@ref) of `X` using the
+algorithm by [^Molteno1993]. This function is a simple utilization of the
+probabilities estimated by [`molteno_boxing`](@ref) so see that function for more details.
+Here the entropy of the probabilities is computed at each size, and a line is fitted
+in the entropy vs log(size) graph, just like in [`generalized_dim`](@ref).
+"""
+function molteno_dim(X, k0::Int = 10; q = 1.0, base = 2)
+    probs, εs = molteno_boxing(X; k0)
+    dd = entropy.(Ref(Renyi(;q, base)), probs)
+    return linear_region(-log.(base, εs), dd)[2]
+end
+
+"""
+    molteno_boxing(X::AbstractDataset; k0::Int = 10) → (probs, εs)
+
+Distribute `X` into boxes whose size is halved in each step, according to the
 algorithm by [^Molteno1993]. Division stops if the
 average number of points per filled box falls below the threshold `k0`.
 
 Return `probs`, a vector of [`Probabilities`](@ref) of finding points in boxes for
-different box sizes, and the corresponding box sizes `εs`. These probabilities can be used
-to calculate a fractal dimension like so
-```julia
-probs, εs = molteno_boxing(data; k0)
-dd = genentropy.(probs; q, base)
-Δ = linear_region(-log.(base, εs), dd)[2]
-```
+different box sizes, and the corresponding box sizes `εs`.
+These outputs are used in [`molteno_dim`](@ref).
 
 ## Description
+
 Project the `data` onto the whole interval of numbers that is covered by
 `UInt64`. The projected data is distributed into boxes whose size
 decreases by factor 2 in each step. For each box that contains more than one
@@ -28,7 +37,7 @@ The process of dividing the data into new boxes stops when the number of points
 over the number of filled boxes falls below `k0`. The box sizes `εs` are
 calculated and returned together with the `probs`.
 
-This algorithm is faster than the traditional approach of using `genentropy(data, ε::Real)`,
+This algorithm is faster than the traditional approach of using `ValueHistogram(ε::Real)`,
 but it is only suited for low dimensional data since it divides each
 box into `2^D` new boxes if `D` is the dimension. For large `D` this leads to low numbers of
 box divisions before the threshold is passed and the divison stops. This results
@@ -38,8 +47,8 @@ to a low number of data points to fit the dimension to and thereby a poor estima
     Molteno, T. C. A., [Fast O(N) box-counting algorithm for estimating dimensions.
     Phys. Rev. E 48, R3263(R) (1993)](https://doi.org/10.1103/PhysRevE.48.R3263)
 """
-function molteno_boxing(data::AbstractDataset; k0 = 10)
-    integers, ε0 = real_to_uint64(data)
+function molteno_boxing(X::AbstractDataset; k0 = 10)
+    integers, ε0 = real_to_uint64(X)
     boxes = _molteno_boxing(integers; k0)
     εs = ε0 ./ (2 .^ (1:length(boxes)))
     return boxes, εs
@@ -71,7 +80,7 @@ function real_to_uint64(data::AbstractDataset{D,T}) where {D,T<:Real}
     Dataset(res), ε0
 end
 
-function _molteno_boxing(data::Dataset{D,T}; k0 = 10) where {D,T<:UInt}
+function _molteno_boxing(data::AbstractDataset{D,T}; k0 = 10) where {D,T<:UInt}
     N = length(data)
     box_probs = Vector{Float64}[]
     iteration = 1

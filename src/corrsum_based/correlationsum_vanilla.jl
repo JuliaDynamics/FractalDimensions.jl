@@ -1,13 +1,41 @@
 import ProgressMeter
-using Distances
-#######################################################################################
-# Original correlation sum
-#######################################################################################
-export correlationsum, boxed_correlationsum,
-estimate_r0_buenoorovio, data_boxing, autoprismdim, estimate_r0_theiler
+using Distances: evaluate, Euclidean
+
+export correlationsum, boxed_correlationsum
+export grassberger_proccacia_dim
 
 """
-    correlationsum(X, ε; w = 0, norm = Euclidean(), q = 2) → C_q(ε)
+    grassberger_proccacia_dim(X::AbstractDataset, εs = estimate_boxsizes(data); kwargs...)
+
+Use the method of Grassberger and Proccacia[^Grassberger1983], and the correction by
+Theiler[^Theiler1986], to estimate the correlation dimension `Δ_C` of  `X`.
+
+This function does something extremely simple:
+```julia
+cm = correlationsum(data, εs; kwargs...)
+Δ_C = linear_region(log2.(sizes), log2.(cm))[2]
+```
+i.e. it calculates [`correlationsum`](@ref) for various radii and then tries to find
+a linear region in the plot of the log of the correlation sum versus log(ε).
+
+See [`correlationsum`](@ref) for the available keywords.
+See also [`takens_best_estimate`](@ref), [`boxassisted_correlation_dim`](@ref).
+
+[^Grassberger1983]:
+    Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
+    ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
+[^Theiler1986]:
+    Theiler, [Spurious dimension from correlation algorithms applied to limited time-series
+    data. Physical Review A, 34](https://doi.org/10.1103/PhysRevA.34.2427)
+"""
+function grassberger_proccacia_dim(X::AbstractDataset, εs = estimate_boxsizes(data); kwargs...)
+    cm = correlationsum(X, εs; kwargs...)
+    return linear_region(log2.(εs), log2.(cm))[2]
+end
+
+
+"""
+    correlationsum(X, ε::Real; w = 0, norm = Euclidean(), q = 2) → C_q(ε)
 Calculate the `q`-order correlation sum of `X` (`Dataset` or timeseries)
 for a given radius `ε` and `norm`. They keyword `show_progress = true` can be used
 to display a progress bar for large `X`.
@@ -15,12 +43,13 @@ to display a progress bar for large `X`.
     correlationsum(X, εs::AbstractVector; w, norm, q) → C_q(ε)
 
 If `εs` is a vector, `C_q` is calculated for each `ε ∈ εs` more efficiently.
-If also `q=2`, we attempt to do further optimizations, if the allocation
+If also `q=2`, we attempt to do further optimizations, if the allocation of
 a matrix of size `N×N` is possible.
 
 The function [`boxed_correlationsum`](@ref) is faster and should be preferred over this one.
 
 ## Description
+
 The correlation sum is defined as follows for `q=2`:
 ```math
 C_2(\\epsilon) = \\frac{2}{(N-w)(N-w-1)}\\sum_{i=1}^{N}\\sum_{j=1+w+i}^{N}
@@ -37,13 +66,11 @@ where
 ```
 with ``N`` the length of `X` and ``B`` gives 1 if its argument is
 `true`. `w` is the [Theiler window](@ref).
+
 See the article of Grassberger for the general definition [^Grassberger2007] and
 the book "Nonlinear Time Series Analysis" [^Kantz2003], Ch. 6, for
 a discussion around choosing best values for `w`, and Ch. 11.3 for the
 explicit definition of the q-order correlationsum.
-
-The scaling of ``\\log C_q`` versus ``\\log \\epsilon`` approximates the q-order
-generalized (Rényi) dimension.
 
 [^Grassberger2007]:
     Peter Grassberger (2007) [Grassberger-Procaccia algorithm. Scholarpedia,

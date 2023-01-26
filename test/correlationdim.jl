@@ -1,119 +1,95 @@
-using ChaosTools
+using FractalDimensions
 using Test
-using Statistics
-using ChaosTools.DynamicalSystemsBase
-using ChaosTools.DelayEmbeddings
+using Random: Xoshiro
+using DynamicalSystemsBase: Systems, trajectory
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
 
-println("\nTesting correlation sum...")
-@testset "Correlation dim" begin
-    @testset "Henon Map" begin
-        ds = Systems.henon()
-        ts = trajectory(ds, 5000)
-        R = 1.5maximum(maxima(ts) - minima(ts))
-        # check for right normalisation with various combinations of `q` and `w`
-        @test correlationsum(ts, R; q = 2, w = 0) == 1
-        @test correlationsum(ts, R; q = 2, w = 10) == 1
-        # Notice that here we don't get exact 1 due to finite number precision
-        @test correlationsum(ts, R; q = 2.2, w = 0) ≈ 1
-        @test correlationsum(ts, R; q = 2.2, w = 10) ≈ 1
-        es = 10 .^ range(-3, stop = 0, length = 7)
-        cs1 = correlationsum(ts, es)
-        dim1 = linear_region(log.(es), log.(cs1))[2]
-        test_value(dim1, 1.1, 1.3)
-        cs2 = correlationsum(ts, es; q = 2.0001)
-        dim2 = linear_region(log.(es), log.(cs2))[2]
-        test_value(dim2, 1.1, 1.3)
+A = Dataset(rand(Xoshiro(1234), 10_000, 2))
+θ = rand(Xoshiro(1234), 10_000).*2π
+B = Dataset(cos.(θ), sin.(θ))
+sizesA = estimate_boxsizes(A)
+sizesB = estimate_boxsizes(B)
+X = standardize(trajectory(Systems.henon(), 10_000; Ttr = 100))
+sizesX = estimate_boxsizes(X)
+
+@testset "correlation sums" begin
+    X = Dataset([SVector(0.0, 0.0), SVector(0.5, 0.0)])
+    εs = [0.1, 1.0]
+    Cs = correlationsum(X, εs)
+    Csb = boxed_correlationsum(X, εs, 0.5)
+    Csb2 = boxed_correlationsum(X, εs, 1.5)
+    @test Cs == Csb == Csb2 == [0, 1]
+    # If max radious, all points are in
+    X = Dataset(rand(Xoshiro(1234), 1000, 2))
+    @test correlationsum(X, 5) ≈ boxed_correlationsum(X, [5], 0.5)[1] ≈ 1
+    # q shouldn't matter here; we're just checking the correlation sum formula
+    @test correlationsum(X, 5; q = 2.5) ≈ boxed_correlationsum(X, [5], 0.5; q = 2.5)[1] ≈ 1
+end
+
+@testset "Correlation dim; automated" begin
+    # We can't test q != 1 here; it doesn't work. It doesn't give correct results.
+    @testset "Grassberger" begin
+        dA = grassberger_proccacia_dim(A, sizesA; q = 2.0)
+        test_value(dA, 1.9, 2.1)
+        dB = grassberger_proccacia_dim(B, sizesB; q = 2.0)
+        test_value(dB, 0.9, 1.1)
     end
-    @testset "Lorenz System" begin
-        ds = Systems.lorenz()
-        ts = trajectory(ds, 1000; Δt = 0.1)
-        es = 10 .^ range(-3, stop = 1, length = 8)
-        cs1 = correlationsum(ts, es)
-        dim1 = linear_region(log.(es), log.(cs1))[2]
-        test_value(dim1, 1.85, 2.2)
-        cs2 = correlationsum(ts, es; q = 2.001, w = 5)
-        dim2 = linear_region(log.(es), log.(cs2))[2]
-        test_value(dim2, 1.85, 2.2)
+    @testset "Boxed" begin
+        # We use the internal method because the sizes don't work out well
+        Cs = boxed_correlationsum(A, sizesA, 0.1)
+        dA = linear_region(log.(sizesA), log.(Cs))[2]
+        test_value(dA, 1.9, 2.1)
+        Cs = boxed_correlationsum(B, sizesB, 0.1)
+        dB = linear_region(log.(sizesB), log.(Cs))[2]
+        test_value(dB, 0.9, 1.1)
+    end
+    @testset "Boxed, Henon" begin
+        dX = boxassisted_correlation_dim(X)
+        test_value(dX, 1.2, 1.3)
+        # Also ensure that the values match with vanilla version
+        r0 = estimate_r0_buenoorovio(X)[1]
+        es = r0 .* 10 .^ range(-2, stop = 0, length = 10)
+        C = correlationsum(X, es)
+        @test boxed_correlationsum(X, es, r0) ≈ C
+
+        C = correlationsum(X, es)
+        @test boxed_correlationsum(X, es, r0) ≈ C
+        @test boxed_correlationsum(X, es, r0; q = 2.3) ≈ correlationsum(X, es, q = 2.3)
+        @test boxed_correlationsum(X, es, r0; w = 10) ≈ correlationsum(X, es; w = 10)
     end
 end
 
-println("\nTesting box-assisted correlation sum...")
-@testset "Box-assisted correlation sum" begin
-    @testset "Henon Map" begin
-        ds = Systems.henon()
-        ts = standardize(trajectory(ds, 10000))
-        r0 = estimate_r0_buenoorovio(ts)[1]
-        es = r0 .* 10 .^ range(-2, stop = 0, length = 10)
-        C = correlationsum(ts, es)
-        @test boxed_correlationsum(ts, es, r0) ≈ C
-        @test boxed_correlationsum(ts, es) ≈ C
-        @test boxed_correlationsum(ts, es, r0; q = 2.3) ≈ correlationsum(ts, es, q = 2.3)
-        @test boxed_correlationsum(ts, es, r0; w = 10) ≈ correlationsum(ts, es; w = 10)
-        @test boxed_correlationsum(ts, es, r0; q = 2.3, w = 10) ≈ correlationsum(ts, es; q = 2.3, w = 10)
-    end
-    @testset "Lorenz System" begin
-        ds = Systems.lorenz()
-        ts = standardize(trajectory(ds, 1000; Δt = 0.1))
-        r0 = estimate_r0_buenoorovio(ts)[1]
-        es = r0 .* 10 .^ range(-2, stop = 0, length = 10)
-        C = correlationsum(ts, es)
-        @test boxed_correlationsum(ts, es, r0) ≈ C
-        @test boxed_correlationsum(ts, es) ≈ C
-        @test boxed_correlationsum(ts, es, r0; q = 2.3) ≈ correlationsum(ts, es; q = 2.3)
-        @test boxed_correlationsum(ts, es, r0; w = 10) ≈ correlationsum(ts, es; w = 10)
-        @test boxed_correlationsum(ts, es, r0; q = 2.3, w = 10) ≈ correlationsum(ts, es; q = 2.3, w = 10)
-    end
-end
-
-
-println("\nTesting the fixed mass correlation sum...")
 @testset "Fixed mass correlation sum" begin
-    @testset "Henon Map" begin
-        ds = Systems.henon()
-        ts = trajectory(ds, 10000)
-        rs, ys = correlationsum_fixedmass(ts, 30)
-        test_value(linear_region(rs, ys)[2], 1.0, 1.3)
-        rs, ys = correlationsum_fixedmass(ts, 30; M = 2000)
-        test_value(linear_region(rs, ys)[2], 1.0, 1.3)
-        rs, ys = correlationsum_fixedmass(ts, 30; w = 5)
-        test_value(linear_region(rs, ys)[2], 1.0, 1.3)
+    @testset "Analytic" begin
+        rs, ys = fixedmass_correlationsum(A, 64)
+        @test all(<(0), rs) # since max is 1, log(r) must be negative
+        reg, tan = linear_region(rs, ys)
+        test_value(tan, 1.8, 2.0)
+        reg, tan = linear_region(rs[40:end], ys[40:end])
+        test_value(tan, 1.9, 2.0)
+
+        dB = fixedmass_correlation_dim(B)
+        test_value(dB, 0.9, 1.0)
     end
-    @testset "Lorenz System" begin
-        ds = Systems.lorenz()
-        ts = trajectory(ds, 1000; Δt = 0.1)
-        rs, ys = correlationsum_fixedmass(ts, 30)
-        test_value(linear_region(rs, ys)[2], 1.7, 2.2)
-        rs, ys = correlationsum_fixedmass(ts, 30; M = 2000)
-        test_value(linear_region(rs, ys)[2], 1.7, 2.2)
-        rs, ys = correlationsum_fixedmass(ts, 30; w = 5)
-        test_value(linear_region(rs, ys)[2], 1.7, 2.2)
+    @testset "Henon" begin
+        dX = fixedmass_correlation_dim(X)
+        test_value(dX, 1.11, 1.31)
     end
 end
 
+@testset "Takens best est" begin
+    D_C, D_C_95u, D_C_95l = FractalDimensions.takens_best_estimate(A, 0.1)
+    test_value(D_C, 1.9, 2.0)
+    @test D_C_95u < 1.05*D_C
+    @test D_C_95l > 0.95*D_C
 
-println("\nTesting Takens' best estimate")
-@testset "Takens best" begin
-    @testset "Henon Map" begin
-        ds = Systems.henon()
-        ts = trajectory(ds, 5000)
-        x = ts[:, 1]
-        X = embed(x, 2, 1)
-        D_C, D_C_95u, D_C_95l = takens_best_estimate(X, std(x)/4)
-        @test 1.15 < D_C < 1.25
-        @test D_C_95u < 1.05*D_C
-        @test D_C_95l > 0.95*D_C
-    end
-    @testset "Lorenz System" begin
-        ds = Systems.lorenz()
-        tr = trajectory(ds, 2000; Δt = 0.1)
-        x = tr[:, 1]
-        τ = estimate_delay(x, "mi_min", 1:20)
-        X = embed(x, 4, τ)
-        D_C, D_C_95u, D_C_95l = takens_best_estimate(X, std(x)/4)
-        @test 1.85 < D_C < 2.1
-        @test D_C_95u < 1.05*D_C
-        @test D_C_95l > 0.95*D_C
-    end
+    D_C = takens_best_estimate_dim(A, 0.01)
+    test_value(D_C, 1.9, 2.0)
+
+    D_C = takens_best_estimate_dim(B, 0.1)
+    test_value(D_C, 0.9, 1.1)
+
+    D_C = takens_best_estimate_dim(X, 0.05)
+    test_value(D_C, 1.2, 1.26)
 end

@@ -6,5 +6,6 @@ testfile(file, testname=defaultname(file)) = @testset "$testname" begin; include
 @testset "FractalDimensions" begin
     include("entropydim.jl")
     include("correlationdim.jl")
-    include("higuchi.jl")
+    include("roughness.jl")
+    include("misc.jl")
 end
