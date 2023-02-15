@@ -14,7 +14,7 @@ To install it, run `import Pkg; Pkg.add("FractalDimensions")`.
 
 All further information is provided in the documentation, which you can either find [online](https://juliadynamics.github.io/FractalDimensions.jl/dev/) or build locally by running the `docs/make.jl` file.
 
-_Previously, this package was part of ChaosTools.jl._
+_Previously, this package was part of ChaosTools.jl. It also reexports ComplexityMeasures.jl._
 
 
 ## Citation
