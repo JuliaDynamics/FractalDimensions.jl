@@ -3,7 +3,7 @@ export boxed_correlationsum, boxassisted_correlation_dim
 export estimate_r0_buenoorovio, autoprismdim, estimate_r0_theiler
 
 """
-    boxassisted_correlation_dim(X::AbstractDataset; kwargs...)
+    boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
 
 Use the box-assisted optimizations of [^Bueno2007]
 to estimate the correlation dimension `Δ_C` of `X`.
@@ -21,7 +21,7 @@ and hence see [`boxed_correlationsum`](@ref) for more information and available 
     computing the correlation dimension. Chaos Solitons & Fractrals, 34(5)
     ](https://doi.org/10.1016/j.chaos.2006.03.043)
 """
-function boxassisted_correlation_dim(X::AbstractDataset; kwargs...)
+function boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
     εs, Cs = boxed_correlationsum(X; kwargs...)
     return linear_region(log2.(εs), log2.(Cs))[2]
 end
@@ -30,7 +30,7 @@ end
 # Boxed Correlation sum (we distribute data to boxes beforehand)
 ################################################################################
 """
-    boxed_correlationsum(X::AbstractDataset, εs, r0 = maximum(εs); kwargs...) → Cs
+    boxed_correlationsum(X::AbstractStateSpaceSet, εs, r0 = maximum(εs); kwargs...) → Cs
 
 Estimate the box assisted q-order correlation sum `Cs` out of a
 dataset `X` for each radius in `εs`, by splitting the data into boxes of size `r0`
@@ -41,7 +41,7 @@ Good choices for `r0` are [`estimate_r0_buenoorovio`](@ref) and
 
 See [`correlationsum`](@ref) for the definition of the correlation sum.
 
-    boxed_correlationsum(X::AbstractDataset; kwargs...) → εs, Cs
+    boxed_correlationsum(X::AbstractStateSpaceSet; kwargs...) → εs, Cs
 
 In this method the minimum inter-point distance and [`estimate_r0_buenoorovio`](@ref)
 of `X` are used to estimate good `εs` for the calculation, which are also returned.
@@ -156,7 +156,7 @@ function data_boxing(X, r0, P)
     end
     push!(contents, permutations[prior:end])
 
-    Dataset(boxes), contents
+    StateSpaceSet(boxes), contents
 end
 
 """
@@ -326,7 +326,7 @@ end
 #######################################################################################
 using Statistics: mean
 """
-    estimate_r0_theiler(X::AbstractDataset) → r0, ε0
+    estimate_r0_theiler(X::AbstractStateSpaceSet) → r0, ε0
 Estimate a reasonable size for boxing the data `X` before calculating the
 [`boxed_correlationsum`](@ref) proposed by Theiler[^Theiler1987].
 Return the boxing size `r0` and minimum inter-point distance in `X`, `ε0`.
@@ -352,7 +352,7 @@ function estimate_r0_theiler(data)
     mini, maxi = minmaxima(data)
     R = mean(maxi .- mini)
     # Sample √N datapoints for a rough estimate of the dimension.
-    data_sample = data[unique(rand(1:N, ceil(Int, sqrt(N))))] |> Dataset
+    data_sample = data[unique(rand(1:N, ceil(Int, sqrt(N))))] |> StateSpaceSet
     # Define radii for the rough dimension estimate
     min_d, _ = minimum_pairwise_distance(data)
     if min_d == 0
@@ -372,7 +372,7 @@ function estimate_r0_theiler(data)
 end
 
 """
-    estimate_r0_buenoorovio(X::AbstractDataset, P = autoprismdim(X)) → r0, ε0
+    estimate_r0_buenoorovio(X::AbstractStateSpaceSet, P = autoprismdim(X)) → r0, ε0
 
 Estimate a reasonable size for boxing `X`, proposed by
 Bueno-Orovio and Pérez-García[^Bueno2007], before calculating the correlation
@@ -431,13 +431,13 @@ function estimate_r0_buenoorovio(X, P = autoprismdim(X))
     end
 
     # Sample N/10 datapoints out of data for rough estimate of effective size.
-    sample1 = X[unique(rand(1:N, N÷10))] |> Dataset
+    sample1 = X[unique(rand(1:N, N÷10))] |> StateSpaceSet
     r_ℓ = R / 10
     η_ℓ = length(data_boxing(sample1, r_ℓ, P)[1])
     r0 = zero(eltype(X))
     while true
         # Sample √N datapoints for rough dimension estimate
-        sample2 = X[unique(rand(1:N, ceil(Int, sqrt(N))))] |> Dataset
+        sample2 = X[unique(rand(1:N, ceil(Int, sqrt(N))))] |> StateSpaceSet
         # Define logarithmic series of radii.
         εs = 10.0 .^ range(log10(min_d), log10(R); length = 16)
         # Estimate ν from a sample using the Grassberger Procaccia algorithm.

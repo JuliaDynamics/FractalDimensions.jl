@@ -2,7 +2,7 @@ using ComplexityMeasures: Renyi, ValueHistogram, entropy
 export generalized_dim
 
 """
-    generalized_dim(X::AbstractDataset [, sizes]; q = 1, base = 2) -> Δ_q
+    generalized_dim(X::AbstractStateSpaceSet [, sizes]; q = 1, base = 2) -> Δ_q
 
 Return the `q` order generalized dimension of the dataset `X`,
 by calculating  its histogram-based Rényi entropy for each `ε ∈ sizes`.
@@ -43,7 +43,7 @@ By doing these steps one by one yourself, you can adjust the keyword arguments
 given to each of these function calls, refining the accuracy of the result.
 The source code of this function is only 3 lines of code.
 """
-function generalized_dim(data::AbstractDataset, sizes = estimate_boxsizes(data);
+function generalized_dim(data::AbstractStateSpaceSet, sizes = estimate_boxsizes(data);
         base = 2, q = 1.0
     )
     H = [entropy(Renyi(; q, base), ValueHistogram(ε), data) for ε ∈ sizes]

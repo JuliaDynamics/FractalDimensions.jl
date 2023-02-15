@@ -11,9 +11,9 @@ function quickentropy(x, e; q = 1)
 end
 
 @testset "analytic sets" begin
-    A = Dataset(rand(Xoshiro(1234), 100_000, 2))
+    A = StateSpaceSet(rand(Xoshiro(1234), 100_000, 2))
     θ = rand(Xoshiro(1234), 100_000).*2π
-    B = Dataset(cos.(θ), sin.(θ))
+    B = StateSpaceSet(cos.(θ), sin.(θ))
     sizesA = estimate_boxsizes(A)
     sizesB = estimate_boxsizes(B)
 

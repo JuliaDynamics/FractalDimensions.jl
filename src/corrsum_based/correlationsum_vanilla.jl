@@ -5,7 +5,7 @@ export correlationsum, boxed_correlationsum
 export grassberger_proccacia_dim
 
 """
-    grassberger_proccacia_dim(X::AbstractDataset, εs = estimate_boxsizes(data); kwargs...)
+    grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(data); kwargs...)
 
 Use the method of Grassberger and Proccacia[^Grassberger1983], and the correction by
 Theiler[^Theiler1986], to estimate the correlation dimension `Δ_C` of  `X`.
@@ -28,7 +28,7 @@ See also [`takens_best_estimate`](@ref), [`boxassisted_correlation_dim`](@ref).
     Theiler, [Spurious dimension from correlation algorithms applied to limited time-series
     data. Physical Review A, 34](https://doi.org/10.1103/PhysRevA.34.2427)
 """
-function grassberger_proccacia_dim(X::AbstractDataset, εs = estimate_boxsizes(data); kwargs...)
+function grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(data); kwargs...)
     cm = correlationsum(X, εs; kwargs...)
     return linear_region(log2.(εs), log2.(cm))[2]
 end
@@ -36,7 +36,7 @@ end
 
 """
     correlationsum(X, ε::Real; w = 0, norm = Euclidean(), q = 2) → C_q(ε)
-Calculate the `q`-order correlation sum of `X` (`Dataset` or timeseries)
+Calculate the `q`-order correlation sum of `X` (`StateSpaceSet` or timeseries)
 for a given radius `ε` and `norm`. They keyword `show_progress = true` can be used
 to display a progress bar for large `X`.
 

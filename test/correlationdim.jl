@@ -5,23 +5,23 @@ using DynamicalSystemsBase: Systems, trajectory
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
 
-A = Dataset(rand(Xoshiro(1234), 10_000, 2))
+A = StateSpaceSet(rand(Xoshiro(1234), 10_000, 2))
 θ = rand(Xoshiro(1234), 10_000).*2π
-B = Dataset(cos.(θ), sin.(θ))
+B = StateSpaceSet(cos.(θ), sin.(θ))
 sizesA = estimate_boxsizes(A)
 sizesB = estimate_boxsizes(B)
 X = standardize(trajectory(Systems.henon(), 10_000; Ttr = 100))
 sizesX = estimate_boxsizes(X)
 
 @testset "correlation sums" begin
-    X = Dataset([SVector(0.0, 0.0), SVector(0.5, 0.0)])
+    X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.0)])
     εs = [0.1, 1.0]
     Cs = correlationsum(X, εs)
     Csb = boxed_correlationsum(X, εs, 0.5)
     Csb2 = boxed_correlationsum(X, εs, 1.5)
     @test Cs == Csb == Csb2 == [0, 1]
     # If max radious, all points are in
-    X = Dataset(rand(Xoshiro(1234), 1000, 2))
+    X = StateSpaceSet(rand(Xoshiro(1234), 1000, 2))
     @test correlationsum(X, 5) ≈ boxed_correlationsum(X, [5], 0.5)[1] ≈ 1
     # q shouldn't matter here; we're just checking the correlation sum formula
     @test correlationsum(X, 5; q = 2.5) ≈ boxed_correlationsum(X, [5], 0.5; q = 2.5)[1] ≈ 1
