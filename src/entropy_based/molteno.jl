@@ -1,7 +1,7 @@
 export molteno_boxing, molteno_dim
 
 """
-    molteno_dim(X::AbstractDataset; k0::Int = 10, q = 1.0, base = 2)
+    molteno_dim(X::AbstractStateSpaceSet; k0::Int = 10, q = 1.0, base = 2)
 
 Return an estimate of the [`generalized_dim`](@ref) of `X` using the
 algorithm by [^Molteno1993]. This function is a simple utilization of the
@@ -16,7 +16,7 @@ function molteno_dim(X, k0::Int = 10; q = 1.0, base = 2)
 end
 
 """
-    molteno_boxing(X::AbstractDataset; k0::Int = 10) → (probs, εs)
+    molteno_boxing(X::AbstractStateSpaceSet; k0::Int = 10) → (probs, εs)
 
 Distribute `X` into boxes whose size is halved in each step, according to the
 algorithm by [^Molteno1993]. Division stops if the
@@ -47,7 +47,7 @@ to a low number of data points to fit the dimension to and thereby a poor estima
     Molteno, T. C. A., [Fast O(N) box-counting algorithm for estimating dimensions.
     Phys. Rev. E 48, R3263(R) (1993)](https://doi.org/10.1103/PhysRevE.48.R3263)
 """
-function molteno_boxing(X::AbstractDataset; k0 = 10)
+function molteno_boxing(X::AbstractStateSpaceSet; k0 = 10)
     integers, ε0 = real_to_uint64(X)
     boxes = _molteno_boxing(integers; k0)
     εs = ε0 ./ (2 .^ (1:length(boxes)))
@@ -55,12 +55,12 @@ function molteno_boxing(X::AbstractDataset; k0 = 10)
 end
 
 """
-    real_to_uint64(data::Dataset{D,T}) where {D, T}
+    real_to_uint64(data::StateSpaceSet{D,T}) where {D, T}
 Calculate maximum and minimum value of `data` to then project the values onto
 ``[0, M - ε(M)]`` where ``\\epsilon`` is the
 precision of the used Type and ``M`` is the maximum value of the UInt64 type.
 """
-function real_to_uint64(data::AbstractDataset{D,T}) where {D,T<:Real}
+function real_to_uint64(data::AbstractStateSpaceSet{D,T}) where {D,T<:Real}
     N = length(data)
     # The maximum value needs to be smaller than the absolute typemax due to
     # the 12 bits used by the float type for sign and exponent.
@@ -77,10 +77,10 @@ function real_to_uint64(data::AbstractDataset{D,T}) where {D,T<:Real}
         int_val = floor.(UInt64, m .* x .+ b)
         push!(res, int_val)
     end
-    Dataset(res), ε0
+    StateSpaceSet(res), ε0
 end
 
-function _molteno_boxing(data::AbstractDataset{D,T}; k0 = 10) where {D,T<:UInt}
+function _molteno_boxing(data::AbstractStateSpaceSet{D,T}; k0 = 10) where {D,T<:UInt}
     N = length(data)
     box_probs = Vector{Float64}[]
     iteration = 1
@@ -114,7 +114,7 @@ using cheap bit shifting and `&` operations on the value of `data` at each box
 element. `iteration` determines which bit of the array should be shifted to the
 last position.
 """
-function molteno_subboxes(box, data::AbstractDataset{D,UInt64}, iteration) where {D}
+function molteno_subboxes(box, data::AbstractStateSpaceSet{D,UInt64}, iteration) where {D}
     new_boxes = [UInt64[] for i in 1:2^D]
     index_multipliers = [2^i for i in 0:D-1]
     sorting_number = 64-iteration

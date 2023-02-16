@@ -7,8 +7,10 @@ module FractalDimensions
     read(path, String)
 end FractalDimensions
 
-using Reexport
-@reexport using ComplexityMeasures
+using StateSpaceSets
+export StateSpaceSet
+using ComplexityMeasures
+export entropy, Shannon, Renyi, ValueHistogram
 
 include("linear_regions.jl")
 

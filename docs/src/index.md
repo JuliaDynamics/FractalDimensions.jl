@@ -25,16 +25,21 @@ To actually find $\Delta$, one needs to find a linearly scaling region in the gr
 In this simplest example we will calculate the fractal dimension of the [chaotic attractor of the Hénon map](https://en.wikipedia.org/wiki/H%C3%A9non_map) (for default parameters).
 
 ```@example MAIN
-using DynamicalSystemsBase: Systems, trajectory
+using DynamicalSystemsBase: DeterministicIteratedMap, trajectory
 using CairoMakie
-he = Systems.henon()
-X = trajectory(he, 100_000; Ttr = 100)
+
+henon_rule(x, p, n) = SVector(1.0 - p[1]*x[1]^2 + x[2], p[2]*x[1])
+u0 = zeros(2)
+p0 = [1.4, 0.3]
+henon = DeterministicIteratedMap(henon_rule, u0, p0)
+
+X, t = trajectory(henon, 100_000; Ttr = 100)
 scatter(X[:, 1], X[:, 2]; color = ("black", 0.01), markersize = 4)
 ```
 
-Our goal is to compute entropies of the histogram of the above plot for many different partition sizes (bin widths) `ε`. Computing entropies is the job of [ComplexityMeasures.jl](@ref), but that package is re-exported by FractalDimensions.jl.
+Our goal is to compute entropies of the histogram of the above plot for many different partition sizes (bin widths) `ε`. Computing entropies is the job of [ComplexityMeasures.jl](https://github.com/JuliaDynamics/ComplexityMeasures.jl), but the two relevant names (`entropy, ValueHistogram`) are re-exported by FractalDimensions.jl.
 ```@example MAIN
-using FractalDimensions # re-exports ComplexityMeasures
+using FractalDimensions
 ες = 2 .^ (-15:0.5:5) # semi-random guess
 Hs = [entropy(ValueHistogram(ε), X) for ε in ες]
 ```
@@ -58,7 +63,7 @@ end
 fig
 ```
 
-The [`linear_region`](@ref) function computes the slope of the largest region:
+The [`linear_region`](@ref) function finds, and computes the slope of, the largest region:
 
 ```@example MAIN
 Δ = linear_region(xs, Hs)[2]
@@ -128,6 +133,6 @@ higuchi_dim
 ## Theiler window
 
 The Theiler window is a concept that is useful when finding neighbors in a dataset that is coming from the sampling of a continuous dynamical system.
-Itt tries to eliminate spurious "correlations" (wrongly counted neighbors) due to a potentially dense sampling of the trajectory (e.g. by giving small sampling time in [`trajectory`](@ref)). Typically a good choice for `w` coincides with the choice an optimal delay time, see `DelayEmbeddings.estimate_delay`, for any of the timeseries of the dataset.
+Itt tries to eliminate spurious "correlations" (wrongly counted neighbors) due to a potentially dense sampling of the trajectory. Typically a good choice for `w` coincides with the choice an optimal delay time, see `DelayEmbeddings.estimate_delay`, for any of the timeseries of the dataset.
 
 For more details, see Chapter 5 of [Nonlinear Dynamics](https://link.springer.com/book/10.1007/978-3-030-91032-7), Datseris & Parlitz, Springer 2022.

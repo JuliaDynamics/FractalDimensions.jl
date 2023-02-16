@@ -32,7 +32,7 @@ when computing a fractal dimension.
 The algorithm chooses default `ks` to be exponentially spaced in base-2, up to at most
 `2^8`. A user can provide their own `ks` as a second argument otherwise.
 
-Use `ChaosTools.higuchi_length(x, ks)` to obtain ``L(k)`` directly.
+Use `FractalDimensions.higuchi_length(x, ks)` to obtain ``L(k)`` directly.
 
 [^Higuchi1988]:
     Higuchi, _Approach to an irregular time series on the basis of the fractal theory_,

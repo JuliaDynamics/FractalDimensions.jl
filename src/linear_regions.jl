@@ -138,10 +138,10 @@ function linear_region(x::AbstractVector, y::AbstractVector;
 end
 
 #####################################################################################
-# Autotomatic estimation for proper `ε` from a Dataset
+# Autotomatic estimation for proper `ε` from a StateSpaceSet
 #####################################################################################
 """
-    estimate_boxsizes(X::AbstractDataset; kwargs...) → εs
+    estimate_boxsizes(X::AbstractStateSpaceSet; kwargs...) → εs
 Return `k` exponentially spaced values: `εs = base .^ range(lower + w, upper + z; length = k)`,
 that are a good estimate for sizes ε that are used in calculating a [Fractal Dimension](@ref).
 It is strongly recommended to [`standardize`](@ref) input dataset before using this
@@ -163,7 +163,7 @@ distance.
   You can set different default values to the keywords `we = w, ze = z`.
 """
 function estimate_boxsizes(
-        A::AbstractDataset;
+        A::AbstractStateSpaceSet;
         k::Int = 20, z = -1, w = 1, base = MathConstants.e,
         warning = true, autoexpand = true, ze = z, we = w
     )
@@ -205,11 +205,11 @@ end
 
 import Neighborhood
 """
-    minimum_pairwise_distance(A::Dataset, metric = Euclidean())
+    minimum_pairwise_distance(A::StateSpaceSet, metric = Euclidean())
 Return `min_d, min_pair`: the minimum pairwise distance
 of all points in the dataset, and the corresponding point pair.
 """
-function minimum_pairwise_distance(A::AbstractDataset, metric = Euclidean())
+function minimum_pairwise_distance(A::AbstractStateSpaceSet, metric = Euclidean())
     tree = Neighborhood.KDTree(A, metric)
     min_d = eltype(A[1])(Inf)
     min_pair = (0, 0)

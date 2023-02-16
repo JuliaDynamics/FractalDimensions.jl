@@ -1,5 +1,6 @@
 # FractalDimensions.jl
 
+[![](https://img.shields.io/badge/docs-dev-lightblue.svg)](https://JuliaDynamics.github.io/FractalDimensions.jl/dev)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaDynamics.github.io/FractalDimensions.jl/stable)
 [![](https://img.shields.io/badge/DOI-10.48550/ARXIV.2109.05937-purple)](https://arxiv.org/abs/2109.05937)
 [![CI](https://github.com/JuliaDynamics/FractalDimensions.jl/workflows/CI/badge.svg)](https://github.com/JuliaDynamics/FractalDimensions.jl/actions?query=workflow%3ACI)
@@ -12,9 +13,9 @@ It can be used as a standalone package, or as part of
 
 To install it, run `import Pkg; Pkg.add("FractalDimensions")`.
 
-All further information is provided in the documentation, which you can either find [online](https://juliadynamics.github.io/FractalDimensions.jl/dev/) or build locally by running the `docs/make.jl` file.
+All further information is provided in the documentation, which you can either find [online](https://juliadynamics.github.io/FractalDimensions.jl/stable/) or build locally by running the `docs/make.jl` file.
 
-_Previously, this package was part of ChaosTools.jl._
+_Previously, this package was part of ChaosTools.jl. It also reexports ComplexityMeasures.jl._
 
 
 ## Citation
