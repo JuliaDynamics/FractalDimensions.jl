@@ -7,6 +7,8 @@ module FractalDimensions
     read(path, String)
 end FractalDimensions
 
+using StateSpaceSets
+export StateSpaceSet
 using ComplexityMeasures
 export entropy, Shannon, Renyi, ValueHistogram
 
