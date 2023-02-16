@@ -1,16 +1,21 @@
 using FractalDimensions
 using Test
 using Random: Xoshiro
-using DynamicalSystemsBase: Systems, trajectory
+using DynamicalSystemsBase: DeterministicIteratedMap, trajectory
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
 
+# Random with Δ ≈ 2
 A = StateSpaceSet(rand(Xoshiro(1234), 10_000, 2))
-θ = rand(Xoshiro(1234), 10_000).*2π
-B = StateSpaceSet(cos.(θ), sin.(θ))
 sizesA = estimate_boxsizes(A)
+# Circle with Δ ≈ 1
+θ = rand(Xoshiro(1234), 10_000) .* 2π
+B = StateSpaceSet(cos.(θ), sin.(θ))
 sizesB = estimate_boxsizes(B)
-X = standardize(trajectory(Systems.henon(), 10_000; Ttr = 100))
+# Henon with Δ ≈ 1.2
+henon_rule(x, p, n) = SVector(1.0 - p[1]*x[1]^2 + x[2], p[2]*x[1])
+henon = DeterministicIteratedMap(henon_rule, zeros(2), [1.4, 0.3])
+X = standardize(trajectory(henon, 10_000; Ttr = 100)[1])
 sizesX = estimate_boxsizes(X)
 
 @testset "correlation sums" begin
