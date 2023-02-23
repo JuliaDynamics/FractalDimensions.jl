@@ -28,7 +28,7 @@ See also [`takens_best_estimate`](@ref), [`boxassisted_correlation_dim`](@ref).
     Theiler, [Spurious dimension from correlation algorithms applied to limited time-series
     data. Physical Review A, 34](https://doi.org/10.1103/PhysRevA.34.2427)
 """
-function grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(data); kwargs...)
+function grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(X); kwargs...)
     cm = correlationsum(X, εs; kwargs...)
     return linear_region(log2.(εs), log2.(cm))[2]
 end

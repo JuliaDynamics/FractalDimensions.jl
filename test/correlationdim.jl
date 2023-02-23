@@ -35,6 +35,8 @@ end
 @testset "Correlation dim; automated" begin
     # We can't test q != 1 here; it doesn't work. It doesn't give correct results.
     @testset "Grassberger" begin
+        dA = grassberger_proccacia_dim(A; q = 2.0)
+        test_value(dA, 1.9, 2.1)
         dA = grassberger_proccacia_dim(A, sizesA; q = 2.0)
         test_value(dA, 1.9, 2.1)
         dB = grassberger_proccacia_dim(B, sizesB; q = 2.0)
