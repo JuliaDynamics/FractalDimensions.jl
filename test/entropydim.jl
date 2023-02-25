@@ -1,7 +1,7 @@
 using FractalDimensions
 using Test
 using Random: Xoshiro
-using DynamicalSystemsBase: DeterministicIteratedMap, trajectory
+using DynamicalSystemsBase
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
 
