@@ -23,13 +23,13 @@
 
 
 """
-loc_dimension_persistance(x:: AbstractVector, quanti:: Real) -> D1, θ
+loc_dimension_persistence(x:: AbstractVector, quanti:: Real) -> D1, θ
     Computation of the local dimensions D1 and the extremal index θ for each observation in the 
     trajectory x, for a given quantile "quanti". The extremal index can be interpreted as the 
-    inverse of the persistance of the extremes around that point.
+    inverse of the persistence of the extremes around that point.
     
 """
-function loc_dimension_persistance(x:: AbstractVector, quanti:: Real)
+function loc_dimension_persistence(x:: AbstractVector, quanti:: Real)
 
     println("Computing dynamical quantities")
 
@@ -57,7 +57,7 @@ function loc_dimension_persistance(x:: AbstractVector, quanti:: Real)
     end
     return [D1, θ]
 end
-export loc_dimension_persistance
+export loc_dimension_persistence
 
 """
     extremal_index_sueveges(Y:: AbstractVector, u:: Real, quanti:: Real)
