@@ -34,11 +34,13 @@ function loc_dimension_persistence(x::AbstractStateSpaceSet, q::Real)
         error("The quantile has to be between 0 and 1")
     end
 
-    D1 = zeros(size(x[:,1]))
-    θ = zeros(size(x[:,1]))
-    for j in range(1,length(D1))
+    N = length(x)
+    D1 = zeros(eltype(x), N)
+    θ = copy(D1)
+
+    for j in 1:N
         # Compute the observables
-        logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))])
+        logdista = -log.([euclidean(x[j,:],x[i,:]) for i in 1:N])
         # Extract the threshold corresponding to the quantile defined
         thresh = quantile(logdista, q)
         # Compute the extremal index # TODO: This is wrong for now
