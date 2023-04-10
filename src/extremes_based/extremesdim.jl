@@ -20,13 +20,13 @@ using Statistics: mean, quantile
 
 
 """
-    loc_dimension_persistence(x:: AbstractVector, :: Real) -> D1, θ
+    loc_dimension_persistence(x::AbstractVector, q::Real) -> Dloc, θ
 
-Computation of the local dimensions D1 and the extremal index θ for each observation in the
-trajectory x, for a given quantile `q`. The extremal index can be interpreted as the
-inverse of the persistence of the extremes around that point.
+Computation of the local dimensions `Dloc` and the extremal indices `θ` for each point in the
+given set for a given quantile `q`. The extremal index can be interpreted as the
+inverse of the persistence of the extremes around each point point.
 """
-function loc_dimension_persistence(x:: AbstractVector, q:: Real)
+function loc_dimension_persistence(x::AbstractVector, q::Real)
 
     println("Computing dynamical quantities")
 
@@ -56,12 +56,12 @@ function loc_dimension_persistence(x:: AbstractVector, q:: Real)
 end
 
 """
-    extremal_index_sueveges(Y:: AbstractVector, u:: Real, q:: Real)
+    extremal_index_sueveges(Y::AbstractVector, u::Real, q::Real)
 
 This function computes the extremal index θ through the Süveges formula for
 a time series Y, given the quantile p and the corresponding threshold p.
 """
-function extremal_index_sueveges(Y:: AbstractVector, u:: Real, q:: Real)
+function extremal_index_sueveges(Y::AbstractVector, u::Real, q::Real)
 
     # Compute theta
 
@@ -83,12 +83,12 @@ end
 
 
 """
-    extremesdim(x:: AbstractVector, q:: Real) -> D
+    extremesdim(x::AbstractVector, q::Real) -> D
 
 Computes an estimation of the dimension D of the attractor of a system
 given a trajectory along said attractor.
 """
-function extremesdim(x:: AbstractVector, q:: Real)
+function extremesdim(x::AbstractVector, q::Real)
 
     println("Computing dynamical quantities")
 
