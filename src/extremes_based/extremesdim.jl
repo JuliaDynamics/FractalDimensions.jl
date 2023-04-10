@@ -1,3 +1,4 @@
+export loc_dimension_persistence
 
 # The functions in this section are versions inspired from the code
 # for MATLAB given in the following papers:
@@ -49,9 +50,8 @@ function loc_dimension_persistence(x:: AbstractVector, quanti:: Real)
         #The local dimension is the reciprocal of the exceedances of the PoTs
         D1[j] = 1 ./ mean(logextr .- thresh);
     end
-    return [D1, θ]
+    return D1, θ
 end
-export loc_dimension_persistence
 
 """
     extremal_index_sueveges(Y:: AbstractVector, u:: Real, quanti:: Real)
