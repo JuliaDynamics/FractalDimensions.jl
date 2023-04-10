@@ -16,7 +16,17 @@ using Statistics: mean, quantile
 # Süveges, Mária. 2007. Likelihood estimation of the extremal index.
 # Extremes, 10.1-2, 41-55, doi: 10.1007/s10687-007-0034-2
 
+"""
+    extremevaltheory_dim(X::StateSpaceSet, q::Real) → Δ
 
+Convenience syntax that returns the mean of the local dimensions of
+[`extremevaltheory_dims_persistences`](@ref), which approximates
+a fractal dimension of `X` using extreme value theory and quantile `q`.
+"""
+function extremevaltheory_dim(args...; kwargs...)
+    Dloc, θloc = extremevaltheory_dims_persistences(args...; compute_persistence = false)
+    return mean(Dloc)
+end
 
 
 """
@@ -73,40 +83,4 @@ function extremal_index_sueveges(logdista::AbstractVector, q::Real, thresh::Real
     N = length(Ti)
     θ = (sum(q.*Si)+N+Nc - sqrt( (sum(q.*Si) +N+Nc).^2 - 8*Nc*sum(q.*Si)) )./(2*sum(q.*Si))
     return θ
-end
-
-
-
-
-
-"""
-    extremesdim(x::AbstractStateSpaceSet, q::Real) -> D
-
-Computes an estimation of the dimension D of the attractor of a system
-given a trajectory along said attractor.
-"""
-function extremesdim(x::AbstractStateSpaceSet, q::Real)
-
-    println("Computing dynamical quantities")
-
-    if !(0 < q < 1)
-        error("The quantile has to be between 0 and 1")
-    end
-
-    D1 = zeros(size(x[:,1]))
-    for j in range(1,length(D1))
-        # Compute the observables
-        logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))])
-        # Extract the threshold corresponding to the quantile defined
-        thresh = quantile(logdista, q)
-        #Sort the time series and find all the PoTs
-        logextr = logdista[findall(x -> x > thresh, logdista)]
-        filter!(isfinite,logextr)
-        #Extract the GPD parameters since the distribution is exponential, the
-        #average of the PoTs is the unbiased estimator, which is just the mean
-        #of the exceedances.
-        #The local dimension is the reciprocal of the exceedances of the PoTs
-        D1[j] = 1 ./ mean(logextr .- thresh)
-    end
-    return mean(D1)
 end
