@@ -36,6 +36,7 @@ end
 
 Return the local dimensions `Δloc` and the extremal indices `θloc` for each point in the
 given set for a given quantile `q`, according to the estimation via extreme value theory.
+The computation is parallelized to available threads (`Threads.nthreads()`).
 
 # TODO: citations.
 
@@ -75,7 +76,7 @@ end
 
 # TODO: Threading
 function _loop_over_matrix!(Δloc, θloc, progress, logdistances, q; kw...)
-    for (j, logdist) in enumerate(eachcol(logdistances))
+    Threads.@threads for (j, logdist) in enumerate(eachcol(logdistances))
         D, θ = extremevaltheory_local_dim_persistence(logdist, q)
         Δloc[j] = D
         θloc[j] = θ
@@ -83,8 +84,9 @@ function _loop_over_matrix!(Δloc, θloc, progress, logdistances, q; kw...)
     end
 end
 function _loop_and_compute_logdist!(Δloc, θloc, progress, X, q; kw...)
-    logdist = copy(Δloc)
-    for j in eachindex(X)
+    logdists = [copy(Δloc) for _ in 1:Threads.nthreads()]
+    Threads.@threads for j in eachindex(X)
+        logdist = logdists[Threads.threadid()]
         map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
         D, θ = extremevaltheory_local_dim_persistence(logdist, q)
         Δloc[j] = D

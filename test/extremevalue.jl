@@ -8,11 +8,13 @@ using Statistics, DynamicalSystems, CairoMakie
     return SVector{3}(du1, du2, du3)
 end
 
-ds = CoupledODEs(lorenz_rule, [0, 10, 0.0], [10.0, 28.0, 8/3])
+ρ = 28.0
+ds = CoupledODEs(lorenz_rule, [0, 10, 0.0], [10.0, ρ, 8/3])
 
-tr, tvec = trajectory(ds, 5000; Δt = 0.1, Ttr = 100)
+tr, tvec = trajectory(ds, 1000; Δt = 0.02, Ttr = 100)
 estimator = :mm
-qs = [0.95, 0.98, 0.99, 0.999]
+qs = [0.97, 0.98, 0.99, 0.995]
+N = length(tr)
 
 fig, axs = subplotgrid(2,2; sharex = true, sharey = true, xlabels = "X", ylabels = "Z")
 
@@ -25,12 +27,12 @@ for (q, ax) in zip(qs, axs)
     ax.title = "q = $(q), mean D = $(round(avedim; digits = 4))"
 
     scatter!(ax, tr[:,1], tr[:,3];
-        color = Δloc, colormap = :viridis, colorrange = (1,3), markersize = 5
+        color = Δloc, colormap = :viridis, colorrange = (0,3), markersize = 5
     )
 end
 
-Colorbar(fig[:, 3], colormap = :viridis, colorrange = (1, 3))
-figuretitle!(fig, "Estimator: $(estimator)")
+Colorbar(fig[:, 3], colormap = :viridis, colorrange = (0, 3))
+figuretitle!(fig, "Lorenz63 (ρ = $(ρ)) - Local EVT fractal dim. - Estimator: $(estimator)")
 display(fig)
 
-Makie.save(desktop("Lorenz63_EVT_fractaldim_julia_$(estimator).png"), fig)
+Makie.save(desktop("Lorenz63_ρ=$(ρ)_N=$(N)_EVTDIM_$(estimator).png"), fig)
