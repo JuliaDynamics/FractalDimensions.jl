@@ -32,23 +32,23 @@ function loc_dimension_persistence(x:: AbstractVector, quanti:: Real)
         error("The number quanti represents a quantile and has to be between 0 and 1")
     end
 
-    D1 = zeros(size(x[:,1]));
-    θ = zeros(size(x[:,1]));
+    D1 = zeros(size(x[:,1]))
+    θ = zeros(size(x[:,1]))
     for j in range(1,length(D1))
         # Compute the observables
-        logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))]);
+        logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))])
         # Extract the threshold corresponding to the quantile defined
-        thresh = quantile(logdista, quanti);
+        thresh = quantile(logdista, quanti)
         # Compute the extremal index, use the external function extremal_Sueveges
-        θ[j] = fun_extremal_index_sueveges(logdista, quanti, thresh);
+        θ[j] = fun_extremal_index_sueveges(logdista, quanti, thresh)
         #Sort the time series and find all the PoTs
-        logextr = logdista[findall(x -> x > thresh, logdista)];
-        filter!(isfinite,logextr);
-        #Extract the GPD parameters; since the distribution is exponential, the
+        logextr = logdista[findall(x -> x > thresh, logdista)]
+        filter!(isfinite,logextr)
+        #Extract the GPD parameters since the distribution is exponential, the
         #average of the PoTs is the unbiased estimator, which is just the mean
         #of the exceedances.
         #The local dimension is the reciprocal of the exceedances of the PoTs
-        D1[j] = 1 ./ mean(logextr .- thresh);
+        D1[j] = 1 ./ mean(logextr .- thresh)
     end
     return D1, θ
 end
@@ -68,13 +68,12 @@ function extremal_index_sueveges(Y:: AbstractVector, u:: Real, quanti:: Real)
         error("The number quanti represents a quantile and has to be between 0 and 1")
     end
 
-    q = 1 - quanti;
-    Li = findall(x -> x > u, Y);
-    Ti = diff(Li);
-    Si = Ti .- 1;
-    Nc = length(findall(x->x>0,Si));
-    N = length(Ti);
-
+    q = 1 - quanti
+    Li = findall(x -> x > u, Y)
+    Ti = diff(Li)
+    Si = Ti .- 1
+    Nc = length(findall(x->x>0,Si))
+    N = length(Ti)
     θ = (sum(q.*Si)+N+Nc - sqrt( (sum(q.*Si) +N+Nc).^2-8*Nc*sum(q.*Si)) )./(2*sum(q.*Si))
 end
 
@@ -100,20 +99,20 @@ function extremesdim(x:: AbstractVector, quanti:: Real)
         error("The number quanti represents a quantile and has to be between 0 and 1")
     end
 
-    D1 = zeros(size(x[:,1]));
+    D1 = zeros(size(x[:,1]))
     for j in range(1,length(D1))
         # Compute the observables
-        logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))]);
+        logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))])
         # Extract the threshold corresponding to the quantile defined
-        thresh = quantile(logdista, quanti);
+        thresh = quantile(logdista, quanti)
         #Sort the time series and find all the PoTs
-        logextr = logdista[findall(x -> x > thresh, logdista)];
-        filter!(isfinite,logextr);
-        #Extract the GPD parameters; since the distribution is exponential, the
+        logextr = logdista[findall(x -> x > thresh, logdista)]
+        filter!(isfinite,logextr)
+        #Extract the GPD parameters since the distribution is exponential, the
         #average of the PoTs is the unbiased estimator, which is just the mean
         #of the exceedances.
         #The local dimension is the reciprocal of the exceedances of the PoTs
-        D1[j] = 1 ./ mean(logextr .- thresh);
+        D1[j] = 1 ./ mean(logextr .- thresh)
     end
     return mean(D1)
 end
