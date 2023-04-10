@@ -1,4 +1,6 @@
-export loc_dimension_persistence
+export loc_dimension_persistence, extremal_index_sueveges, extremesdim
+using Distances: euclidean
+using Statistics: mean, quantile
 
 # The functions in this section are versions inspired from the code
 # for MATLAB given in the following papers:
@@ -77,7 +79,6 @@ function extremal_index_sueveges(Y:: AbstractVector, u:: Real, quanti:: Real)
     θ = (sum(q.*Si)+N+Nc - sqrt( (sum(q.*Si) +N+Nc).^2-8*Nc*sum(q.*Si)) )./(2*sum(q.*Si))
 end
 
-export extremal_index_sueveges
 
 
 
@@ -116,4 +117,3 @@ function extremesdim(x:: AbstractVector, quanti:: Real)
     end
     return mean(D1)
 end
-export extremesdim
