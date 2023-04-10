@@ -20,18 +20,18 @@ using Statistics: mean, quantile
 
 
 """
-    loc_dimension_persistence(x:: AbstractVector, quanti:: Real) -> D1, θ
+    loc_dimension_persistence(x:: AbstractVector, :: Real) -> D1, θ
 
 Computation of the local dimensions D1 and the extremal index θ for each observation in the
-trajectory x, for a given quantile "quanti". The extremal index can be interpreted as the
+trajectory x, for a given quantile `q`. The extremal index can be interpreted as the
 inverse of the persistence of the extremes around that point.
 """
-function loc_dimension_persistence(x:: AbstractVector, quanti:: Real)
+function loc_dimension_persistence(x:: AbstractVector, q:: Real)
 
     println("Computing dynamical quantities")
 
-    if !(0 < quanti < 1)
-        error("The number quanti represents a quantile and has to be between 0 and 1")
+    if !(0 < q < 1)
+        error("The quantile has to be between 0 and 1")
     end
 
     D1 = zeros(size(x[:,1]))
@@ -40,9 +40,9 @@ function loc_dimension_persistence(x:: AbstractVector, quanti:: Real)
         # Compute the observables
         logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))])
         # Extract the threshold corresponding to the quantile defined
-        thresh = quantile(logdista, quanti)
+        thresh = quantile(logdista, q)
         # Compute the extremal index, use the external function extremal_Sueveges
-        θ[j] = fun_extremal_index_sueveges(logdista, quanti, thresh)
+        θ[j] = fun_extremal_index_sueveges(logdista, q, thresh)
         #Sort the time series and find all the PoTs
         logextr = logdista[findall(x -> x > thresh, logdista)]
         filter!(isfinite,logextr)
@@ -56,20 +56,20 @@ function loc_dimension_persistence(x:: AbstractVector, quanti:: Real)
 end
 
 """
-    extremal_index_sueveges(Y:: AbstractVector, u:: Real, quanti:: Real)
+    extremal_index_sueveges(Y:: AbstractVector, u:: Real, q:: Real)
 
 This function computes the extremal index θ through the Süveges formula for
 a time series Y, given the quantile p and the corresponding threshold p.
 """
-function extremal_index_sueveges(Y:: AbstractVector, u:: Real, quanti:: Real)
+function extremal_index_sueveges(Y:: AbstractVector, u:: Real, q:: Real)
 
     # Compute theta
 
-    if !(0 < quanti < 1)
-        error("The number quanti represents a quantile and has to be between 0 and 1")
+    if !(0 < q < 1)
+        error("The quantile has to be between 0 and 1")
     end
 
-    q = 1 - quanti
+    q = 1 - q
     Li = findall(x -> x > u, Y)
     Ti = diff(Li)
     Si = Ti .- 1
@@ -83,17 +83,17 @@ end
 
 
 """
-    extremesdim(x:: AbstractVector, quanti:: Real) -> D
+    extremesdim(x:: AbstractVector, q:: Real) -> D
 
 Computes an estimation of the dimension D of the attractor of a system
 given a trajectory along said attractor.
 """
-function extremesdim(x:: AbstractVector, quanti:: Real)
+function extremesdim(x:: AbstractVector, q:: Real)
 
     println("Computing dynamical quantities")
 
-    if !(0 < quanti < 1)
-        error("The number quanti represents a quantile and has to be between 0 and 1")
+    if !(0 < q < 1)
+        error("The quantile has to be between 0 and 1")
     end
 
     D1 = zeros(size(x[:,1]))
@@ -101,7 +101,7 @@ function extremesdim(x:: AbstractVector, quanti:: Real)
         # Compute the observables
         logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))])
         # Extract the threshold corresponding to the quantile defined
-        thresh = quantile(logdista, quanti)
+        thresh = quantile(logdista, q)
         #Sort the time series and find all the PoTs
         logextr = logdista[findall(x -> x > thresh, logdista)]
         filter!(isfinite,logextr)
