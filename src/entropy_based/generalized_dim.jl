@@ -2,9 +2,9 @@ using ComplexityMeasures: Renyi, ValueHistogram, entropy
 export generalized_dim
 
 """
-    generalized_dim(X::AbstractStateSpaceSet [, sizes]; q = 1, base = 2) -> Δ_q
+    generalized_dim(X::StateSpaceSet [, sizes]; q = 1, base = 2) -> Δ_q
 
-Return the `q` order generalized dimension of the dataset `X`,
+Return the `q` order generalized dimension of `X`,
 by calculating  its histogram-based Rényi entropy for each `ε ∈ sizes`.
 
 The case of `q = 0` is often called "capacity" or "box-counting" dimension, while
@@ -20,8 +20,8 @@ versus the box size `ε`, where `ε ∈ sizes`:
 H_q \\approx -\\Delta_q\\log_{b}(\\varepsilon)
 ```
 
-``H_q`` is calculated using `entropy`, `Renyi(; base, q)` and the `ValueHistogram`
-probabilities estimator, i.e., by doing a histogram of the data with a given box size.
+``H_q`` is calculated using `ComplexityMeasures: Renyi, ValueHistogram, entropy`,
+i.e., by doing a histogram of the data with a given box size.
 
 Calling this function performs a lot of automated steps:
 

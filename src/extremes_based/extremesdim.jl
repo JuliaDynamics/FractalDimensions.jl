@@ -1,6 +1,8 @@
-export loc_dimension_persistence, extremal_index_sueveges, extremesdim
+export extremevaltheory_dims_persistences, extremevaltheory_dim
+export extremevaltheory_local_dim_persistence
 using Distances: euclidean
 using Statistics: mean, quantile
+import ProgressMeter
 
 # The functions in this section are versions inspired from the code
 # for MATLAB given in the following papers:
@@ -30,49 +32,58 @@ end
 
 
 """
-    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, q::Real) -> Δloc, θ
+    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, q::Real; kw...) -> Δloc, θ
 
 Computation of the local dimensions `Δloc` and the extremal indices `θ` for each point in the
 given set for a given quantile `q`. The extremal index can be interpreted as the
 inverse of the persistence of the extremes around each point point.
+
+The keyword `show_progress = true` displays a progress bar.
 """
-function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real; kw...)
+function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real;
+        show_progress = true, kw...
+    )
     # The algorithm in the end of the day loops over points in `X`
     # and applies the local algorithm.
     # However, we write two different loop functions; one can
     # compute the distance matrix directly from the get go.
     # However, this is likely to not fit in memory even for a moderately high
     # amount of points in `X`. So, we make an alternative that goes row by row.
-    N = length(x)
-    Δloc = zeros(eltype(x), N)
-    θloc = copy(D1)
+    N = length(X)
+    Δloc = zeros(eltype(X), N)
+    θloc = copy(Δloc)
+    progress = ProgressMeter.Progress(
+        N; desc = "Extreme val. theory dim: ", enabled = show_progress
+    )
     try
-        # `vec(X)` gives the underlying `Vector{SVector}` which `pairwise`
+        # `vec(X)` gives the underlying `Vector{SVector}` for which `pairwise`
         # is incredibly optimized for!
         logdistances = -log.(pairwise(Euclidean(), vec(X)))
-        _loop_over_matrix!(Δloc, θloc, logdistances, q; kw...)
+        _loop_over_matrix!(Δloc, θloc, progress, logdistances, q; kw...)
     catch
         @warn "Couldn't create $(N)×$(N) distance matrix; using slower algorithm..."
-        _loop_and_compute_logdist!(Δloc, θloc, X, q; kw...)
+        _loop_and_compute_logdist!(Δloc, θloc, progress, X, q; kw...)
     end
     return Δloc, θloc
 end
 
 # TODO: Threading
-function _loop_over_matrix!(Δloc, θloc, logdistances, q; kw...)
+function _loop_over_matrix!(Δloc, θloc, progress, logdistances, q; kw...)
     for (j, logdist) in enumerate(eachcol(logdistances))
         D, θ = extremevaltheory_local_dim_persistence(logdist, q)
         Δloc[j] = D
         θloc[j] = θ
+        ProgressMeter.next!(progress)
     end
 end
-function _loop_and_compute_logdist!(Δloc, θloc, X, q; kw...)
+function _loop_and_compute_logdist!(Δloc, θloc, progress, X, q; kw...)
     logdist = zeros(eltype(X), length(X))
     for j in eachindex(X)
-        map!(x -> -log(euclidean(x, X[j])), logdist, X)
+        map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
         D, θ = extremevaltheory_local_dim_persistence(logdist, q)
         Δloc[j] = D
         θloc[j] = θ
+        ProgressMeter.next!(progress)
     end
 end
 
