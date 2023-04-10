@@ -43,14 +43,16 @@ function loc_dimension_persistence(x::AbstractStateSpaceSet, q::Real)
         thresh = quantile(logdista, q)
         # Compute the extremal index
         θ[j] = extremal_index_sueveges(logdista, q, thresh)
-        # Sort the time series and find all the PoTs
-        logextr = logdista[findall(x -> x > thresh, logdista)]
-        filter!(isfinite, logextr)
-        # Extract the GPD parameters since the distribution is exponential, the
+        # Sort the time series and find all the Peaks Over Threshold (PoTs)
+        PoTs = logdista[findall(x -> x > thresh, logdista)]
+        filter!(isfinite, PoTs)
+        exceedances = PoTs .- thresh
+        # Extract the GPD parameters.
+        # Assuming that the distribution is exponential, the
         # average of the PoTs is the unbiased estimator, which is just the mean
         # of the exceedances.
         # The local dimension is the reciprocal of the exceedances of the PoTs
-        D1[j] = 1 ./ mean(logextr .- thresh)
+        D1[j] = 1 ./ mean(exceedances)
     end
     return D1, θ
 end
