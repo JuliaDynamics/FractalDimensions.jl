@@ -1,7 +1,7 @@
 export extremevaltheory_dims_persistences, extremevaltheory_dim
 export extremevaltheory_local_dim_persistence
 using Distances: euclidean
-using Statistics: mean, quantile
+using Statistics: mean, quantile, var
 import ProgressMeter
 
 # The functions in this section are versions inspired from the code
@@ -19,7 +19,7 @@ import ProgressMeter
 # Extremes, 10.1-2, 41-55, doi: 10.1007/s10687-007-0034-2
 
 """
-    extremevaltheory_dim(X::StateSpaceSet, q::Real) → Δ
+    extremevaltheory_dim(X::StateSpaceSet, q::Real; kwargs...) → Δ
 
 Convenience syntax that returns the mean of the local dimensions of
 [`extremevaltheory_dims_persistences`](@ref), which approximates
@@ -32,13 +32,19 @@ end
 
 
 """
-    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, q::Real; kw...) -> Δloc, θ
+    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, q::Real; kwargs)
 
-Computation of the local dimensions `Δloc` and the extremal indices `θ` for each point in the
-given set for a given quantile `q`. The extremal index can be interpreted as the
-inverse of the persistence of the extremes around each point point.
+Return the local dimensions `Δloc` and the extremal indices `θloc` for each point in the
+given set for a given quantile `q`, according to the estimation via extreme value theory.
 
-The keyword `show_progress = true` displays a progress bar.
+# TODO: citations.
+
+## Keyword arguments
+
+- `show_progress = true`: displays a progress bar.
+- `estimator = :exponential`: how to estimate the `σ` parameter of the
+  Generalized Pareto Distribution. The local fractal dimension is 1/σ.
+  The possible values are: `:mean, :mm`. TODO: Write more about methods.
 """
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real;
         show_progress = true, kw...
@@ -88,7 +94,7 @@ function _loop_and_compute_logdist!(Δloc, θloc, progress, X, q; kw...)
 end
 
 function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, q::Real; compute_persistence = true
+        logdist::AbstractVector{<:Real}, q::Real; compute_persistence = true, estimator = :mm
     )
     # Here `logdist` is already the -log(euclidean) distance of one point
     # to all other points in the set.
@@ -107,12 +113,37 @@ function extremevaltheory_local_dim_persistence(
     filter!(isfinite, PoTs)
     exceedances = PoTs .- thresh
     # Extract the GPD parameters.
-    # Assuming that the distribution is exponential, the
-    # average of the PoTs is the unbiased estimator, which is just the mean
-    # of the exceedances.
-    # The local dimension is the reciprocal of the exceedances of the PoTs
-    Δ = 1 ./ mean(exceedances)
+    σ = estimate_gpd_parameters(exceedances, estimator)[1]
+    # The local dimension is the reciprocal σ
+    Δ = 1/σ
     return Δ, θ
+end
+
+"""
+    estimate_gpd_parameters(X::AbstractVector{<:Real}, estimator::Symbol = :mm)
+
+Estimate and return the parameters `σ, ξ` of a Generalized Pareto Distribution
+fit to `X`, assuming that `minimum(X) == 0` and hence the parameter `μ = 0`
+(if not, simply shift `X` by its minimum).
+Optionally choose the estimator, which can be: # TODO: Write it.
+"""
+function estimate_gpd_parameters(X, estimator)
+    if estimator == :mean
+        # Assuming that the distribution is exponential, the
+        # average of the PoTs is the unbiased estimator, which is just the mean
+        # of the exceedances.
+        return mean(X), zero(eltype(X))
+    elseif estimator == :mm
+        # for whateve reason the authors don't use the corrected versions
+        x̄ = mean(X)
+        s² = var(X; corrected = false, mean = x̄)
+        ξ = (1/2)*((x̄^2/s²) + 1)
+        σ = (x̄/2)*((x̄^2/s²) + 1)
+        return σ, ξ
+    else
+        error("Unknown estimator for Pareto distribution")
+    end
+    return σ
 end
 
 """

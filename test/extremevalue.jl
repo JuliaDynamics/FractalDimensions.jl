@@ -10,15 +10,17 @@ end
 
 ds = CoupledODEs(lorenz_rule, [0, 10, 0.0], [10.0, 28.0, 8/3])
 
-tr, tvec = trajectory(ds, 50000; Δt = 1.0, Ttr = 100)
-
+tr, tvec = trajectory(ds, 5000; Δt = 0.1, Ttr = 100)
+estimator = :mm
 qs = [0.95, 0.98, 0.99, 0.999]
 
 fig, axs = subplotgrid(2,2; sharex = true, sharey = true, xlabels = "X", ylabels = "Z")
 
 for (q, ax) in zip(qs, axs)
 
-    Δloc, θ = extremevaltheory_dims_persistences(tr, q; compute_persistence = false)
+    Δloc, θ = extremevaltheory_dims_persistences(tr, q;
+        compute_persistence = false, estimator
+    )
     avedim = mean(Δloc)
     ax.title = "q = $(q), mean D = $(round(avedim; digits = 4))"
 
@@ -28,6 +30,7 @@ for (q, ax) in zip(qs, axs)
 end
 
 Colorbar(fig[:, 3], colormap = :viridis, colorrange = (1, 3))
-fig
+figuretitle!(fig, "Estimator: $(estimator)")
+display(fig)
 
-Makie.save(desktop("Lorenz63_EVT_fractaldim_julia.png"), fig)
+Makie.save(desktop("Lorenz63_EVT_fractaldim_julia_$(estimator).png"), fig)
