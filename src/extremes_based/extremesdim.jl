@@ -88,7 +88,7 @@ function extremevaltheory_local_dim_persistence(
         θ = NaN
     end
     # Sort the time series and find all the Peaks Over Threshold (PoTs)
-    PoTs = logdist[findall(x -> x > thresh, logdist)]
+    PoTs = logdist[findall(>(thresh), logdist)]
     filter!(isfinite, PoTs)
     exceedances = PoTs .- thresh
     # Extract the GPD parameters.
@@ -115,4 +115,19 @@ function extremal_index_sueveges(logdist::AbstractVector, q::Real, thresh::Real)
     N = length(Ti)
     θ = (sum(q.*Si)+N+Nc - sqrt( (sum(q.*Si) +N+Nc).^2 - 8*Nc*sum(q.*Si)) )./(2*sum(q.*Si))
     return θ
+end
+
+# convenience function
+"""
+    extremevaltheory_local_dim_persistence(X::StateSpaceSet, ζ, q::Real; kw...)
+
+Return the local values `Δ, θ` of the fractal dimension and persistence of `X` around a
+state space point `ζ`. `q` and `kw` are as in [`extremevaltheory_dims_persistences`](@ref).
+"""
+function extremevaltheory_local_dim_persistence(
+        X::AbstractStateSpaceSet, ζ::AbstractVector, q::Real; kw...
+    )
+    logdist = map(x -> -log(euclidean(x, ζ)), X)
+    Δ, θ = extremevaltheory_local_dim_persistence(logdist, q; kw...)
+    return Δ, θ
 end
