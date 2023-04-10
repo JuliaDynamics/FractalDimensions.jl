@@ -41,8 +41,8 @@ function loc_dimension_persistence(x::AbstractStateSpaceSet, q::Real)
         logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))])
         # Extract the threshold corresponding to the quantile defined
         thresh = quantile(logdista, q)
-        # Compute the extremal index
-        θ[j] = extremal_index_sueveges(logdista, q, thresh)
+        # Compute the extremal index # TODO: This is wrong for now
+        # θ[j] = extremal_index_sueveges(logdista, q, thresh)
         # Sort the time series and find all the Peaks Over Threshold (PoTs)
         PoTs = logdista[findall(x -> x > thresh, logdista)]
         filter!(isfinite, PoTs)
