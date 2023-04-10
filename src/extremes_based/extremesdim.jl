@@ -23,60 +23,92 @@ Convenience syntax that returns the mean of the local dimensions of
 [`extremevaltheory_dims_persistences`](@ref), which approximates
 a fractal dimension of `X` using extreme value theory and quantile `q`.
 """
-function extremevaltheory_dim(args...; kwargs...)
-    Dloc, θloc = extremevaltheory_dims_persistences(args...; compute_persistence = false)
-    return mean(Dloc)
+function extremevaltheory_dim(X, q)
+    Δloc, θloc = extremevaltheory_dims_persistences(X, q; compute_persistence = false)
+    return mean(Δloc)
 end
 
 
 """
-    loc_dimension_persistence(x::AbstractStateSpaceSet, q::Real) -> Dloc, θ
+    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, q::Real) -> Δloc, θ
 
-Computation of the local dimensions `Dloc` and the extremal indices `θ` for each point in the
+Computation of the local dimensions `Δloc` and the extremal indices `θ` for each point in the
 given set for a given quantile `q`. The extremal index can be interpreted as the
 inverse of the persistence of the extremes around each point point.
 """
-function loc_dimension_persistence(x::AbstractStateSpaceSet, q::Real)
-
-    println("Computing dynamical quantities")
-
-    if !(0 < q < 1)
-        error("The quantile has to be between 0 and 1")
-    end
-
+function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real; kw...)
+    # The algorithm in the end of the day loops over points in `X`
+    # and applies the local algorithm.
+    # However, we write two different loop functions; one can
+    # compute the distance matrix directly from the get go.
+    # However, this is likely to not fit in memory even for a moderately high
+    # amount of points in `X`. So, we make an alternative that goes row by row.
     N = length(x)
-    D1 = zeros(eltype(x), N)
-    θ = copy(D1)
-
-    for j in 1:N
-        # Compute the observables
-        logdista = -log.([euclidean(x[j,:],x[i,:]) for i in 1:N])
-        # Extract the threshold corresponding to the quantile defined
-        thresh = quantile(logdista, q)
-        # Compute the extremal index # TODO: This is wrong for now
-        # θ[j] = extremal_index_sueveges(logdista, q, thresh)
-        # Sort the time series and find all the Peaks Over Threshold (PoTs)
-        PoTs = logdista[findall(x -> x > thresh, logdista)]
-        filter!(isfinite, PoTs)
-        exceedances = PoTs .- thresh
-        # Extract the GPD parameters.
-        # Assuming that the distribution is exponential, the
-        # average of the PoTs is the unbiased estimator, which is just the mean
-        # of the exceedances.
-        # The local dimension is the reciprocal of the exceedances of the PoTs
-        D1[j] = 1 ./ mean(exceedances)
+    Δloc = zeros(eltype(x), N)
+    θloc = copy(D1)
+    try
+        # `vec(X)` gives the underlying `Vector{SVector}` which `pairwise`
+        # is incredibly optimized for!
+        logdistances = -log.(pairwise(Euclidean(), vec(X)))
+        _loop_over_matrix!(Δloc, θloc, logdistances, q; kw...)
+    catch
+        @warn "Couldn't create $(N)×$(N) distance matrix; using slower algorithm..."
+        _loop_and_compute_logdist!(Δloc, θloc, X, q; kw...)
     end
-    return D1, θ
+    return Δloc, θloc
+end
+
+# TODO: Threading
+function _loop_over_matrix!(Δloc, θloc, logdistances, q; kw...)
+    for (j, logdist) in enumerate(eachcol(logdistances))
+        D, θ = extremevaltheory_local_dim_persistence(logdist, q)
+        Δloc[j] = D
+        θloc[j] = θ
+    end
+end
+function _loop_and_compute_logdist!(Δloc, θloc, X, q; kw...)
+    logdist = zeros(eltype(X), length(X))
+    for j in eachindex(X)
+        map!(x -> -log(euclidean(x, X[j])), logdist, X)
+        D, θ = extremevaltheory_local_dim_persistence(logdist, q)
+        Δloc[j] = D
+        θloc[j] = θ
+    end
+end
+
+function extremevaltheory_local_dim_persistence(
+        logdist::AbstractVector{<:Real}, q::Real; compute_persistence = true
+    )
+    # Extract the threshold corresponding to the quantile defined
+    thresh = quantile(logdist, q)
+    # Compute the extremal index
+    if compute_persistence
+        θ = extremal_index_sueveges(logdist, q, thresh)
+    else
+        θ = NaN
+    end
+    # Sort the time series and find all the Peaks Over Threshold (PoTs)
+    PoTs = logdist[findall(x -> x > thresh, logdist)]
+    filter!(isfinite, PoTs)
+    exceedances = PoTs .- thresh
+    # Extract the GPD parameters.
+    # Assuming that the distribution is exponential, the
+    # average of the PoTs is the unbiased estimator, which is just the mean
+    # of the exceedances.
+    # The local dimension is the reciprocal of the exceedances of the PoTs
+    Δ = 1 ./ mean(exceedances)
+    return Δ, θ
 end
 
 """
-    extremal_index_sueveges(logdista::AbstractVector, q, thresh)
+    extremal_index_sueveges(logdist::AbstractVector, q, thresh)
 
 Compute the extremal index θ through the Süveges formula.
 """
-function extremal_index_sueveges(logdista::AbstractVector, q::Real, thresh::Real)
+function extremal_index_sueveges(logdist::AbstractVector, q::Real, thresh::Real)
+    # TODO: This is wrong for now
     q = 1 - q
-    Li = findall(x -> x > thresh, logdista)
+    Li = findall(x -> x > thresh, logdist)
     Ti = diff(Li)
     Si = Ti .- 1
     Nc = length(findall(x->x>0, Si))
