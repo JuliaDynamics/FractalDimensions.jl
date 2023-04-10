@@ -53,7 +53,7 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real;
     Δloc = zeros(eltype(X), N)
     θloc = copy(Δloc)
     progress = ProgressMeter.Progress(
-        N; desc = "Extreme val. theory dim: ", enabled = show_progress
+        N; desc = "Extreme value theory dim: ", enabled = show_progress
     )
     try
         # `vec(X)` gives the underlying `Vector{SVector}` for which `pairwise`
@@ -77,7 +77,7 @@ function _loop_over_matrix!(Δloc, θloc, progress, logdistances, q; kw...)
     end
 end
 function _loop_and_compute_logdist!(Δloc, θloc, progress, X, q; kw...)
-    logdist = zeros(eltype(X), length(X))
+    logdist = copy(Δloc)
     for j in eachindex(X)
         map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
         D, θ = extremevaltheory_local_dim_persistence(logdist, q)
@@ -90,6 +90,8 @@ end
 function extremevaltheory_local_dim_persistence(
         logdist::AbstractVector{<:Real}, q::Real; compute_persistence = true
     )
+    # Here `logdist` is already the -log(euclidean) distance of one point
+    # to all other points in the set.
     # Extract the threshold corresponding to the quantile defined
     thresh = quantile(logdist, q)
     # Compute the extremal index
@@ -99,7 +101,9 @@ function extremevaltheory_local_dim_persistence(
         θ = NaN
     end
     # Sort the time series and find all the Peaks Over Threshold (PoTs)
-    PoTs = logdist[findall(>(thresh), logdist)]
+    PoTs = logdist[findall(≥(thresh), logdist)]
+    # We need to filter, because one entry will have infinite value,
+    # because one entry has 0 Euclidean distance in the set.
     filter!(isfinite, PoTs)
     exceedances = PoTs .- thresh
     # Extract the GPD parameters.
