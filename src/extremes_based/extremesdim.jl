@@ -41,41 +41,34 @@ function loc_dimension_persistence(x::AbstractStateSpaceSet, q::Real)
         logdista = -log.([euclidean(x[j,:],x[i,:]) for i in range(1,length(x[:,1]))])
         # Extract the threshold corresponding to the quantile defined
         thresh = quantile(logdista, q)
-        # Compute the extremal index, use the external function extremal_Sueveges
-        θ[j] = fun_extremal_index_sueveges(logdista, q, thresh)
-        #Sort the time series and find all the PoTs
+        # Compute the extremal index
+        θ[j] = extremal_index_sueveges(logdista, q, thresh)
+        # Sort the time series and find all the PoTs
         logextr = logdista[findall(x -> x > thresh, logdista)]
-        filter!(isfinite,logextr)
-        #Extract the GPD parameters since the distribution is exponential, the
-        #average of the PoTs is the unbiased estimator, which is just the mean
-        #of the exceedances.
-        #The local dimension is the reciprocal of the exceedances of the PoTs
+        filter!(isfinite, logextr)
+        # Extract the GPD parameters since the distribution is exponential, the
+        # average of the PoTs is the unbiased estimator, which is just the mean
+        # of the exceedances.
+        # The local dimension is the reciprocal of the exceedances of the PoTs
         D1[j] = 1 ./ mean(logextr .- thresh)
     end
     return D1, θ
 end
 
 """
-    extremal_index_sueveges(Y::AbstractStateSpaceSet, u::Real, q::Real)
+    extremal_index_sueveges(logdista::AbstractVector, q, thresh)
 
-This function computes the extremal index θ through the Süveges formula for
-a time series Y, given the quantile p and the corresponding threshold p.
+Compute the extremal index θ through the Süveges formula.
 """
-function extremal_index_sueveges(Y::AbstractStateSpaceSet, u::Real, q::Real)
-
-    # Compute theta
-
-    if !(0 < q < 1)
-        error("The quantile has to be between 0 and 1")
-    end
-
+function extremal_index_sueveges(logdista::AbstractVector, q::Real, thresh::Real)
     q = 1 - q
-    Li = findall(x -> x > u, Y)
+    Li = findall(x -> x > thresh, logdista)
     Ti = diff(Li)
     Si = Ti .- 1
-    Nc = length(findall(x->x>0,Si))
+    Nc = length(findall(x->x>0, Si))
     N = length(Ti)
-    θ = (sum(q.*Si)+N+Nc - sqrt( (sum(q.*Si) +N+Nc).^2-8*Nc*sum(q.*Si)) )./(2*sum(q.*Si))
+    θ = (sum(q.*Si)+N+Nc - sqrt( (sum(q.*Si) +N+Nc).^2 - 8*Nc*sum(q.*Si)) )./(2*sum(q.*Si))
+    return θ
 end
 
 
