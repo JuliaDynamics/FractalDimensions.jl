@@ -49,6 +49,7 @@ then these two regions belong to the same linear region.
 Return the indices of `x` that correspond to the linear regions, `lrs`,
 and the correct `tangents` at each region
 (obtained via a second linear regression at each accumulated region).
+`lrs` is hence a vector of `UnitRange`s.
 """
 function linear_regions(
         x::AbstractVector, y::AbstractVector;
@@ -96,9 +97,10 @@ function linear_regions_sequential(x, y, dxi, tol)
 end
 
 """
-    linear_region(x, y; kwargs...) -> ((ind1, ind2), slope)
+    linear_region(x, y; kwargs...) -> (region, slope)
+
 Call [`linear_regions`](@ref) and identify and return the largest linear region
-and its slope. The region starts and stops at `x[ind1:ind2]`.
+(a `UnitRange` of the indices of `x`) and its corresponding slope.
 
 The keywords `dxi, tol` are propagated as-is to [`linear_regions`](@ref).
 The keyword `ignore_saturation = true` ignores saturation that (sometimes) happens
