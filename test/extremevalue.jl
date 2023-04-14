@@ -1,38 +1,38 @@
-using Statistics, DynamicalSystems, CairoMakie
+using Statistics, DynamicalSystemsBase, FractalDimensions
 
-@inline @inbounds function lorenz_rule(u, p, t)
-    σ = p[1]; ρ = p[2]; β = p[3]
-    du1 = σ*(u[2]-u[1])
-    du2 = u[1]*(ρ-u[3]) - u[2]
-    du3 = u[1]*u[2] - β*u[3]
-    return SVector{3}(du1, du2, du3)
+@testset "Lorenz63" begin
+    @inline @inbounds function lorenz_rule(u, p, t)
+        σ = p[1]; ρ = p[2]; β = p[3]
+        du1 = σ*(u[2]-u[1])
+        du2 = u[1]*(ρ-u[3]) - u[2]
+        du3 = u[1]*u[2] - β*u[3]
+        return SVector{3}(du1, du2, du3)
+    end
+
+    ρ = 28.0
+    ds = CoupledODEs(lorenz_rule, [0, 10, 0.0], [10.0, ρ, 8/3])
+
+    tr, tvec = trajectory(ds, 1000; Δt = 0.05, Ttr = 100)
+    estimator = :mm
+    qs = [0.97, 0.98, 0.99, 0.995]
+    N = length(tr)
+
+    @testset "q=$(q)" for q in qs
+        Δloc, θ = extremevaltheory_dims_persistences(tr, q;
+            compute_persistence = false, estimator
+        )
+        avedim = mean(Δloc)
+        @test 1.95 < avedim < 2.15
+    end
 end
 
-ρ = 28.0
-ds = CoupledODEs(lorenz_rule, [0, 10, 0.0], [10.0, ρ, 8/3])
+# %% Analytic test for persistence
+@testset "analytic uniform noise" begin
+    x = rand(100001)
+    y = [max(x[i],x[i+1]) for i in 1:length(x)-1]
+    y = StateSpaceSet(y)
+    Δloc, θloc = extremevaltheory_dims_persistences(y, 0.99)
 
-tr, tvec = trajectory(ds, 1000; Δt = 0.02, Ttr = 100)
-estimator = :mm
-qs = [0.97, 0.98, 0.99, 0.995]
-N = length(tr)
-
-fig, axs = subplotgrid(2,2; sharex = true, sharey = true, xlabels = "X", ylabels = "Z")
-
-for (q, ax) in zip(qs, axs)
-
-    Δloc, θ = extremevaltheory_dims_persistences(tr, q;
-        compute_persistence = false, estimator
-    )
-    avedim = mean(Δloc)
-    ax.title = "q = $(q), mean D = $(round(avedim; digits = 4))"
-
-    scatter!(ax, tr[:,1], tr[:,3];
-        color = Δloc, colormap = :viridis, colorrange = (0,3), markersize = 5
-    )
+    @test mean(Δloc) ≈ 1 atol = 1e-2
+    @test mean(θloc) ≈ 0.5 atol = 1e-2
 end
-
-Colorbar(fig[:, 3], colormap = :viridis, colorrange = (0, 3))
-figuretitle!(fig, "Lorenz63 (ρ = $(ρ)) - Local EVT fractal dim. - Estimator: $(estimator)")
-display(fig)
-
-Makie.save(desktop("Lorenz63_ρ=$(ρ)_N=$(N)_EVTDIM_$(estimator).png"), fig)

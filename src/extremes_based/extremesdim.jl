@@ -44,7 +44,7 @@ The computation is parallelized to available threads (`Threads.nthreads()`).
 
 - `show_progress = true`: displays a progress bar.
 - `estimator = :exponential`: how to estimate the `σ` parameter of the
-  Generalized Pareto Distribution. The local fractal dimension is 1/σ.
+  Generalized Pareto Distribution. The local fractal dimension is `1/σ`.
   The possible values are: `:mean, :mm`. TODO: Write more about methods.
 """
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real;
@@ -74,7 +74,6 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real;
     return Δloc, θloc
 end
 
-# TODO: Threading
 function _loop_over_matrix!(Δloc, θloc, progress, logdistances, q; kw...)
     Threads.@threads for (j, logdist) in enumerate(eachcol(logdistances))
         D, θ = extremevaltheory_local_dim_persistence(logdist, q)
@@ -102,6 +101,7 @@ function extremevaltheory_local_dim_persistence(
     # to all other points in the set.
     # Extract the threshold corresponding to the quantile defined
     thresh = quantile(logdist, q)
+    # TODO: Operation `findall(≥(thresh), logdist)` is repeated
     # Compute the extremal index
     if compute_persistence
         θ = extremal_index_sueveges(logdist, q, thresh)
@@ -125,7 +125,7 @@ end
     estimate_gpd_parameters(X::AbstractVector{<:Real}, estimator::Symbol = :mm)
 
 Estimate and return the parameters `σ, ξ` of a Generalized Pareto Distribution
-fit to `X`, assuming that `minimum(X) == 0` and hence the parameter `μ = 0`
+fit to `X`, assuming that `minimum(X) == 0` and hence the parameter `μ` is 0
 (if not, simply shift `X` by its minimum).
 Optionally choose the estimator, which can be: # TODO: Write it.
 """
