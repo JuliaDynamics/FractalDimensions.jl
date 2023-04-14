@@ -1,5 +1,6 @@
 export extremevaltheory_dims_persistences, extremevaltheory_dim
 export extremevaltheory_local_dim_persistence
+export extremal_index_sueveges
 using Distances: euclidean
 using Statistics: mean, quantile, var
 import ProgressMeter
@@ -149,14 +150,17 @@ function estimate_gpd_parameters(X, estimator)
 end
 
 """
-    extremal_index_sueveges(logdist::AbstractVector, q, thresh)
+    extremal_index_sueveges(y::AbstractVector, q)
 
-Compute the extremal index θ through the Süveges formula.
+Compute the extremal index θ of `y` through the Süveges formula for quantile `q`.
 """
-function extremal_index_sueveges(logdist::AbstractVector, q::Real, thresh::Real)
+function extremal_index_sueveges(y::AbstractVector, q::Real,
+        # These arguments are given for performance optim; not part of public API
+        thresh::Real = quantile(y, q)
+    )
     # TODO: This is wrong for now
     q = 1 - q
-    Li = findall(x -> x > thresh, logdist)
+    Li = findall(x -> x > thresh, y)
     Ti = diff(Li)
     Si = Ti .- 1
     Nc = length(findall(x->x>0, Si))

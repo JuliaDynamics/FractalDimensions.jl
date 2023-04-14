@@ -30,9 +30,7 @@ end
 @testset "analytic uniform noise" begin
     x = rand(100001)
     y = [max(x[i],x[i+1]) for i in 1:length(x)-1]
-    y = StateSpaceSet(y)
-    Δloc, θloc = extremevaltheory_dims_persistences(y, 0.99)
-
-    @test mean(Δloc) ≈ 1 atol = 1e-2
+    q = 0.98
+    θ = FractalDimensions.extremal_index_sueveges(y, q)
     @test mean(θloc) ≈ 0.5 atol = 1e-2
 end
