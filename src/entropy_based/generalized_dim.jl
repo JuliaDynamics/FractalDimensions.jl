@@ -1,5 +1,5 @@
 using ComplexityMeasures: Renyi, ValueHistogram, entropy
-export generalized_dim
+export generalized_dim, entropy, Renyi, ValueHistogram
 
 """
     generalized_dim(X::StateSpaceSet [, sizes]; q = 1, base = 2) -> Δ_q
