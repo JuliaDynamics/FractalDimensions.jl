@@ -1,4 +1,6 @@
 import ProgressMeter
+import Polyester # low-overhead threading
+
 using Distances: evaluate, Euclidean, pairwise
 
 export correlationsum, boxed_correlationsum
@@ -131,13 +133,13 @@ function correlationsum_q(X, ε::Real, q, norm, w, show_progress)
 end
 
 #######################################################################################
-# Vector ε implementations
+# Vector ε implementations: q = 2
 #######################################################################################
 function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
-    @assert issorted(εs) "Sorted `ε` required for optimized version."
+    issorted(εs) || error("Sorted `ε` required for optimized version.")
+    distances = all_necessary_distances(X, w, norm)
+    return correlationsum_2_optimized(X, εs, distances, w, show_progress)
     try
-        distances = all_necessary_distances(X, w, norm)
-        return correlationsum_2_optimized(X, εs, distances, w, show_progress)
     catch err
         @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
         return [correlationsum_2(X, ε, norm, w, show_progress) for ε in εs]
@@ -179,6 +181,44 @@ function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     return Cs .* factor
 end
 
+function all_necessary_distances(X::AbstractStateSpaceSet, w, norm = Euclidean())
+    # Distances are only evaluated for these indices:
+    # for i in 1:N
+    #     @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
+    # end
+    # which means, we only need to compute them for these indices
+    N = length(X)
+    @inbounds function threaded_fast_distance(X, i, w, N)
+        r = i+1+w:N
+        v = X[i]
+        out = zeros(eltype(X), length(r))
+        Polyester.@batch for j in eachindex(r)
+            ξ = r[j]
+            out[j] = norm(v, X[ξ])
+        end
+        return out
+    end
+
+    distances = @inbounds [threaded_fast_distance(X, i, w, N) for i in 1:N]
+
+    # distances = @inbounds [[norm(X[i], X[j]) for j in i+1+w:N] for i in 1:N]
+
+    # return pairwise(norm, vec(X))
+    # N = length(X)
+    # d = zeros(eltype(X), N, N)
+    # @inbounds for i in 1:N
+    #     for j in i+1:N
+    #         d[j, i] = evaluate(norm, X[i], X[j])
+    #     end
+    # end
+    # return d
+    return distances
+end
+
+
+#######################################################################################
+# Vector ε implementations: q ≠ 2
+#######################################################################################
 function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
     issorted(εs) || error("Sorted εs required for optimized version.")
     Nε, T, N = length(εs), eltype(X), length(X)
@@ -203,25 +243,4 @@ function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
         show_progress && ProgressMeter.next!(progress)
     end
     return (Cs ./ normalisation) .^ (1/(q-1))
-end
-
-function all_necessary_distances(X::AbstractStateSpaceSet, w, norm = Euclidean())
-    # Distances are only evaluated for these indices:
-    # for i in 1:N
-    #     @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
-    # end
-    # which means, we only need to compute them for these indices
-    N = length(X)
-    distances = @inbounds [[norm(X[i], X[j]) for j in i+1+w:N] for i in 1:N]
-
-    # return pairwise(norm, vec(X))
-    # N = length(X)
-    # d = zeros(eltype(X), N, N)
-    # @inbounds for i in 1:N
-    #     for j in i+1:N
-    #         d[j, i] = evaluate(norm, X[i], X[j])
-    #     end
-    # end
-    # return d
-    return distances
 end
