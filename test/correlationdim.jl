@@ -18,7 +18,7 @@ henon = DeterministicIteratedMap(henon_rule, zeros(2), [1.4, 0.3])
 X = standardize(trajectory(henon, 10_000; Ttr = 100)[1])
 sizesX = estimate_boxsizes(X)
 
-@testset "correlation sums" begin
+@testset "correlation sums analytic" begin
     X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.0)])
     εs = [0.1, 1.0]
     Cs = correlationsum(X, εs)
