@@ -146,9 +146,9 @@ end
 
 function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
     issorted(εs) || error("Sorted `ε` required for optimized version.")
-    distances = all_necessary_distances(X, w, norm)
-    return correlationsum_2_optimized(X, εs, distances, w, show_progress)
-    try
+    try # in case we don't have enough memory for all vectors
+        distances = distances_2(X, norm, w)
+        return correlationsum_2_optimized(X, εs, distances, w, show_progress)
     catch err
         @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
         return [correlationsum_2(X, ε, norm, w, show_progress) for ε in εs]
@@ -192,23 +192,21 @@ function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     return Cs .* factor
 end
 
-function all_necessary_distances(X::AbstractStateSpaceSet, w, norm = Euclidean())
+function distances_2(X::AbstractStateSpaceSet, norm, w)
     # Distances are only evaluated for a subset of the total indices
     # and hence we only compute those distances
-    @inbounds function threaded_fast_distance(X, i, w, N)
-        r = i+1+w:N
+    @inbounds function threaded_fast_distance(X, i, w, norm)
+        r = i+1+w:length(X)
         v = X[i]
         out = zeros(eltype(X), length(r))
         Polyester.@batch for j in eachindex(r)
             ξ = r[j]
             out[j] = norm(v, X[ξ])
         end
-        # sort!(out)
         return out
     end
 
-    N = length(X)
-    distances = [threaded_fast_distance(X, i, w, N) for i in 1:N]
+    distances = [threaded_fast_distance(X, i, w, norm) for i in 1:length(X)]
     return distances
 end
 
@@ -216,6 +214,40 @@ end
 #######################################################################################
 # Vector ε implementations: q ≠ 2
 #######################################################################################
+function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
+    issorted(εs) || error("Sorted `ε` required for optimized version.")
+    distances = distances_q(X, norm, w)
+    return correlationsum_q_optimized(X, εs, distances, w, show_progress)
+    try # in case we don't have enough memory for all vectors
+    catch err
+        @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
+        correlationsum_q(X, εs, eltype(X)(q), norm, w, show_progress)
+    end
+end
+
+function correlationsum_q_optimized(X, εs::AbstractVector, q, distances, show_progress)
+    E, T, N = length(εs), eltype(X), length(X)
+    C_current = zeros(T, E)
+    Cs = copy(C_current)
+    factor = (N-2w)*(N-2w-one(T))^(q-1)
+    irange = 1+w:N-w
+    progress = ProgressMeter.Progress(length(irange);
+        desc="Correlation sum: ", dt=1, enabled=show_progress
+    )
+
+    for (ii, i) in enumerate(1+w:N-w)
+        fill!(C_current, 0)
+        dist = distances[ii] # distances of points in the range of indices around `i`
+        for k in E:-1:1
+            C_current[k] = count(<(εs[k]), dist)
+        end
+        Cs .+= C_current .^ (q-1)
+        ProgressMeter.next!(progress)
+    end
+    return (Cs ./ factor) .^ (1/(q-1))
+end
+
+# Unoptimized version:
 function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
     issorted(εs) || error("Sorted εs required for optimized version.")
     Nε, T, N = length(εs), eltype(X), length(X)
@@ -241,3 +273,30 @@ function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
     end
     return (Cs ./ normalisation) .^ (1/(q-1))
 end
+
+function distances_q(X::AbstractStateSpaceSet, norm, w)
+    # Distances are only evaluated for a subset of the total indices
+    # and hence we only compute those distances
+    @inbounds function threaded_fast_distance(X, i, w, norm)
+        r1 = 1:i-w-1
+        lr1 = length(r1)
+        r2 = i+w+1:length(X)
+        v = X[i]
+        out = zeros(eltype(X), lr1+length(r2))
+        i = 1
+        Polyester.@batch for j in eachindex(r1)
+            ξ = r1[j]
+            out[j] = norm(v, X[ξ])
+        end
+        Polyester.@batch for j in eachindex(r2)
+            ξ = r2[j]
+            out[j+lr1] = norm(v, X[ξ])
+        end
+        # sort!(out)
+        return out
+    end
+
+    distances = [threaded_fast_distance(X, i, w, norm) for i in 1+w:length(X)-w]
+    return distances
+end
+
