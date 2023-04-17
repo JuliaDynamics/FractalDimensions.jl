@@ -135,6 +135,15 @@ end
 #######################################################################################
 # Vector ε implementations: q = 2
 #######################################################################################
+# Many different algorithms were tested for a fast implementation of the vanilla
+# correlation sum. The fastest was the one currently here. It pre-computes
+# the distances as a vector of vectors (as not all distances need be computed
+# due to the theiler window and duplicity). Then, for each vector of distances
+# we simply count how many are less that ε.
+# We also tested sorting the distances and then using `searchsortedfirst`.
+# However, oddly, this was consistently slower. I guess it is because
+# counting <(ε) has different scaling with N than sort has.
+
 function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
     issorted(εs) || error("Sorted `ε` required for optimized version.")
     distances = all_necessary_distances(X, w, norm)
@@ -145,31 +154,33 @@ function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
         return [correlationsum_2(X, ε, norm, w, show_progress) for ε in εs]
     end
 end
+
 function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     Cs = zeros(eltype(X), length(εs))
     N = length(X)
     factor = 2/((N-w)*(N-1-w))
+    lower_ε_range = length(εs)÷2:-1:1
+    upper_ε_range = (length(εs)÷2 + 1):length(εs)
     # progress bar
-    K = length(length(εs)÷2:-1:1)
-    M = K + length((length(εs)÷2 + 1):length(εs))
-    progress = ProgressMeter.Progress(M; desc = "Correlation sum: ", dt = 1.0, enabled = show_progress)
+    K = length(lower_ε_range)
+    progress = ProgressMeter.Progress(K + length(upper_ε_range);
+        desc = "Correlation sum: ", dt = 1.0, enabled = show_progress
+    )
 
     # First loop: mid-way ε until lower saturation point (C=0)
-    for (ki, k) in enumerate(length(εs)÷2:-1:1)
+    @inbounds for (ki, k) in enumerate(length(εs)÷2:-1:1)
         ε = εs[k]
         for i in 1:N
-            # @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
-            @inbounds Cs[k] += count(<(ε), distances[i])
+            Cs[k] += count(<(ε), distances[i])
         end
         ProgressMeter.update!(progress, ki)
         Cs[k] == 0 && break
     end
     # Second loop: mid-way ε until higher saturation point (C=max)
-    for (ki, k) in enumerate((length(εs)÷2 + 1):length(εs))
+    @inbounds for (ki, k) in enumerate(upper_ε_range)
         ε = εs[k]
         for i in 1:N
-            # @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
-            @inbounds Cs[k] += count(<(ε), distances[i])
+            Cs[k] += count(<(ε), distances[i])
         end
         ProgressMeter.update!(progress, ki+K)
         if Cs[k] ≈ 1/factor
@@ -182,12 +193,8 @@ function correlationsum_2_optimized(X, εs, distances, w, show_progress)
 end
 
 function all_necessary_distances(X::AbstractStateSpaceSet, w, norm = Euclidean())
-    # Distances are only evaluated for these indices:
-    # for i in 1:N
-    #     @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
-    # end
-    # which means, we only need to compute them for these indices
-    N = length(X)
+    # Distances are only evaluated for a subset of the total indices
+    # and hence we only compute those distances
     @inbounds function threaded_fast_distance(X, i, w, N)
         r = i+1+w:N
         v = X[i]
@@ -196,22 +203,12 @@ function all_necessary_distances(X::AbstractStateSpaceSet, w, norm = Euclidean()
             ξ = r[j]
             out[j] = norm(v, X[ξ])
         end
+        # sort!(out)
         return out
     end
 
-    distances = @inbounds [threaded_fast_distance(X, i, w, N) for i in 1:N]
-
-    # distances = @inbounds [[norm(X[i], X[j]) for j in i+1+w:N] for i in 1:N]
-
-    # return pairwise(norm, vec(X))
-    # N = length(X)
-    # d = zeros(eltype(X), N, N)
-    # @inbounds for i in 1:N
-    #     for j in i+1:N
-    #         d[j, i] = evaluate(norm, X[i], X[j])
-    #     end
-    # end
-    # return d
+    N = length(X)
+    distances = [threaded_fast_distance(X, i, w, N) for i in 1:N]
     return distances
 end
 
