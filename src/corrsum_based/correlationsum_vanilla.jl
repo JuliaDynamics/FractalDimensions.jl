@@ -1,5 +1,5 @@
 import ProgressMeter
-using Distances: evaluate, Euclidean
+using Distances: evaluate, Euclidean, pairwise
 
 export correlationsum, boxed_correlationsum
 export grassberger_proccacia_dim
@@ -89,6 +89,9 @@ function correlationsum(X, ε; q = 2, norm = Euclidean(), w = 0, show_progress =
     end
 end
 
+#######################################################################################
+# Real ε implementations
+#######################################################################################
 function correlationsum_2(X, ε::Real, norm, w, show_progress)
     N = length(X)
     if show_progress
@@ -128,61 +131,60 @@ function correlationsum_q(X, ε::Real, q, norm, w, show_progress)
 end
 
 #######################################################################################
-# Optimized versions (vector ε)
+# Vector ε implementations
 #######################################################################################
 function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
     @assert issorted(εs) "Sorted `ε` required for optimized version."
-    d = try
-        distancematrix(X, norm)
+    try
+        distances = all_necessary_distances(X, w, norm)
+        return correlationsum_2_optimized(X, εs, distances, w, show_progress)
     catch err
-        @warn "Couldn't create distance matrix ($(typeof(err))). Using slower algorithm..."
+        @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
         return [correlationsum_2(X, ε, norm, w, show_progress) for ε in εs]
     end
-    return correlationsum_2_optimized(X, εs, d, w, show_progress) # function barrier
 end
-function correlationsum_2_optimized(X, εs, d, w, show_progress)
+function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     Cs = zeros(eltype(X), length(εs))
     N = length(X)
     factor = 2/((N-w)*(N-1-w))
-    if show_progress
-        K = length(length(εs)÷2:-1:1)
-        M = K + length((length(εs)÷2 + 1):length(εs))
-        progress = ProgressMeter.Progress(M; desc = "Correlation sum: ", dt = 1.0)
-    end
+    # progress bar
+    K = length(length(εs)÷2:-1:1)
+    M = K + length((length(εs)÷2 + 1):length(εs))
+    progress = ProgressMeter.Progress(M; desc = "Correlation sum: ", dt = 1.0, enabled = show_progress)
 
     # First loop: mid-way ε until lower saturation point (C=0)
     for (ki, k) in enumerate(length(εs)÷2:-1:1)
         ε = εs[k]
         for i in 1:N
-            @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
+            # @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
+            @inbounds Cs[k] += count(<(ε), distances[i])
         end
-        show_progress && ProgressMeter.update!(progress, ki)
+        ProgressMeter.update!(progress, ki)
         Cs[k] == 0 && break
     end
     # Second loop: mid-way ε until higher saturation point (C=max)
     for (ki, k) in enumerate((length(εs)÷2 + 1):length(εs))
         ε = εs[k]
         for i in 1:N
-            @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
+            # @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
+            @inbounds Cs[k] += count(<(ε), distances[i])
         end
-        show_progress && ProgressMeter.update!(progress, ki+K)
+        ProgressMeter.update!(progress, ki+K)
         if Cs[k] ≈ 1/factor
             Cs[k:end] .= 1/factor
             break
         end
     end
-    show_progress && ProgressMeter.finish!(progress)
+    ProgressMeter.finish!(progress)
     return Cs .* factor
 end
 
 function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
-    @assert issorted(εs) "Sorted εs required for optimized version."
+    issorted(εs) || error("Sorted εs required for optimized version.")
     Nε, T, N = length(εs), eltype(X), length(X)
     Cs = zeros(T, Nε)
     normalisation = (N-2w)*(N-2w-one(T))^(q-1)
-    if show_progress
-        progress = ProgressMeter.Progress(length(1+w:N-w); desc="Correlation sum: ", dt=1)
-    end
+    progress = ProgressMeter.Progress(length(1+w:N-w); desc="Correlation sum: ", dt=1, enabled=show_progress)
     for i in 1+w:N-w
         x = X[i]
         C_current = zeros(T, Nε)
@@ -203,13 +205,23 @@ function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
     return (Cs ./ normalisation) .^ (1/(q-1))
 end
 
-function distancematrix(X, norm = Euclidean())
+function all_necessary_distances(X::AbstractStateSpaceSet, w, norm = Euclidean())
+    # Distances are only evaluated for these indices:
+    # for i in 1:N
+    #     @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
+    # end
+    # which means, we only need to compute them for these indices
     N = length(X)
-    d = zeros(eltype(X), N, N)
-    @inbounds for i in 1:N
-        for j in i+1:N
-            d[j, i] = evaluate(norm, X[i], X[j])
-        end
-    end
-    return d
+    distances = @inbounds [[norm(X[i], X[j]) for j in i+1+w:N] for i in 1:N]
+
+    # return pairwise(norm, vec(X))
+    # N = length(X)
+    # d = zeros(eltype(X), N, N)
+    # @inbounds for i in 1:N
+    #     for j in i+1:N
+    #         d[j, i] = evaluate(norm, X[i], X[j])
+    #     end
+    # end
+    # return d
+    return distances
 end

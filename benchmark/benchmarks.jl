@@ -22,7 +22,7 @@ moltenof(X, εs) = molteno_boxing(X)
 for D in DIMENSIONS
     for N in LENGTHS
         # dataset:
-        X = StateSpaceSet(randn(N, D))
+        X = StateSpaceSet(randn(RNG, N, D))
         r0, ε0 = estimate_r0_buenoorovio(X)
     end
 end
