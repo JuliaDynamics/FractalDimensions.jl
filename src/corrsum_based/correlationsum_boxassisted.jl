@@ -32,10 +32,10 @@ end
 """
     boxed_correlationsum(X::AbstractStateSpaceSet, εs, r0 = maximum(εs); kwargs...) → Cs
 
-Estimate the box assisted q-order correlation sum `Cs` out of a
-dataset `X` for each radius in `εs`, by splitting the data into boxes of size `r0`
+Estimate the box assisted q-order correlation sum `Cs` of `X` for each radius in `εs`,
+by splitting the data into boxes of size `r0`
 beforehand. This method is much faster than [`correlationsum`](@ref), **provided that** the
-box size `r0` is significantly smaller than then the attractor length.
+box size `r0` is significantly smaller than the attractor length.
 Good choices for `r0` are [`estimate_r0_buenoorovio`](@ref) and
 [`estimate_r0_theiler`](@ref).
 
@@ -72,7 +72,7 @@ See [`correlationsum`](@ref) for the definition of `C_q`.
 """
 function boxed_correlationsum(X; P = 2, kwargs...)
     r0, ε0 = estimate_r0_buenoorovio(X, P)
-    εs = 2.0 .^ range(log2(ε0), log2(r0); length = 16)
+    εs = MathConstants.e .^ range(log(ε0), log(r0); length = 16)
     Cs = boxed_correlationsum(X, εs, r0; P, kwargs...)
     return εs, Cs
 end
@@ -116,50 +116,6 @@ function autoprismdim(X, version = :bueno)
 end
 
 """
-    data_boxing(X_i, r0, P) → boxes, contents
-
-Distribute `X` into boxes of size `r0`. Return box positions
-and the contents of each box as two separate vectors. Implemented according to
-the paper by Theiler[^Theiler1987] improving the algorithm by Grassberger and
-Procaccia[^Grassberger1983]. If `P` is smaller than the dimension of the data,
-only the first `P` dimensions are considered for the distribution into boxes.
-
-See also: [`boxed_correlationsum`](@ref).
-
-[^Theiler1987]:
-    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
-    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
-
-[^Grassberger1983]:
-    Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
-    ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
-"""
-function data_boxing(X, r0, P)
-    @assert P ≤ size(X, 2) "Prism dimension has to be ≤ than data dimension."
-    mini = minima(X)[1:P]
-
-    # Map each datapoint to its bin edge and sort the resulting list:
-    bins = map(point -> floor.(Int, (point[1:P] - mini)/r0), X)
-    permutations = sortperm(bins, alg=QuickSort)
-
-    boxes = unique(bins[permutations])
-    contents = Vector{Vector{Int}}()
-    sizehint!(contents, length(boxes))
-
-    prior, prior_perm = 1, permutations[1]
-    # distributes all permutation indices into boxes
-    for (index, perm) in enumerate(permutations)
-        if bins[perm] ≠ bins[prior_perm]
-            push!(contents, permutations[prior:index-1])
-            prior, prior_perm = index, perm
-        end
-    end
-    push!(contents, permutations[prior:end])
-
-    StateSpaceSet(boxes), contents
-end
-
-"""
     boxed_correlationsum_2(boxes, contents, X, εs; w = 0)
 For a vector of `boxes` and the indices of their `contents` inside of `X`,
 calculate the classic correlationsum of a radius or multiple radii `εs`.
@@ -179,24 +135,6 @@ function boxed_correlationsum_2(boxes, contents, X, εs; w = 0, show_progress = 
         show_progress && ProgressMeter.update!(progress, index)
     end
     Cs .* (2 / ((N - w) * (N - w - 1)))
-end
-
-"""
-    find_neighborboxes_2(index, boxes, contents) → indices
-For an `index` into `boxes` all neighbouring boxes beginning from the current
-one are searched. If the found box is indeed a neighbour, the `contents` of
-that box are added to `indices`.
-"""
-function find_neighborboxes_2(index, boxes, contents)
-    indices = Int[]
-    box = boxes[index]
-    N_box = length(boxes)
-    for index2 in index:N_box
-        if evaluate(Chebyshev(), box, boxes[index2]) < 2
-            append!(indices, contents[index2])
-        end
-    end
-    indices
 end
 
 """
@@ -261,21 +199,6 @@ function boxed_correlationsum_q(boxes, contents, X, εs, q; w = 0, show_progress
     clamp.((Cs ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
 end
 
-"""
-    find_neighborboxes_q(index, boxes, contents) → indices
-For an `index` into `boxes` all neighbouring boxes are searched. If the found
-box is indeed a neighbour, the `contents` of that box are added to `indices`.
-"""
-function find_neighborboxes_q(index, boxes, contents)
-    indices = Int[]
-    box = boxes[index]
-    for (index2, box2) in enumerate(boxes)
-        if evaluate(Chebyshev(), box, box2) < 2
-            append!(indices, contents[index2])
-        end
-    end
-    indices
-end
 
 """
     inner_correlationsum_q(indices_X, indices_Y, data, εs, q::Real; norm, w)
@@ -320,6 +243,89 @@ function inner_correlationsum_q(
     end
     return Cs
 end
+
+
+################################################################################
+# Data boxing
+################################################################################
+"""
+    data_boxing(X::StateSpaceSet, r0, P = dimension(X)) → boxes, contents
+
+Distribute `X` into boxes of size `r0`. Return box positions
+and the contents of each box as two separate vectors. Implemented according to
+the paper by Theiler[^Theiler1987] improving the algorithm by Grassberger and
+Procaccia[^Grassberger1983]. If `P` is smaller than the dimension of the data,
+only the first `P` dimensions are considered for the distribution into boxes.
+
+See also: [`boxed_correlationsum`](@ref).
+
+[^Theiler1987]:
+    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
+    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
+
+[^Grassberger1983]:
+    Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
+    ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
+"""
+function data_boxing(X, r0, P = dimension(X))
+    P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
+    mini = minima(X)[1:P]
+
+    # Map each datapoint to its bin edge and sort the resulting list:
+    bins = map(point -> floor.(Int, (point[1:P] - mini)/r0), X)
+    permutations = sortperm(bins, alg=QuickSort)
+
+    boxes = unique(bins[permutations])
+    contents = Vector{Vector{Int}}()
+    sizehint!(contents, length(boxes))
+
+    prior, prior_perm = 1, permutations[1]
+    # distributes all permutation indices into boxes
+    for (index, perm) in enumerate(permutations)
+        if bins[perm] ≠ bins[prior_perm]
+            push!(contents, permutations[prior:index-1])
+            prior, prior_perm = index, perm
+        end
+    end
+    push!(contents, permutations[prior:end])
+
+    StateSpaceSet(boxes), contents
+end
+
+"""
+    find_neighborboxes_2(index, boxes, contents) → indices
+For an `index` into `boxes` all neighbouring boxes beginning from the current
+one are searched. If the found box is indeed a neighbour, the `contents` of
+that box are added to `indices`.
+"""
+function find_neighborboxes_2(index, boxes, contents)
+    indices = Int[]
+    box = boxes[index]
+    N_box = length(boxes)
+    for index2 in index:N_box
+        if evaluate(Chebyshev(), box, boxes[index2]) < 2
+            append!(indices, contents[index2])
+        end
+    end
+    indices
+end
+
+"""
+    find_neighborboxes_q(index, boxes, contents) → indices
+For an `index` into `boxes` all neighbouring boxes are searched. If the found
+box is indeed a neighbour, the `contents` of that box are added to `indices`.
+"""
+function find_neighborboxes_q(index, boxes, contents)
+    indices = Int[]
+    box = boxes[index]
+    for (index2, box2) in enumerate(boxes)
+        if evaluate(Chebyshev(), box, box2) < 2
+            append!(indices, contents[index2])
+        end
+    end
+    indices
+end
+
 
 #######################################################################################
 # Good boxsize estimates for boxed correlation sum
