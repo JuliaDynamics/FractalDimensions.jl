@@ -249,7 +249,7 @@ end
 # Data boxing
 ################################################################################
 """
-    data_boxing(X::StateSpaceSet, r0, P = dimension(X)) → boxes, contents
+    data_boxing(X::StateSpaceSet, r0, P = autoprismdim(X)) → boxes, contents
 
 Distribute `X` into boxes of size `r0`. Return box positions
 and the contents of each box as two separate vectors. Implemented according to
@@ -267,12 +267,17 @@ See also: [`boxed_correlationsum`](@ref).
     Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
     ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
-function data_boxing(X, r0, P = dimension(X))
+function data_boxing(X, r0, P::Int = autoprismdim(X))
     P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
-    mini = minima(X)[1:P]
+    Xreduced = X[:, 1:P]
+    return _data_boxing(Xreduced, r0)
+end
+
+function _data_boxing(X, r0)
+    mini = minima(X)
 
     # Map each datapoint to its bin edge and sort the resulting list:
-    bins = map(point -> floor.(Int, (point[1:P] - mini)/r0), X)
+    bins = map(point -> floor.(Int, (point - mini)/r0), X)
     permutations = sortperm(bins, alg=QuickSort)
 
     boxes = unique(bins[permutations])
