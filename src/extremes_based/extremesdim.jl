@@ -126,37 +126,28 @@ end
 ################################################################################
 # Fitting Pareto
 ################################################################################
-
-"""
-    GeneralizedParetoEstimator
-
-Supertype for types defining what method to use when fitting a Generalized Pareto
-Distribution in the function [`estimate_gpd_parameters`](@ref) to obtain the
-distribution parametes `σ, ξ` (`μ` is always assumed 0). Options:
-
-- `ExponentialMean()`: Assume the distribution is exponential instead of GP and
-  get `σ` from sample mean and `ξ = 0`.
-- `MethodOfMoments()`: Estimants are given by
-  ```math
-  \\xi = (\\bar{x}^2/s^2 - 1)/2, \\quad \\sigma = \\bar{x}(\\bar{x}^2/s^2 + 1)/2
-  ```
-  with ``\\bar{x}`` the sample mean and ``s^2`` the sample variance.
-- `ProbabilityWeightedMoments()`: TODO.
-"""
-abstract type ParetoFittingMethod end
-
-
-
 """
     estimate_gpd_parameters(X::AbstractVector{<:Real}, estimator::Symbol = :mm)
 
 Estimate and return the parameters `σ, ξ` of a Generalized Pareto Distribution
 fit to `X`, assuming that `minimum(X) == 0` and hence the parameter `μ` is 0
-(if not, simply shift `X` by its minimum).
-Optionally choose the estimator, which can be: # TODO: Write it.
+(if not, simply shift `X` by its minimum), according to the methods provided
+in [^Pons2023].
+
+Optionally choose the estimator, which can be:
+
+- `:exp`: Assume the distribution is exponential instead of GP and
+  get `σ` from sample mean and `ξ = 0`.
+- `mm`: Standing for "method of moments", estimants are given by
+  ```math
+  \\xi = (\\bar{x}^2/s^2 - 1)/2, \\quad \\sigma = \\bar{x}(\\bar{x}^2/s^2 + 1)/2
+  ```
+  with ``\\bar{x}`` the sample mean and ``s^2`` the sample variance. This estimator
+  only exists of the true distribution `ξ` value is ≤ 0.5.
+- `:pwm`: standing for "probability weighted moments" TODO.
 """
 function estimate_gpd_parameters(X, estimator)
-    if estimator == :mean
+    if estimator == :exp
         # Assuming that the distribution is exponential, the
         # average of the PoTs is the unbiased estimator, which is just the mean
         # of the exceedances.
