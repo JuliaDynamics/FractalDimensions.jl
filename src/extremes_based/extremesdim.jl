@@ -122,6 +122,31 @@ function extremevaltheory_local_dim_persistence(
     return Δ, θ
 end
 
+
+################################################################################
+# Fitting Pareto
+################################################################################
+
+"""
+    GeneralizedParetoEstimator
+
+Supertype for types defining what method to use when fitting a Generalized Pareto
+Distribution in the function [`estimate_gpd_parameters`](@ref) to obtain the
+distribution parametes `σ, ξ` (`μ` is always assumed 0). Options:
+
+- `ExponentialMean()`: Assume the distribution is exponential instead of GP and
+  get `σ` from sample mean and `ξ = 0`.
+- `MethodOfMoments()`: Estimants are given by
+  ```math
+  \\xi = (\\bar{x}^2/s^2 - 1)/2, \\quad \\sigma = \\bar{x}(\\bar{x}^2/s^2 + 1)/2
+  ```
+  with ``\\bar{x}`` the sample mean and ``s^2`` the sample variance.
+- `ProbabilityWeightedMoments()`: TODO.
+"""
+abstract type ParetoFittingMethod end
+
+
+
 """
     estimate_gpd_parameters(X::AbstractVector{<:Real}, estimator::Symbol = :mm)
 
@@ -137,10 +162,10 @@ function estimate_gpd_parameters(X, estimator)
         # of the exceedances.
         return mean(X), zero(eltype(X))
     elseif estimator == :mm
-        # for whateve reason the authors don't use the corrected versions
+        # for whatever reason the authors don't use the corrected versions
         x̄ = mean(X)
         s² = var(X; corrected = false, mean = x̄)
-        ξ = (1/2)*((x̄^2/s²) + 1)
+        ξ = (1/2)*((x̄^2/s²) - 1)
         σ = (x̄/2)*((x̄^2/s²) + 1)
         return σ, ξ
     else
