@@ -225,7 +225,7 @@ function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
     end
 end
 
-function correlationsum_q_optimized(X, εs::AbstractVector, q, distances, show_progress)
+function correlationsum_q_optimized(X, εs::AbstractVector, q, distances::Vector, show_progress)
     E, T, N = length(εs), eltype(X), length(X)
     C_current = zeros(T, E)
     Cs = copy(C_current)
@@ -248,7 +248,7 @@ function correlationsum_q_optimized(X, εs::AbstractVector, q, distances, show_p
 end
 
 # Unoptimized version:
-function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
+function correlationsum_q(X, εs::AbstractVector, q, norm::Metric, w, show_progress)
     issorted(εs) || error("Sorted εs required for optimized version.")
     Nε, T, N = length(εs), eltype(X), length(X)
     Cs = zeros(T, Nε)

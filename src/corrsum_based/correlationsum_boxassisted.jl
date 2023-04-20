@@ -56,6 +56,7 @@ of `X` are used to estimate good `εs` for the calculation, which are also retur
 * `P = autoprismdim(X)` : The prism dimension.
 * `w = 0` : The [Theiler window](@ref).
 * `show_progress = false` : Whether to display a progress bar for the calculation.
+* `norm = Euclidean()` : Distance norm.
 
 ## Description
 
@@ -81,19 +82,14 @@ function boxed_correlationsum(X; P = 2, kwargs...)
     return εs, Cs
 end
 
-function boxed_correlationsum(
-        X, εs, r0 = maximum(εs);
-        q = 2, P = autoprismdim(X), w = 0,
-        show_progress = false,
-    )
+function boxed_correlationsum(X, εs, r0 = maximum(εs); P = autoprismdim(X), kwargs...)
     boxes_to_contents, hist_size = data_boxing(X, r0, P)
-
-    Cs = if q == 2
-        boxed_correlationsum_2(boxes_to_contents, offsets, X, εs; w, show_progress)
-    else
-        boxed_correlationsum_q(boxes, contents, X, εs, q; w, show_progress)
-    end
-    return Cs
+    boxed_correlationsum_2(boxes_to_contents, hist_size, X, εs; kwargs...)
+    # Cs = if q == 2
+    # else
+    #     boxed_correlationsum_q(boxes, contents, X, εs, q; w, show_progress)
+    # end
+    # return Cs
 end
 
 """
@@ -168,14 +164,15 @@ For a vector of `boxes` and the indices of their `contents` inside of `X`,
 calculate the classic correlationsum of a radius or multiple radii `εs`.
 `w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
 """
-function boxed_correlationsum_2(boxes_to_contents, hist_size, X, εs;
-        w = 0, show_progress = false
+function boxed_correlationsum_2(boxes_to_contents::Dict, hist_size::Tuple, X, εs;
+        w = 0, show_progress = false, q = 2, norm = Euclidean(),
     )
     # Note that the box index is also its cartesian index in the histogram
     Cs = zeros(eltype(X), length(εs))
     progress = ProgressMeter.Progress(length(boxes_to_contents);
         desc = "Boxed correlation sum: ", dt = 1.0, enabled = show_progress
     )
+    N = length(X)
     # Skip predicate (theiler window): if `true` skip current point index.
     # Notice that the predicate depends on `q`, because if `q = 2` we can safely
     # skip all points with index `j` less or equal to `i`
@@ -193,7 +190,7 @@ function boxed_correlationsum_2(boxes_to_contents, hist_size, X, εs;
         # all points in this box and in the neighboring boxes (offsets added)
         indices_in_box = boxes_to_contents[box_index]
         nearby_indices_iter = PointsInBoxesIterator(boxes_to_contents, hist_size, offsets, box_index)
-        add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip)
+        add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip, norm)
         ProgressMeter.next!(progress)
     end
     # Normalize accordingly
@@ -217,7 +214,7 @@ function chebyshev_1_offsets(P)
     return offsets
 end
 
-@inbounds function add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip)
+@inbounds function add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip, norm)
     for j in nearby_indices_iter
         # It is crucial that the second loop are the origin box indices because the
         # loop over the custom iterator does not reset!
@@ -258,13 +255,13 @@ struct PointsInBoxesIterator{D}
 end
 
 function PointsInBoxesIterator(
-        boxes_to_contents, hist_size, offsets, origin::CartesianIndex{D}
+        boxes_to_contents, hist_size, offsets, origin::NTuple{D, Int}
     ) where {D}
     L = length(offsets)
     hist_axes = map(n -> Base.OneTo(n), hist_size)
     origin_indices = boxes_to_contents[origin]
-    return GridSpaceIdIterator{D}(
-        boxes_to_contents, hist_Size, hist_axes, origin, origin_indices, offsets, L
+    return PointsInBoxesIterator{D}(
+        boxes_to_contents, hist_size, hist_axes, origin, origin_indices, offsets, L
     )
 end
 
@@ -292,6 +289,17 @@ end
     # We reached the next valid position and non-empty position
     id = idxs_in_box[inner_i]
     return (id, (box_number, inner_i + 1, idxs_in_box))
+end
+
+# Return `true` if the access to the histogram box with `box_index` is invalid
+@inbounds function invalid_access(box_index, boxes_to_contents, hist_axes::NTuple{D, Base.OneTo{Int}}) where {D}
+    # Check if within bounds of the histogram (for iterating near edges of histogram)
+    valid_bounds = all(D -> checkbounds(Bool, hist_axes[D], box_index[D]), Base.OneTo(D))
+    valid_bounds || return true
+    # Then, check if there are points in the nearby histogram box
+    haskey(boxes_to_contents, CartesianIndex(box_index)) || return true
+    # If a box exists, it is guaranteed to have at least one point
+    return false
 end
 
 
