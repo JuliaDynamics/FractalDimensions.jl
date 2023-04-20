@@ -41,6 +41,10 @@ Good choices for `r0` are [`estimate_r0_buenoorovio`](@ref) and
 
 See [`correlationsum`](@ref) for the definition of the correlation sum.
 
+Initial implementation of the algorithm was according to [^Theiler1987].
+However, current implementation has been re-written and utilizes histogram handling
+from ComplexityMeasures.jl and nearest neighbor searches in discrete spaces from Agents.jl.
+
     boxed_correlationsum(X::AbstractStateSpaceSet; kwargs...) → εs, Cs
 
 In this method the minimum inter-point distance and [`estimate_r0_buenoorovio`](@ref)
@@ -249,27 +253,22 @@ end
 # Data boxing
 ################################################################################
 """
-    data_boxing(X::StateSpaceSet, r0, P = autoprismdim(X)) → boxes, contents
+    data_boxing(X::StateSpaceSet, r0 [, P::Int]) → boxes, contents
 
-Distribute `X` into boxes of size `r0`. Return box positions
-and the contents of each box as two separate vectors. Implemented according to
-the paper by Theiler[^Theiler1987] improving the algorithm by Grassberger and
-Procaccia[^Grassberger1983]. If `P` is smaller than the dimension of the data,
-only the first `P` dimensions are considered for the distribution into boxes.
+Distribute `X` into boxes of size `r0`. Return a dictionary, mapping tuples
+(cartesian indices of the histogram boxes) into point indices of `X` in the boxes.
+If `P` is given, only the first `P` dimensions of `X` are considered for constructing
+the boxes and distributing the points into them.
 
-See also: [`boxed_correlationsum`](@ref).
+Used in: [`boxed_correlationsum`](@ref).
 
 [^Theiler1987]:
     Theiler, [Efficient algorithm for estimating the correlation dimension from a set
     of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
-
-[^Grassberger1983]:
-    Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
-    ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
 function data_boxing(X, r0::AbstractFloat, P::Int = autoprismdim(X))
     P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
-    Xreduced = X[:, 1:P]
+    Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
     encoding = RectangularBinEncoding(RectangularBinning(r0, false), Xreduced)
     return _data_boxing(Xreduced, encoding)
 end
