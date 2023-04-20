@@ -2,6 +2,9 @@ import ProgressMeter
 export boxed_correlationsum, boxassisted_correlation_dim
 export estimate_r0_buenoorovio, autoprismdim, estimate_r0_theiler
 
+################################################################################
+# Boxed correlation sum main API functions
+################################################################################
 """
     boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
 
@@ -26,9 +29,6 @@ function boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
     return linear_region(log2.(εs), log2.(Cs))[2]
 end
 
-################################################################################
-# Boxed Correlation sum (we distribute data to boxes beforehand)
-################################################################################
 """
     boxed_correlationsum(X::AbstractStateSpaceSet, εs, r0 = maximum(εs); kwargs...) → Cs
 
@@ -86,10 +86,10 @@ function boxed_correlationsum(
         q = 2, P = autoprismdim(X), w = 0,
         show_progress = false,
     )
-    @assert P ≤ size(X, 2) "Prism dimension has to be ≤ than X dimension."
-    boxes, contents = data_boxing(X, r0, P)
+    boxes_to_contents, hist_size = data_boxing(X, r0, P)
+
     Cs = if q == 2
-        boxed_correlationsum_2(boxes, contents, X, εs; w, show_progress)
+        boxed_correlationsum_2(boxes_to_contents, offsets, X, εs; w, show_progress)
     else
         boxed_correlationsum_q(boxes, contents, X, εs, q; w, show_progress)
     end
@@ -119,27 +119,146 @@ function autoprismdim(X, version = :bueno)
     end
 end
 
+################################################################################
+# Correlation sum computation code
+################################################################################
 """
     boxed_correlationsum_2(boxes, contents, X, εs; w = 0)
 For a vector of `boxes` and the indices of their `contents` inside of `X`,
 calculate the classic correlationsum of a radius or multiple radii `εs`.
 `w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
 """
-function boxed_correlationsum_2(boxes, contents, X, εs; w = 0, show_progress = false)
+function boxed_correlationsum_2(boxes_to_contents, hist_size, X, εs;
+        w = 0, show_progress = false
+    )
+    # Note that the box index is also its cartesian index in the histogram
     Cs = zeros(eltype(X), length(εs))
-    N = length(X)
-    M = length(boxes)
-    if show_progress
-        progress = ProgressMeter.Progress(M; desc = "Boxed correlation sum: ", dt = 1.0)
+    progress = ProgressMeter.Progress(length(boxes_to_contents);
+        desc = "Boxed correlation sum: ", dt = 1.0, enabled = show_progress
+    )
+    # Skip predicate (theiler window): if `true` skip current point index.
+    # Notice that the predicate depends on `q`, because if `q = 2` we can safely
+    # skip all points with index `j` less or equal to `i`
+    skip = if q == 2
+        (i, j) -> j ≤ w + i
+    else
+        (i, j) -> abs(i - j) ≤ w
     end
-    for index in 1:M
-        indices_neighbors = find_neighborboxes_2(index, boxes, contents)
-        indices_box = contents[index]
-        Cs .+= inner_correlationsum_2(indices_box, indices_neighbors, X, εs; w)
-        show_progress && ProgressMeter.update!(progress, index)
+    offsets = chebyshev_1_offsets(length(hist_size))
+    # We iterate over all existing boxes; for each box, we iterate over
+    # all points in the box and all neighboring boxes (offsets added to box coordinate)
+    # TODO: Threading
+    for box_index in keys(boxes_to_contents)
+        # This is a special iterator; for the given box, it iterates over
+        # all points in this box and in the neighboring boxes (offsets added)
+        indices_in_box = boxes_to_contents[box_index]
+        nearby_indices_iter = PointsInBoxesIterator(boxes_to_contents, hist_size, offsets, box_index)
+        add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip)
+        ProgressMeter.next!(progress)
     end
-    Cs .* (2 / ((N - w) * (N - w - 1)))
+    # Normalize accordingly
+    if q == 2
+        return Cs .* (2 / ((N - w) * (N - w - 1)))
+    else
+        return clamp.((Cs ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
+    end
 end
+
+function chebyshev_1_offsets(P)
+    # Offsets, which are required by the nearest neighbor algorithm, are constants
+    # and depend only on `P` (histogram dimension = prism). We compute them here:
+    # 1 is the radius (distance) of boxes in Chebyshev metric that we need to include
+    hypercube = Iterators.product(repeat([-1:1], P)...)
+    offsets = vec([β for β ∈ hypercube])
+    # make it guaranteed so that (0s...) offset is first in order
+    z = ntuple(i -> 0, Val(P))
+    filter!(x -> x ≠ z, offsets)
+    pushfirst!(offsets, z)
+    return offsets
+end
+
+@inbounds function add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip)
+    for i in indices_in_box
+        for j in nearby_indices_iter
+            skip(i, j) && continue
+            dist = norm(X[i], X[j])
+            for k in length(εs):-1:1
+                if dist < εs[k]
+                    Cs[k] += 1
+                else
+                    break
+                end
+            end
+        end
+    end
+    return Cs
+end
+
+################################################################################
+# Extremely optimized custom iterator for nearby boxes
+################################################################################
+
+
+# Notice that from creation we know the first box index, and its nubmer
+# in the box offseting sequence is by construction 1
+
+# For optinal performance and design we need a different method of starting the iteration
+# and another one that continues iteration. Second case uses the explicitly
+# known knowledge of `box_number` being a valid position index.
+
+struct PointsInBoxesIterator{D}
+    boxes_to_contents::Dict{NTuple{D, Int}, Vector{Int}}
+    hist_size::NTuple{D,Int}          # size of histogram
+    hist_axes::NTuple{D, Base.OneTo{Int}} # axes, for using in check bounds
+    origin::NTuple{D,Int}             # origin (box we started from)
+    origin_indices::Vector{Int}       # point indices in box we started from
+    offsets::Vector{NTuple{D,Int}}    # Result of `offsets_within_radius` pretty much
+    L::Int                            # length of `offsets`
+end
+
+function PointsInBoxesIterator(
+        boxes_to_contents, hist_size, offsets, origin::CartesianIndex{D}
+    ) where {D}
+    L = length(offsets)
+    hist_axes = map(n -> Base.OneTo(n), hist_size)
+    origin_indices = boxes_to_contents[origin]
+    return GridSpaceIdIterator{D}(
+        boxes_to_contents, hist_Size, hist_axes, origin, origin_indices, offsets, L
+    )
+end
+
+@inbounds function Base.iterate(
+        iter::PointsInBoxesIterator, state = (1, 1, iter.origin_indices)
+    )
+    offsets, L, origin = getproperty.(Ref(iter), (:offsets, :L, :origin))
+    box_number, inner_i, idxs_in_box = state
+    X = length(idxs_in_box)
+    if inner_i > X
+        # we have exhausted IDs in current position, so we reset and go to next
+        box_number += 1
+        # Stop iteration if `box_index` exceeded the amount of positions
+        box_number > L && return nothing
+        inner_i = 1
+        box_index = offsets[box_number] .+ origin
+        # Of course, we need to check if we have valid index
+        while invalid_access(box_index, iter.boxes_to_contents, iter.hist_axes)
+            box_number += 1
+            box_number > L && return nothing
+            box_index = offsets[box_number] .+ origin
+        end
+        idxs_in_box = iter.boxes_to_contents[box_index]
+    end
+    # We reached the next valid position and non-empty position
+    id = idxs_in_box[inner_i]
+    return (id, (box_number, inner_i + 1, idxs_in_box))
+end
+
+
+################################################################################
+# Old stuff
+################################################################################
+
+
 
 """
     inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean(), w = 0)
@@ -178,6 +297,29 @@ function inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean()
     end
     return Cs
 end
+
+
+"""
+    find_neighborboxes_2(index, boxes, contents) → indices
+For an `index` into `boxes` all neighbouring boxes beginning from the current
+one are searched. If the found box is indeed a neighbour, the `contents` of
+that box are added to `indices`.
+"""
+function find_neighborboxes_2(index, boxes, contents)
+    indices = Int[]
+    box = boxes[index]
+    N_box = length(boxes)
+    for index2 in index:N_box
+        if evaluate(Chebyshev(), box, boxes[index2]) < 2
+            append!(indices, contents[index2])
+        end
+    end
+    indices
+end
+
+
+
+
 
 """
     boxed_correlationsum_q(boxes, contents, X, εs, q; w = 0)
@@ -250,7 +392,7 @@ end
 
 
 ################################################################################
-# Data boxing
+# Data boxing and iterating over boxes for neighboring points
 ################################################################################
 """
     data_boxing(X::StateSpaceSet, r0 [, P::Int]) → boxes, contents
@@ -292,17 +434,6 @@ end
 # So that we quickly and efficiently can iterate over all boxes next to
 # our given box. We use the code that Agents.jl uses to accelerate
 # neighbor searches in discrete grids.
-
-
-βs = calculate_offsets(space, r₀)
-function calculate_offsets(space::AbstractGridSpace{D}, r::Int) where {D}
-    r = 1 # radius is 1. We need at most neighboring boxes.
-    hypercube = Iterators.product(repeat([-r:r], D)...)
-    βs = vec([β for β ∈ hypercube]) # Chebyshev metric, radius 1
-    length(βs) == 0 && push!(βs, ntuple(i -> 0, Val(D))) # ensure 0 is there
-    return βs::Vector{NTuple{D, Int}}
-end
-
 struct PointsInBoxesIterator{D}
     boxes_to_contents::Dict{NTuple{D, Int}, Vector{Int}}
     hist_size::NTuple{D,Int}          # size of histogram
@@ -345,8 +476,8 @@ end
     valid_bounds || return true
     # Then, check if there are points in the nearby histogram box
     haskey(boxes_to_contents, CartesianIndex(box_index)) || return true
-    contents = boxes_to_contents[box_index]
-    return isempty(contents)
+    # If a box exists, it is guaranteed to have at least one point
+    return false
 end
 
 
@@ -400,24 +531,6 @@ end
 
 #     StateSpaceSet(boxes), contents
 # end
-
-"""
-    find_neighborboxes_2(index, boxes, contents) → indices
-For an `index` into `boxes` all neighbouring boxes beginning from the current
-one are searched. If the found box is indeed a neighbour, the `contents` of
-that box are added to `indices`.
-"""
-function find_neighborboxes_2(index, boxes, contents)
-    indices = Int[]
-    box = boxes[index]
-    N_box = length(boxes)
-    for index2 in index:N_box
-        if evaluate(Chebyshev(), box, boxes[index2]) < 2
-            append!(indices, contents[index2])
-        end
-    end
-    indices
-end
 
 """
     find_neighborboxes_q(index, boxes, contents) → indices
