@@ -120,6 +120,46 @@ function autoprismdim(X, version = :bueno)
 end
 
 ################################################################################
+# Data boxing and iterating over boxes for neighboring points
+################################################################################
+"""
+    data_boxing(X::StateSpaceSet, r0 [, P::Int]) → boxes_to_contents, hist_size
+
+Distribute `X` into boxes of size `r0`. Return a dictionary, mapping tuples
+(cartesian indices of the histogram boxes) into point indices of `X` in the boxes
+and the (maximum) size of the boxing scheme (i.e., max dimensions of the histogram).
+If `P` is given, only the first `P` dimensions of `X` are considered for constructing
+the boxes and distributing the points into them.
+
+Used in: [`boxed_correlationsum`](@ref).
+
+[^Theiler1987]:
+    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
+    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
+"""
+function data_boxing(X, r0::AbstractFloat, P::Int = autoprismdim(X))
+    P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
+    Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
+    encoding = RectangularBinEncoding(RectangularBinning(r0, false), Xreduced)
+    return _data_boxing(Xreduced, encoding), encoding.histsize
+end
+
+function _data_boxing(X, encoding)
+    # Output is a dictionary mapping cartesian indices to vector of data point indices
+    # in said cartesian index bin
+    boxes_to_contents = Dict{NTuple{dimension(X), Int}, Vector{Int}}()
+    for (j, x) in enumerate(X)
+        i = encode(encoding, x) # linear index of box in histogram
+        ci = Tuple(encoding.ci[i]) # cartesian index of box in histogram
+        if !haskey(boxes_to_contents, ci)
+            boxes_to_contents[ci] = Int[]
+        end
+        push!(boxes_to_contents[ci], j)
+    end
+    return boxes_to_contents
+end
+
+################################################################################
 # Correlation sum computation code
 ################################################################################
 """
@@ -178,8 +218,10 @@ function chebyshev_1_offsets(P)
 end
 
 @inbounds function add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip)
-    for i in indices_in_box
-        for j in nearby_indices_iter
+    for j in nearby_indices_iter
+        # It is crucial that the second loop are the origin box indices because the
+        # loop over the custom iterator does not reset!
+        for i in indices_in_box
             skip(i, j) && continue
             dist = norm(X[i], X[j])
             for k in length(εs):-1:1
@@ -197,7 +239,6 @@ end
 ################################################################################
 # Extremely optimized custom iterator for nearby boxes
 ################################################################################
-
 
 # Notice that from creation we know the first box index, and its nubmer
 # in the box offseting sequence is by construction 1
@@ -391,44 +432,6 @@ function inner_correlationsum_q(
 end
 
 
-################################################################################
-# Data boxing and iterating over boxes for neighboring points
-################################################################################
-"""
-    data_boxing(X::StateSpaceSet, r0 [, P::Int]) → boxes, contents
-
-Distribute `X` into boxes of size `r0`. Return a dictionary, mapping tuples
-(cartesian indices of the histogram boxes) into point indices of `X` in the boxes.
-If `P` is given, only the first `P` dimensions of `X` are considered for constructing
-the boxes and distributing the points into them.
-
-Used in: [`boxed_correlationsum`](@ref).
-
-[^Theiler1987]:
-    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
-    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
-"""
-function data_boxing(X, r0::AbstractFloat, P::Int = autoprismdim(X))
-    P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
-    Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
-    encoding = RectangularBinEncoding(RectangularBinning(r0, false), Xreduced)
-    return _data_boxing(Xreduced, encoding)
-end
-
-function _data_boxing(X, encoding)
-    # Output is a dictionary mapping cartesian indices to vector of data point indices
-    # in said cartesian index bin
-    boxes_to_contents = Dict{NTuple{dimension(X), Int}, Vector{Int}}()
-    for (j, x) in enumerate(X)
-        i = encode(encoding, x) # linear index of box in histogram
-        ci = Tuple(encoding.ci[i]) # cartesian index of box in histogram
-        if !haskey(boxes_to_contents, ci)
-            boxes_to_contents[ci] = Int[]
-        end
-        push!(boxes_to_contents[ci], j)
-    end
-    return boxes_to_contents
-end
 
 # Now, we define an efficient iterator over this output dictionary,
 # So that we quickly and efficiently can iterate over all boxes next to
