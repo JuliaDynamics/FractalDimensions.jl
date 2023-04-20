@@ -277,41 +277,130 @@ end
 function _data_boxing(X, encoding)
     # Output is a dictionary mapping cartesian indices to vector of data point indices
     # in said cartesian index bin
-    out = Dict{CartesianIndex{dimension(X)}, Vector{Int}}()
-    for x in X
-        i = encode(encoding, x)
-        ci = encoding.ci[i]
-        v = get(out, ci, Int[])
-        push!(v, i)
-        out[ci] = v
-    end
-    return out
-end
-
-
-function _data_boxing(X, r0)
-    mini = minima(X)
-
-    # Map each datapoint to its bin edge and sort the resulting list:
-    bins = map(point -> floor.(Int, (point - mini)/r0), X)
-    permutations = sortperm(bins, alg=QuickSort)
-
-    boxes = unique(bins[permutations])
-    contents = Vector{Vector{Int}}()
-    sizehint!(contents, length(boxes))
-
-    prior, prior_perm = 1, permutations[1]
-    # distributes all permutation indices into boxes
-    for (index, perm) in enumerate(permutations)
-        if bins[perm] ≠ bins[prior_perm]
-            push!(contents, permutations[prior:index-1])
-            prior, prior_perm = index, perm
+    boxes_to_contents = Dict{NTuple{dimension(X), Int}, Vector{Int}}()
+    for (j, x) in enumerate(X)
+        i = encode(encoding, x) # linear index of box in histogram
+        ci = Tuple(encoding.ci[i]) # cartesian index of box in histogram
+        if !haskey(boxes_to_contents, ci)
+            boxes_to_contents[ci] = Int[]
         end
+        push!(boxes_to_contents[ci], j)
     end
-    push!(contents, permutations[prior:end])
-
-    StateSpaceSet(boxes), contents
+    return boxes_to_contents
 end
+
+# Now, we define an efficient iterator over this output dictionary,
+# So that we quickly and efficiently can iterate over all boxes next to
+# our given box. We use the code that Agents.jl uses to accelerate
+# neighbor searches in discrete grids.
+
+
+βs = calculate_offsets(space, r₀)
+function calculate_offsets(space::AbstractGridSpace{D}, r::Int) where {D}
+    r = 1 # radius is 1. We need at most neighboring boxes.
+    hypercube = Iterators.product(repeat([-r:r], D)...)
+    βs = vec([β for β ∈ hypercube]) # Chebyshev metric, radius 1
+    length(βs) == 0 && push!(βs, ntuple(i -> 0, Val(D))) # ensure 0 is there
+    return βs::Vector{NTuple{D, Int}}
+end
+
+struct PointsInBoxesIterator{D}
+    boxes_to_contents::Dict{NTuple{D, Int}, Vector{Int}}
+    hist_size::NTuple{D,Int}          # size of histogram
+    hist_axes::NTuple{D, Base.OneTo{Int}} # axes, for using in check bounds
+    origin::NTuple{D,Int}             # origin (box we started from)
+    offsets::Vector{NTuple{D,Int}}    # Result of `offsets_within_radius` pretty much
+    L::Int                            # length of `offsets`
+end
+function PointsInBoxesIterator(boxes_to_contents, hist_size, offsets, origin::CartesianIndex{D}) where {D}
+    L = length(offsets)
+    hist_axes = map(n -> Base.OneTo(n), hist_size)
+    return GridSpaceIdIterator{D}(
+        boxes_to_contents, hist_Size, hist_axes, offsets, origin, L
+    )
+end
+
+
+@inbounds function Base.iterate(iter::PointsInBoxesIterator)
+    offsets, L, origin = getproperty.(Ref(iter), (:offsets, :L, :origin))
+    box_number = 1 # the box number denotes boxes in the neighborhood of `origin`
+    box_index = offsets[box_number] .+ origin
+    # First, check if the position index is valid (bounds checking)
+    # AND whether the position is empty. If not, proceed to next position index.
+    while invalid_access(box_index, iter.boxes_to_contents, iter.hist_axes)
+        box_number += 1
+        # Stop iteration if exceeded the amount of positions
+        box_number > L && return nothing
+        box_index = offsets[box_number] .+ origin
+    end
+    # We have a valid position index and a non-empty position
+    idxs_in_box = iter.boxes_to_contents[box_index]
+    id = idxs_in_box[1]
+    return (id, (box_number, 2, idxs_in_box))
+end
+
+# Return `true` if the access to the histogram box with `box_index` is invalid
+@inbounds function invalid_access(box_index, boxes_to_contents, hist_axes::NTuple{D})
+    # Check if within bounds of the histogram (for iterating near edges of histogram)
+    valid_bounds = all(D -> checkbounds(Bool, hist_axes[D], box_index[D]), Base.OneTo(D))
+    valid_bounds || return true
+    # Then, check if there are points in the nearby histogram box
+    haskey(boxes_to_contents, CartesianIndex(box_index)) || return true
+    contents = boxes_to_contents[box_index]
+    return isempty(contents)
+end
+
+
+# For optinal performance and design we need a different method of starting the iteration
+# and another one that continues iteration. Second case uses the explicitly
+# known knowledge of `box_number` being a valid position index.
+@inbounds function Base.iterate(iter::PointsInBoxesIterator, state)
+    offsets, L, origin = getproperty.(Ref(iter), (:offsets, :L, :origin))
+    box_number, inner_i, idxs_in_box = state
+    X = length(idxs_in_box)
+    if inner_i > X
+        # we have exhausted IDs in current position, so we reset and go to next
+        box_number += 1
+        # Stop iteration if `box_index` exceeded the amount of positions
+        box_number > L && return nothing
+        inner_i = 1
+        box_index = offsets[box_number] .+ origin
+        # Of course, we need to check if we have valid index
+        while invalid_access(box_index, iter.boxes_to_contents, iter.hist_axes)
+            box_number += 1
+            box_number > L && return nothing
+            box_index = offsets[box_number] .+ origin
+        end
+        idxs_in_box = iter.boxes_to_contents[box_index]
+    end
+    # We reached the next valid position and non-empty position
+    id = idxs_in_box[inner_i]
+    return (id, (box_number, inner_i + 1, idxs_in_box))
+end
+
+# function _data_boxing(X, r0)
+#     mini = minima(X)
+
+#     # Map each datapoint to its bin edge and sort the resulting list:
+#     bins = map(point -> floor.(Int, (point - mini)/r0), X)
+#     permutations = sortperm(bins, alg=QuickSort)
+
+#     boxes = unique(bins[permutations])
+#     contents = Vector{Vector{Int}}()
+#     sizehint!(contents, length(boxes))
+
+#     prior, prior_perm = 1, permutations[1]
+#     # distributes all permutation indices into boxes
+#     for (index, perm) in enumerate(permutations)
+#         if bins[perm] ≠ bins[prior_perm]
+#             push!(contents, permutations[prior:index-1])
+#             prior, prior_perm = index, perm
+#         end
+#     end
+#     push!(contents, permutations[prior:end])
+
+#     StateSpaceSet(boxes), contents
+# end
 
 """
     find_neighborboxes_2(index, boxes, contents) → indices

@@ -45,3 +45,11 @@ for D in DIMENSIONS
         # end
     end
 end
+
+
+# Before:
+# data boxing: 0.0110387 sec., 119615 allocs, 7211040 memory
+# data boxing: 0.0110672 sec., 119615 allocs, 7211040 memory
+
+# After:
+# data boxing: 0.01072235 sec., 129737 allocs, 7576688 memory
