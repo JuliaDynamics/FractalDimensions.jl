@@ -1,7 +1,7 @@
 import ProgressMeter
 import Polyester # low-overhead threading
 
-using Distances: evaluate, Euclidean, pairwise
+using Distances: evaluate, Euclidean, pairwise, Metric
 
 export correlationsum, boxed_correlationsum
 export grassberger_proccacia_dim
