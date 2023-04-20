@@ -267,11 +267,27 @@ See also: [`boxed_correlationsum`](@ref).
     Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
     ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
-function data_boxing(X, r0, P::Int = autoprismdim(X))
+function data_boxing(X, r0::AbstractFloat, P::Int = autoprismdim(X))
     P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
     Xreduced = X[:, 1:P]
-    return _data_boxing(Xreduced, r0)
+    encoding = RectangularBinEncoding(RectangularBinning(r0, false), Xreduced)
+    return _data_boxing(Xreduced, encoding)
 end
+
+function _data_boxing(X, encoding)
+    # Output is a dictionary mapping cartesian indices to vector of data point indices
+    # in said cartesian index bin
+    out = Dict{CartesianIndex{dimension(X)}, Vector{Int}}()
+    for x in X
+        i = encode(encoding, x)
+        ci = encoding.ci[i]
+        v = get(out, ci, Int[])
+        push!(v, i)
+        out[ci] = v
+    end
+    return out
+end
+
 
 function _data_boxing(X, r0)
     mini = minima(X)

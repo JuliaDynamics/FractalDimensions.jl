@@ -36,10 +36,12 @@ for D in DIMENSIONS
         ε0 = es[1]
         es = MathConstants.e .^ range(log(ε0), log(r0); length = 12)
 
+        bm = @benchmark FractalDimensions.data_boxing($X, $r0)
+        display_benchmark(bm, "data boxing")
 
-        for q in [2, 3]
-            bm = @benchmark boxed_correlationsum($X, $es; show_progress = false, q = $(q), w = 5)
-            display_benchmark(bm, "boxed q=$(q)")
-        end
+        # for q in [2, 3]
+        #     bm = @benchmark boxed_correlationsum($X, $es; show_progress = false, q = $(q), w = 5)
+        #     display_benchmark(bm, "boxed q=$(q)")
+        # end
     end
 end
