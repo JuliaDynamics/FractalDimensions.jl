@@ -84,12 +84,7 @@ end
 
 function boxed_correlationsum(X, εs, r0 = maximum(εs); P = autoprismdim(X), kwargs...)
     boxes_to_contents, hist_size = data_boxing(X, r0, P)
-    boxed_correlationsum_2(boxes_to_contents, hist_size, X, εs; kwargs...)
-    # Cs = if q == 2
-    # else
-    #     boxed_correlationsum_q(boxes, contents, X, εs, q; w, show_progress)
-    # end
-    # return Cs
+    return _boxed_correlationsum(boxes_to_contents, hist_size, X, εs; kwargs...)
 end
 
 """
@@ -158,13 +153,8 @@ end
 ################################################################################
 # Correlation sum computation code
 ################################################################################
-"""
-    boxed_correlationsum_2(boxes, contents, X, εs; w = 0)
-For a vector of `boxes` and the indices of their `contents` inside of `X`,
-calculate the classic correlationsum of a radius or multiple radii `εs`.
-`w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
-"""
-function boxed_correlationsum_2(boxes_to_contents::Dict, hist_size::Tuple, X, εs;
+# Actual implementation
+function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs;
         w = 0, show_progress = false, q = 2, norm = Euclidean(),
     )
     # Note that the box index is also its cartesian index in the histogram
@@ -179,7 +169,7 @@ function boxed_correlationsum_2(boxes_to_contents::Dict, hist_size::Tuple, X, ε
     skip = if q == 2
         (i, j) -> j ≤ w + i
     else
-        (i, j) -> abs(i - j) ≤ w
+        (i, j) -> i < w + 1 || i > N - w || abs(i - j) ≤ w
     end
     offsets = chebyshev_1_offsets(length(hist_size))
     # We iterate over all existing boxes; for each box, we iterate over
@@ -216,7 +206,7 @@ end
 
 @inbounds function add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip, norm)
     for j in nearby_indices_iter
-        # It is crucial that the second loop are the origin box indices because the
+        # It is crucial that the second loop is the origin box indices because the
         # loop over the custom iterator does not reset!
         for i in indices_in_box
             skip(i, j) && continue
