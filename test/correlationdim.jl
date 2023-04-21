@@ -19,11 +19,11 @@ X = standardize(trajectory(henon, 10_000; Ttr = 100)[1])
 sizesX = estimate_boxsizes(X)
 
 @testset "correlation sums analytic" begin
-    X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.0)])
+    X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.5)])
     εs = [0.1, 1.0]
     Cs = correlationsum(X, εs)
     Csb = boxed_correlationsum(X, εs, 0.5)
-    Csb2 = boxed_correlationsum(X, εs, 1.5)
+    Csb2 = boxed_correlationsum(X, εs, 1.0)
     @test Cs == Csb == Csb2 == [0, 1]
     # If max radious, all points are in
     X = StateSpaceSet(rand(Xoshiro(1234), 1000, 2))

@@ -84,6 +84,7 @@ end
 
 function boxed_correlationsum(X, εs, r0 = maximum(εs); P = autoprismdim(X), kwargs...)
     boxes_to_contents, hist_size = data_boxing(X, r0, P)
+    r0 < maximum(εs) && error("r0 (boxing size) can't be less than `maximum(εs)`.")
     return _boxed_correlationsum(boxes_to_contents, hist_size, X, εs; kwargs...)
 end
 
