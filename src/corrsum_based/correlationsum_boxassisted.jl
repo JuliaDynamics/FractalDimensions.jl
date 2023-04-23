@@ -83,7 +83,7 @@ function boxed_correlationsum(X; P = 2, kwargs...)
 end
 
 function boxed_correlationsum(X, εs, r0 = maximum(εs); P = autoprismdim(X), kwargs...)
-    boxes_to_contents, hist_size = data_boxing(X, r0, P)
+    boxes_to_contents, hist_size = data_boxing(X, float(r0), P)
     r0 < maximum(εs) && error("r0 (boxing size) can't be less than `maximum(εs)`.")
     return _boxed_correlationsum(boxes_to_contents, hist_size, X, εs; kwargs...)
 end
@@ -158,8 +158,8 @@ end
 function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs;
         w = 0, show_progress = false, q = 2, norm = Euclidean(),
     )
-    # Note that the box index is also its cartesian index in the histogram
     Cs = zeros(eltype(X), length(εs))
+    Csdummy = copy(Cs)
     progress = ProgressMeter.Progress(length(boxes_to_contents);
         desc = "Boxed correlation sum: ", dt = 1.0, enabled = show_progress
     )
@@ -170,18 +170,19 @@ function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs
     skip = if q == 2
         (i, j) -> j ≤ w + i
     else
-        (i, j) -> i < w + 1 || i > N - w || abs(i - j) ≤ w
+        (i, j) -> (i < w + 1) || (i > N - w) || (abs(i - j) ≤ w)
     end
     offsets = chebyshev_1_offsets(length(hist_size))
     # We iterate over all existing boxes; for each box, we iterate over
     # all points in the box and all neighboring boxes (offsets added to box coordinate)
+    # Note that the `box_index` is also its cartesian index in the histogram
     # TODO: Threading
     for box_index in keys(boxes_to_contents)
         # This is a special iterator; for the given box, it iterates over
         # all points in this box and in the neighboring boxes (offsets added)
         indices_in_box = boxes_to_contents[box_index]
         nearby_indices_iter = PointsInBoxesIterator(boxes_to_contents, hist_size, offsets, box_index)
-        add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip, norm)
+        add_to_corrsum!(Cs, Csdummy, εs, X, indices_in_box, nearby_indices_iter, skip, norm, q)
         ProgressMeter.next!(progress)
     end
     # Normalize accordingly
@@ -205,20 +206,24 @@ function chebyshev_1_offsets(P)
     return offsets
 end
 
-@inbounds function add_to_corrsum!(Cs, εs, X, indices_in_box, nearby_indices_iter, skip, norm)
-    for j in nearby_indices_iter
-        # It is crucial that the second loop is the origin box indices because the
-        # loop over the custom iterator does not reset!
-        for i in indices_in_box
+@inbounds function add_to_corrsum!(Cs, Csdummy, εs, X, indices_in_box, nearby_indices_iter, skip, norm, q)
+    for i in indices_in_box
+        Csdummy .= 0
+        for j in nearby_indices_iter
             skip(i, j) && continue
             dist = norm(X[i], X[j])
             for k in length(εs):-1:1
                 if dist < εs[k]
-                    Cs[k] += 1
+                    Csdummy[k] += 1
                 else
                     break
                 end
             end
+        end
+        if q == 2
+            Cs .+= Csdummy
+        else
+            Cs .+= Csdummy .^ (q-1)
         end
     end
     return Cs

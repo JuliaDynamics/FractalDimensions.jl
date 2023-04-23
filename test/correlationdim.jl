@@ -22,14 +22,16 @@ sizesX = estimate_boxsizes(X)
     X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.5)])
     εs = [0.1, 1.0]
     Cs = correlationsum(X, εs)
-    Csb = boxed_correlationsum(X, εs, 0.5)
-    Csb2 = boxed_correlationsum(X, εs, 1.0)
+    Csb = boxed_correlationsum(X, εs, 1.0)
+    Csb2 = boxed_correlationsum(X, εs, 1.5)
     @test Cs == Csb == Csb2 == [0, 1]
     # If max radious, all points are in
     X = StateSpaceSet(rand(Xoshiro(1234), 1000, 2))
-    @test correlationsum(X, 5) ≈ boxed_correlationsum(X, [5], 0.5)[1] ≈ 1
+    @test correlationsum(X, 5) ≈ boxed_correlationsum(X, [5])[1] ≈ 1
     # q shouldn't matter here; we're just checking the correlation sum formula
-    @test correlationsum(X, 5; q = 2.5) ≈ boxed_correlationsum(X, [5], 0.5; q = 2.5)[1] ≈ 1
+    @testset "norm, q = $q" for q in [2, 2.5, 4.5]
+        @test correlationsum(X, 5; q) ≈ boxed_correlationsum(X, [5]; q)[1] ≈ 1
+    end
 end
 
 @testset "Correlation dim; automated" begin
