@@ -7,16 +7,16 @@ test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
 
 # Random with Δ ≈ 2
 A = StateSpaceSet(rand(Xoshiro(1234), 10_000, 2))
-sizesA = estimate_boxsizes(A)
+sizesA = estimate_boxsizes(A; z = -2)
 # Circle with Δ ≈ 1
 θ = rand(Xoshiro(1234), 10_000) .* 2π
 B = StateSpaceSet(cos.(θ), sin.(θ))
-sizesB = estimate_boxsizes(B)
+sizesB = estimate_boxsizes(B; z = -2)
 # Henon with Δ ≈ 1.2
 henon_rule(x, p, n) = SVector(1.0 - p[1]*x[1]^2 + x[2], p[2]*x[1])
 henon = DeterministicIteratedMap(henon_rule, zeros(2), [1.4, 0.3])
-X = standardize(trajectory(henon, 10_000; Ttr = 100)[1])
-sizesX = estimate_boxsizes(X)
+H = standardize(trajectory(henon, 10_000; Ttr = 100)[1])
+sizesH = estimate_boxsizes(X; z = -2)
 
 @testset "correlation sums analytic" begin
     X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.5)])
@@ -32,6 +32,13 @@ sizesX = estimate_boxsizes(X)
     @testset "norm, q = $q" for q in [2, 2.5, 4.5]
         @test correlationsum(X, 5; q) ≈ boxed_correlationsum(X, [5]; q)[1] ≈ 1
     end
+    # And just to be extra safe, let's check the equivalence between the boxed
+    # and unboxed version of the corrsums
+    @testset "equiv. q = $q" for q in [2, 2.5, 4.5]
+        @test correlationsum(X, 0.1; q) ≈ boxed_correlationsum(X, 0.1; q) ≈ 1
+        @test correlationsum(X, [0.1, 0.5]; q) ≈ boxed_correlationsum(X, [0.1, 0.5]; q) ≈ 1
+    end
+
 end
 
 @testset "Correlation dim; automated" begin
@@ -46,7 +53,7 @@ end
     end
     @testset "Boxed" begin
         # We use the internal method because the sizes don't work out well
-        Cs = boxed_correlationsum(A, sizesA, 0.1)
+        Cs = boxed_correlationsum(A, sizesA)
         dA = linear_region(log.(sizesA), log.(Cs))[2]
         test_value(dA, 1.9, 2.1)
         Cs = boxed_correlationsum(B, sizesB, 0.1)
