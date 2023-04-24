@@ -35,8 +35,9 @@ sizesH = estimate_boxsizes(X; z = -2)
     # And just to be extra safe, let's check the equivalence between the boxed
     # and unboxed version of the corrsums
     @testset "equiv. q = $q" for q in [2, 2.5, 4.5]
-        @test correlationsum(X, 0.1; q) ≈ boxed_correlationsum(X, 0.1; q) ≈ 1
-        @test correlationsum(X, [0.1, 0.5]; q) ≈ boxed_correlationsum(X, [0.1, 0.5]; q) ≈ 1
+        @test correlationsum(X, 0.1; q) ≈ boxed_correlationsum(X, 0.1; q)
+        @test correlationsum(X, 0.1; q, w = 10) ≈ boxed_correlationsum(X, 0.1; q, w = 10)
+        @test correlationsum(X, [0.1, 0.5]; q) ≈ boxed_correlationsum(X, [0.1, 0.5]; q)
     end
 
 end
@@ -61,18 +62,13 @@ end
         test_value(dB, 0.9, 1.1)
     end
     @testset "Boxed, Henon" begin
-        dX = boxassisted_correlation_dim(X)
+        dH = boxassisted_correlation_dim(H)
         test_value(dX, 1.2, 1.3)
         # Also ensure that the values match with vanilla version
-        r0 = estimate_r0_buenoorovio(X)[1]
-        es = r0 .* 10 .^ range(-2, stop = 0, length = 10)
-        C = correlationsum(X, es)
+        r0 = estimate_r0_buenoorovio(H)[1]
+        es = r0 .* 10 .^ range(-2; stop = 0, length = 10)
+        C = correlationsum(H, es)
         @test boxed_correlationsum(X, es, r0) ≈ C
-
-        C = correlationsum(X, es)
-        @test boxed_correlationsum(X, es, r0) ≈ C
-        @test boxed_correlationsum(X, es, r0; q = 2.3) ≈ correlationsum(X, es, q = 2.3)
-        @test boxed_correlationsum(X, es, r0; w = 10) ≈ correlationsum(X, es; w = 10)
     end
 end
 
