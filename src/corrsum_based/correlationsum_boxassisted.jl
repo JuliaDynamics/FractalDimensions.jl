@@ -1,5 +1,5 @@
 import ProgressMeter
-export boxed_correlationsum, boxassisted_correlation_dim
+export boxed_correlationsum, boxassisted_correlation_dim, data_boxing
 export estimate_r0_buenoorovio, autoprismdim, estimate_r0_theiler
 
 ################################################################################
@@ -129,7 +129,7 @@ Used in: [`boxed_correlationsum`](@ref).
 function data_boxing(X, r0::AbstractFloat, P::Int = autoprismdim(X))
     P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
     Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
-    encoding = RectangularBinEncoding(RectangularBinning(r0, false), Xreduced)
+    encoding = RectangularBinEncoding(RectangularBinning(r0, true), Xreduced)
     return _data_boxing(Xreduced, encoding), encoding.histsize
 end
 

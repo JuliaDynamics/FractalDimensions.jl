@@ -27,7 +27,15 @@ sizesH = estimate_boxsizes(H; z = -2)
     @test Cs == Csb == Csb2 == [0, 1]
     # If max radious, all points are in
     # q shouldn't matter here; we're just checking the correlation sum formula
-    X = StateSpaceSet(vec(collect(Iterators.product(0:0.05:0.99, 0:0.05:0.99))))
+    X = SVector{2, Float64}.(vec(collect(Iterators.product(0:0.05:0.99, 0:0.05:0.99))))
+    X = StateSpaceSet(X)
+    @testset "boxing" begin
+        btc, hs = data_boxing(X, 0.1)
+        @test all(isequal(4), length.(values(btc)))
+        @test hs == (10, 10)
+    end
+
+    # X = StateSpaceSet(X .+ 1e-12randn(SVector{2, Float64}, length(X)))
     @testset "norm, q = $q" for q in [2, 2.5, 4.5]
         @testset "vanilla" begin
             @test correlationsum(X, 5; q) ≈ 1
