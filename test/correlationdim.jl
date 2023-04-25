@@ -49,16 +49,18 @@ sizesH = estimate_boxsizes(H; z = -2)
     end
     # Okay, now let's use the `C` set where we can analytically compute correlation sums
     # for `r = 0.7` each point has 2 neighbors
-    # and for r = 0.13` each point has 4 neighbors
+    # and for `r = 0.13` each point has 4 neighbors
+    # For q=3 we have 2 (the neighbors) to the power of 2, so total is 4
+    # while for `r = 0.13` the 4 neighbors become 16
     @testset "analytic circle" begin
         N = length(C)
-        r = 0.07
+        normal2 = (N * (N - 1))
+        normal3 = N*(N-1)^2
         @testset "vanilla" begin
-            @test correlationsum(C, 0.07) ≈ 2N / (N * (N - 1))
-            @test correlationsum(C, 0.13) ≈ 4N / (N * (N - 1))
-            # For q=3 we have 2 (the neighbors) to the power of 2, so total is 4
-            # total = 4*N
-            # normal =
+            for (r, total2, total3) in zip((0.07, 0.13), (2N, 4N), (4N, 16N))
+                @test correlationsum(C, r) ≈ total2 / normal2
+                @test correlationsum(C, r; q = 3) ≈ (total3/normal3)^(0.5)
+            end
         end
 
         @testset "boxed" begin
