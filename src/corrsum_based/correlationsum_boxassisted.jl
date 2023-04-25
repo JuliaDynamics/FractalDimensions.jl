@@ -273,7 +273,7 @@ Base.IteratorSize(::Type{<:PointsInBoxesIterator}) = Base.SizeUnknown()
 
 # Notice that the initial state of the iteration ensures we are in
 # a box with indices inside it (as we start with offset = 0)
-function Base.iterate(
+@inbounds function Base.iterate(
         iter::PointsInBoxesIterator, state = (1, 1, iter.origin)
     )
     db, offsets, L, origin = getproperty.(Ref(iter), (:db, :offsets, :L, :origin))
