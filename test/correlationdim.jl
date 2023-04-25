@@ -36,10 +36,18 @@ sizesH = estimate_boxsizes(H; z = -2)
             @test boxed_correlationsum(X, 5; q) ≈ 1
         end
     end
+    # Boxed-assisted corrsum shouldn't care about `r0` (provided it is > than ε max)
+    @testset "irrelevance from r0" begin
+        @testset "q = $q" for q in [2, 2.5, 4.5]
+            @test boxed_correlationsum(X, 0.1; q) == boxed_correlationsum(X, 0.1, 0.2; q)
+            @test boxed_correlationsum(X, 0.1, 0.2; q) == boxed_correlationsum(X, 0.1, 5.0; q)
+            @test boxed_correlationsum(X, 0.1, 4.0; q) == boxed_correlationsum(X, 0.1, 5.0; q)
+        end
+    end
     # And just to be extra safe, let's check the equivalence between the boxed
     # and unboxed version of the corrsums
     @testset "equiv. q = $q" for q in [2] #, 2.5, 4.5]
-        @test correlationsum(X, 0.1; q) ≈ boxed_correlationsum(X, 0.1; q)
+        @test correlationsum(X, 0.1; q) ≈ boxed_correlationsum(X, 0.1, 0.1; q)
         @test correlationsum(X, 0.1; q, w = 10) ≈ boxed_correlationsum(X, 0.1; q, w = 10)
         @test correlationsum(X, [0.1, 0.5]; q) ≈ boxed_correlationsum(X, [0.1, 0.5]; q)
     end
@@ -54,6 +62,7 @@ sizesH = estimate_boxsizes(H; z = -2)
             @test boxed_correlationsum(C, 0.1; q) > boxed_correlationsum(C, 0.1; q, w = 50)
         end
     end
+
 end
 
 @testset "Correlation dims; automated" begin
