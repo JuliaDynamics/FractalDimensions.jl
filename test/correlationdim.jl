@@ -110,7 +110,7 @@ end
         dB = linear_region(log.(sizesB), log.(Cs))[2]
         test_value(dB, 0.9, 1.1)
         dH = boxassisted_correlation_dim(H)
-        test_value(dX, 1.2, 1.3)
+        test_value(dH, 1.2, 1.3)
     end
 end
 
@@ -123,8 +123,8 @@ end
     test_value(tan, 1.9, 2.0)
     dB = fixedmass_correlation_dim(B)
     test_value(dB, 0.9, 1.0)
-    dX = fixedmass_correlation_dim(H)
-    test_value(dX, 1.11, 1.31)
+    dH = fixedmass_correlation_dim(H)
+    test_value(dH, 1.11, 1.31)
 end
 
 @testset "Takens best est" begin
