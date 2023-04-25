@@ -177,12 +177,13 @@ end
 ################################################################################
 """
     boxed_correlationsum_2(boxes, contents, X, εs; w = 0)
+
 For a vector of `boxes` and the indices of their `contents` inside of `X`,
 calculate the classic correlationsum of a radius or multiple radii `εs`.
 `w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
 """
 function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w = 0, show_progress = false)
-    Cs = zeros(eltype(X), length(εs))
+    Cs = zeros(Int, length(εs))
     N = length(X)
     M = length(boxes)
     if show_progress
@@ -191,21 +192,17 @@ function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w =
     for index in 1:M
         indices_neighbors = find_neighborboxes_2(index, boxes, contents)
         indices_box = contents[index]
-        Cs .+= inner_correlationsum_2(indices_box, indices_neighbors, X, εs; w, norm)
+        inner_correlationsum_2!(Cs, indices_box, indices_neighbors, X, εs; w, norm)
         show_progress && ProgressMeter.update!(progress, index)
     end
     Cs .* (2 / ((N - w) * (N - w - 1)))
 end
 
 """
-    find_neighborboxes_2(index, boxes, contents) → indices
+    find_neighborboxes_2(index, boxes, contents) → indices::Vector{Int}
 
 Return all `indices` of the points in the boxes around the box that has `index`
 in `boxes` (`boxes, contents` are the output of `data_boxing`).
-
-For an `index` into `boxes` all neighbouring boxes beginning from the current
-one are searched. If the found box is indeed a neighbour, the `contents` of
-that box are added to `indices`.
 """
 function find_neighborboxes_2(index, boxes, contents)
     indices = Int[]
@@ -227,29 +224,26 @@ function find_neighborboxes_2(index, boxes, contents)
 end
 
 """
-    inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean(), w = 0)
-Calculates the classic correlation sum for values `X` inside a box, considering
-`Y` consisting of all values in that box and the ones in neighbouring boxes for
-all distances `ε ∈ εs` calculated by `norm`. To obtain the position of the
-values in the original time series `X`, they are passed as `indices_X` and
-`indices_Y`.
+    inner_correlationsum_2(idxs_box, idxs_neigh, X, εs; norm = Euclidean(), w = 0)
 
-`w` is the Theiler window. Each index to the original array is checked for the
-distance of the compared index. If this absolute value is not higher than `w`
-its element is not used in the calculation of the correlationsum.
+Calculate the classic correlation sum for values `X` inside a box,
+(which contains indices `idxs_box`), while considering as neighbors only the indices
+in `idxs_neigh`, which have been pre-calculated in `find_neighborboxes_2`.
 
-See also: [`correlationsum`](@ref)
+Compute for all distances `ε ∈ εs` using `norm`. `w` is the Theiler window.
+
+See [`boxed_correlationsum`](@ref)
 """
-function inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean(), w = 0)
-    Cs, Ny, Nε = zeros(length(εs)), length(indices_Y), length(εs)
-    for (i, index_X) in enumerate(indices_X)
-    	x = X[index_X]
+function inner_correlationsum_2!(Cs, idxs_box, idxs_neigh, X, εs; norm = Euclidean(), w = 0)
+    Ny, Nε = length(idxs_neigh), length(εs)
+    @inbounds for (i, index_in_X) in enumerate(idxs_box)
+    	x = X[index_in_X]
         for j in i+1:Ny
-            index_Y = indices_Y[j]
+            neigh_index_in_X = idxs_neigh[j]
             # Check for Theiler window.
-            if abs(index_Y - index_X) > w
+            if abs(neigh_index_in_X - index_in_X) > w
                 # Calculate distance.
-		        dist = evaluate(norm, X[index_Y], x)
+		        dist = evaluate(norm, X[neigh_index_in_X], x)
 		        for k in Nε:-1:1
 		            if dist < εs[k]
 		                Cs[k] += 1
@@ -308,12 +302,12 @@ function find_neighborboxes_q(index, boxes, contents)
 end
 
 """
-    inner_correlationsum_q(indices_X, indices_Y, data, εs, q::Real; norm, w)
+    inner_correlationsum_q(idxs_box, idxs_neigh, data, εs, q::Real; norm, w)
 Calculates the `q`-order correlation sum for values `X` inside a box,
 considering `Y` consisting of all values in that box and the ones in
 neighbouring boxes for all distances `ε ∈ εs` calculated by `norm`. To obtain
 the position of the values in the original time series `data`, they are passed
-as `indices_X` and `indices_Y`.
+as `idxs_box` and `idxs_neigh`.
 
 `w` is the Theiler window. The first and last `w` points of this data set are
 not used by themselves to calculate the correlationsum.
@@ -321,18 +315,18 @@ not used by themselves to calculate the correlationsum.
 See also: [`correlationsum`](@ref)
 """
 function inner_correlationsum_q(
-        indices_X, indices_Y, data, εs, q::Real; norm = Euclidean(), w = 0
+        idxs_box, idxs_neigh, data, εs, q::Real; norm = Euclidean(), w = 0
     )
     @assert issorted(εs) "Sorted εs required for optimized version."
     Cs = zeros(length(εs))
     N, Nε = length(data), length(εs)
-    for i in indices_X
+    for i in idxs_box
         # Check that this index is not within Theiler window of the boundary
         # This step is neccessary for easy normalisation.
         (i < w + 1 || i > N - w) && continue
         C_current = zeros(Nε)
         x = data[i]
-        for j in indices_Y
+        for j in idxs_neigh
             # Check that this index is not whithin the Theiler window
         	if abs(i - j) > w
                 # Calculate the distance for the correlationsum
