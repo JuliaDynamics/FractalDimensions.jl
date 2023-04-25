@@ -2,6 +2,9 @@ import ProgressMeter
 export boxed_correlationsum, boxassisted_correlation_dim
 export estimate_r0_buenoorovio, autoprismdim, estimate_r0_theiler
 
+################################################################################
+# Boxed correlation sum docstrings
+################################################################################
 """
     boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
 
@@ -26,9 +29,6 @@ function boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
     return linear_region(log2.(εs), log2.(Cs))[2]
 end
 
-################################################################################
-# Boxed Correlation sum (we distribute data to boxes beforehand)
-################################################################################
 """
     boxed_correlationsum(X::AbstractStateSpaceSet, εs, r0 = maximum(εs); kwargs...) → Cs
 
@@ -118,14 +118,18 @@ function autoprismdim(X, version = :bueno)
     end
 end
 
+################################################################################
+# Data boxing
+################################################################################
 """
-    data_boxing(X, r0, P) → boxes, contents
+    data_boxing(X, r0 [, P]) → boxes, contents
 
-Distribute `X` into boxes of size `r0`. Return box positions
+Distribute `X` into boxes of size `r0`. Return box positions (in cartesian coordinates)
 and the contents of each box as two separate vectors. Implemented according to
 the paper by Theiler[^Theiler1987] improving the algorithm by Grassberger and
 Procaccia[^Grassberger1983]. If `P` is smaller than the dimension of the data,
 only the first `P` dimensions are considered for the distribution into boxes.
+If `P` is not given, all data dimensions are used.
 
 See also: [`boxed_correlationsum`](@ref).
 
@@ -138,12 +142,15 @@ See also: [`boxed_correlationsum`](@ref).
     ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
 function data_boxing(X, r0, P)
-    @assert P ≤ size(X, 2) "Prism dimension has to be ≤ than data dimension."
-    mini = minima(X)[1:P]
+    Xreduced = P == dimension(X) ? X : X[:, SVector{Int, P}(1:P)]
+    data_boxing(Xreduced, r0)
+end
+function data_boxing(X, r0)
+    mini = minima(X)
 
     # Map each datapoint to its bin edge and sort the resulting list:
-    bins = map(point -> floor.(Int, (point[1:P] - mini)/r0), X)
-    permutations = sortperm(bins, alg=QuickSort)
+    bins = map(point -> floor.(Int, (point - mini)/r0), X)
+    permutations = sortperm(bins; alg=QuickSort)
 
     boxes = unique(bins[permutations])
     contents = Vector{Vector{Int}}()
@@ -159,9 +166,12 @@ function data_boxing(X, r0, P)
     end
     push!(contents, permutations[prior:end])
 
-    StateSpaceSet(boxes), contents
+    boxes, contents
 end
 
+################################################################################
+# Concrete implementation, q = 2
+################################################################################
 """
     boxed_correlationsum_2(boxes, contents, X, εs; w = 0)
 For a vector of `boxes` and the indices of their `contents` inside of `X`,
@@ -239,6 +249,10 @@ function inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean()
     return Cs
 end
 
+
+################################################################################
+# Concrete implementation, q != 2
+################################################################################
 """
     boxed_correlationsum_q(boxes, contents, X, εs, q; w = 0)
 For a vector of `boxes` and the indices of their `contents` inside of `X`,
