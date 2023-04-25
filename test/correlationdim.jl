@@ -52,32 +52,28 @@ sizesH = estimate_boxsizes(H; z = -2)
     # and for `r = 0.13` each point has 4 neighbors
     # For q=3 we have 2 (the neighbors) to the power of 2, so total is 4
     # while for `r = 0.13` the 4 neighbors become 16
-    @testset "analytic circle" begin
+    @testset "circle exact" begin
         N = length(C)
         normal2 = (N * (N - 1))
         normal3 = N*(N-1)^2
-        @testset "vanilla" begin
+        vanilla(C, r, q, w=0) = correlationsum(C, r; q, w)
+        boxed(C, r, q, w=0) = boxed_correlationsum(C, r; q, w)
+        @testset "version: $(f)" for f in (vanilla,  boxed)
             for (r, total2, total3) in zip((0.07, 0.13), (2N, 4N), (4N, 16N))
-                @test correlationsum(C, r) ≈ total2 / normal2
-                @test correlationsum(C, r; q = 3) ≈ (total3/normal3)^(0.5)
+                @test f(C, r, 2) ≈ total2 / normal2
+                @test f(C, r, 3) ≈ (total3/normal3)^(0.5)
             end
         end
-
-        @testset "boxed" begin
-            boxed_correlationsum(C, 0.07) ≈ 2N / (N * (N - 1))
-            boxed_correlationsum(C, 0.13) ≈ 4N / (N * (N - 1))
+        @testset "irrelevance from r0" begin
+            @testset "q = $q" for q in [2, 2.5, 4.5]
+                for r0 in [0.1, 0.2, 4.0, 5.0]
+                    @test boxed_correlationsum(C, 0.1; q) == 2N / normal2
+                end
+            end
         end
-
     end
 
     # Boxed-assisted corrsum shouldn't care about `r0` (provided it is > than ε max)
-    @testset "irrelevance from r0" begin
-        @testset "q = $q" for q in [2, 2.5, 4.5]
-            @test boxed_correlationsum(X, 0.1; q) == boxed_correlationsum(X, 0.1, 0.2; q)
-            @test boxed_correlationsum(X, 0.1, 0.2; q) == boxed_correlationsum(X, 0.1, 5.0; q)
-            @test boxed_correlationsum(X, 0.1, 4.0; q) == boxed_correlationsum(X, 0.1, 5.0; q)
-        end
-    end
     # And just to be extra safe, let's check the equivalence between the boxed
     # and unboxed version of the corrsums
     @testset "equiv. q = $q" for q in [2] #, 2.5, 4.5]
