@@ -83,8 +83,8 @@ function boxed_correlationsum(X; P = 2, kwargs...)
 end
 
 function boxed_correlationsum(X, εs, r0 = maximum(εs); P = autoprismdim(X), kwargs...)
-    boxes_to_contents, hist_size = data_boxing(X, float(r0), P)
-    return _boxed_correlationsum(boxes_to_contents, hist_size, X, εs; r0, kwargs...)
+    db = data_boxing(X, float(r0), P)
+    return _boxed_correlationsum(db, X, εs; r0, kwargs...)
 end
 
 boxed_correlationsum(X, e::Real, args...; kwargs...) = boxed_correlationsum(X, [e], args...; kwargs...)[1]
@@ -130,37 +130,48 @@ function data_boxing(X, r0::AbstractFloat, P::Int = autoprismdim(X))
     P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
     Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
     encoding = RectangularBinEncoding(RectangularBinning(r0, true), Xreduced)
-    return _data_boxing(Xreduced, encoding), encoding.histsize
+    return _data_boxing(Xreduced, encoding)
 end
 
-function _data_boxing(X, encoding)
-    # Output is a dictionary mapping cartesian indices to vector of data point indices
-    # in said cartesian index bin
-    boxes_to_contents = Dict{NTuple{dimension(X), Int}, Vector{Int}}()
+function _data_boxing(X::AbstractStateSpaceSet{D}, encoding) where {D}
+    # Create empty array with empty vectors
+    boxed_contents = Array{Vector{Int}, D}(undef, encoding.histsize)
+    for i in eachindex(boxed_contents); boxed_contents[i] = Int[]; end
+    # Loop over points and store them in the bin they are contained in
     for (j, x) in enumerate(X)
         i = encode(encoding, x) # linear index of box in histogram
         if i == -1
             error("$(j)-th point was encoded as -1. Point = $(x)")
         end
-        ci = Tuple(encoding.ci[i]) # cartesian index of box in histogram
-        if !haskey(boxes_to_contents, ci)
-            boxes_to_contents[ci] = Int[]
-        end
-        push!(boxes_to_contents[ci], j)
+        # ci = encoding.ci[i] # cartesian index of box in histogram
+        # We actually don't need ci as linear access to multi-dim array is the same
+        push!(boxed_contents[i], j)
     end
-    return boxes_to_contents
+    li, ci = getproperty.(Ref(encoding), (:li, :ci))
+    return DataBoxing(boxed_contents, li, ci)
+end
+
+# This struct exists to make iteration more efficient by
+# grouping the info together, but also by allowing the use of linear vectors
+# instead of dictionaries to go from cartesian index of box in histogram
+# to the contents inside the box (i.e., the indices of points in that box)
+struct DataBoxing{D}
+    boxed_contents::Array{Vector{Int}, D} # content of `i`-th box
+    li::LinearIndices{D, NTuple{D, Base.OneTo{Int}}}
+    ci::CartesianIndices{D, NTuple{D, Base.OneTo{Int}}}
 end
 
 ################################################################################
 # Correlation sum computation code
 ################################################################################
 # Actual implementation
-function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs;
+function _boxed_correlationsum(db::DataBoxing, X, εs;
         w = 0, show_progress = false, q = 2, norm = Euclidean(), r0 = maximum(εs)
     )
     Cs = zeros(eltype(X), length(εs))
     Csdummy = copy(Cs)
-    progress = ProgressMeter.Progress(length(boxes_to_contents);
+
+    progress = ProgressMeter.Progress(count(!isempty, db.boxed_contents);
         desc = "Boxed correlation sum: ", dt = 1.0, enabled = show_progress
     )
     N = length(X)
@@ -172,16 +183,17 @@ function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs
     else
         (i, j) -> (i < w + 1) || (i > N - w) || (abs(i - j) ≤ w)
     end
-    offsets = chebyshev_offsets(ceil(Int, maximum(εs)/r0), length(hist_size))
+    offsets = chebyshev_offsets(ceil(Int, maximum(εs)/r0), length(size(db.boxed_contents)))
     # We iterate over all existing boxes; for each box, we iterate over
     # all points in the box and all neighboring boxes (offsets added to box coordinate)
     # Note that the `box_index` is also its cartesian index in the histogram
     # TODO: Threading
-    for box_index in keys(boxes_to_contents)
+    for box_index in eachindex(db.boxed_contents)
+        indices_in_box = db.boxed_contents[box_index]
+        isempty(indices_in_box) && continue # important to skip empty boxes
         # This is a special iterator; for the given box, it iterates over
         # all points in this box and in the neighboring boxes (offsets added)
-        indices_in_box = boxes_to_contents[box_index]
-        nearby_indices_iter = PointsInBoxesIterator(boxes_to_contents, hist_size, offsets, box_index)
+        nearby_indices_iter = PointsInBoxesIterator(db, box_index, offsets)
         add_to_corrsum!(Cs, Csdummy, εs, X, indices_in_box, nearby_indices_iter, skip, norm, q)
         ProgressMeter.next!(progress)
     end
@@ -242,27 +254,18 @@ end
 
 # For optinal performance and design we need a different method of starting the iteration
 # and another one that continues iteration. Second case uses the explicitly
-# known knowledge of `box_number` being a valid position index.
+# known knowledge of `offset_number` being a valid position index.
 
 struct PointsInBoxesIterator{D}
-    boxes_to_contents::Dict{NTuple{D, Int}, Vector{Int}}
-    hist_size::NTuple{D,Int}          # size of histogram
-    hist_axes::NTuple{D, Base.OneTo{Int}} # axes, for using in check bounds
-    origin::NTuple{D,Int}             # origin (box we started from)
-    origin_indices::Vector{Int}       # point indices in box we started from
-    offsets::Vector{NTuple{D,Int}}    # Result of `offsets_within_radius` pretty much
+    db::DataBoxing{D}
+    origin::Int                       # box we started from, in linear indices
+    offsets::Vector{NTuple{D,Int}}    # Result of `chebyshev_offsets`
     L::Int                            # length of `offsets`
 end
 
-function PointsInBoxesIterator(
-        boxes_to_contents, hist_size, offsets, origin::NTuple{D, Int}
-    ) where {D}
+function PointsInBoxesIterator(db::DataBoxing{D}, origin, offsets) where {D}
     L = length(offsets)
-    hist_axes = map(n -> Base.OneTo(n), hist_size)
-    origin_indices = boxes_to_contents[origin]
-    return PointsInBoxesIterator{D}(
-        boxes_to_contents, hist_size, hist_axes, origin, origin_indices, offsets, L
-    )
+    return PointsInBoxesIterator{D}(db, origin, offsets, L)
 end
 
 Base.eltype(::Type{<:PointsInBoxesIterator}) = Int # It returns indices
@@ -270,44 +273,48 @@ Base.IteratorSize(::Type{<:PointsInBoxesIterator}) = Base.SizeUnknown()
 
 # Notice that the initial state of the iteration ensures we are in
 # a box with indices inside it (as we start with offset = 0)
-@inbounds function Base.iterate(
-        iter::PointsInBoxesIterator, state = (1, 1)
+function Base.iterate(
+        iter::PointsInBoxesIterator, state = (1, 1, iter.origin)
     )
-    offsets, L, origin = getproperty.(Ref(iter), (:offsets, :L, :origin))
-    box_number, inner_i = state
-    box_index = offsets[box_number] .+ origin
-    idxs_in_box::Vector{Int} = iter.boxes_to_contents[box_index]
+    db, offsets, L, origin = getproperty.(Ref(iter), (:db, :offsets, :L, :origin))
+    offset_number, inner_i, box_index = state
+    idxs_in_box::Vector{Int} = db.boxed_contents[box_index]
 
     if inner_i > length(idxs_in_box)
         # we have exhausted IDs in current box, so we go to next
-        box_number += 1
+        offset_number += 1
         # Stop iteration if `box_index` exceeded the amount of positions
-        box_number > L && return nothing
+        offset_number > L && return nothing
         # Reset count of indices inside current box
         inner_i = 1
-        box_index = offsets[box_number] .+ origin
+        box_cartesian = CartesianIndex(offsets[offset_number] .+ Tuple(db.ci[origin]))
         # Of course, we need to check if we have valid index
-        while invalid_access(box_index, iter.boxes_to_contents, iter.hist_axes)
+        while invalid_access(box_cartesian, db.boxed_contents)
             # if not, again go to next box
-            box_number += 1
-            box_number > L && return nothing
-            box_index = offsets[box_number] .+ origin
+            offset_number += 1
+            offset_number > L && return nothing
+            # The box index is in linear indices; to create the linear index of the
+            # nearby (offseted) boxes, we trasform to cartesian, and then back again
+            box_cartesian = CartesianIndex(offsets[offset_number] .+ Tuple(db.ci[origin]))
         end
-        idxs_in_box = iter.boxes_to_contents[box_index]
+        # Don't forget to convert the box index to linear
+        box_index = db.li[CartesianIndex(box_cartesian)]
+        idxs_in_box = db.boxed_contents[box_index]
     end
     # We are in a valid box with indices inside it
     id::Int = idxs_in_box[inner_i]
-    return (id, (box_number, inner_i + 1))
+    return (id, (offset_number, inner_i + 1, box_index))
 end
 
 
 # Return `true` if the access to the histogram box with `box_index` is invalid
-@inbounds function invalid_access(box_index, boxes_to_contents, hist_axes::NTuple{D, Base.OneTo{Int}}) where {D}
+function invalid_access(box_index, boxed_contents)
     # Check if within bounds of the histogram (for iterating near edges of histogram)
-    valid_bounds = all(D -> checkindex(Bool, hist_axes[D], box_index[D]), Base.OneTo(D))
+    valid_bounds = checkbounds(Bool, boxed_contents, box_index)
     valid_bounds || return true
-    # Then, check if there are points in the nearby histogram box
-    haskey(boxes_to_contents, box_index) || return true
+    # Then, check if there are points in the histogram box
+    empty = @inbounds isempty(boxed_contents[box_index])
+    empty && return true
     # If a box exists, it is guaranteed to have at least one point by construction
     return false
 end
@@ -580,7 +587,7 @@ function estimate_r0_buenoorovio(X, P = autoprismdim(X))
     # Sample N/10 datapoints out of data for rough estimate of effective size.
     sample1 = X[unique(rand(1:N, N÷10))] |> StateSpaceSet
     r_ℓ = R / 10
-    η_ℓ = length(data_boxing(sample1, r_ℓ, P)[1])
+    η_ℓ = count(!isempty, data_boxing(sample1, r_ℓ, P).boxed_contents)
     r0 = zero(eltype(X))
     while true
         # Sample √N datapoints for rough dimension estimate

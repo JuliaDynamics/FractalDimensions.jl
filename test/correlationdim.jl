@@ -43,9 +43,13 @@ sizesH = estimate_boxsizes(H; z = -2)
     end
     # check the boxing for safety
     @testset "boxing" begin
-        btc, hs = data_boxing(X, 0.1)
-        @test all(isequal(4), length.(values(btc)))
-        @test hs == (10, 10)
+        db = data_boxing(X, 0.1)
+        stored = Int[]
+        for idxs in db.boxed_contents
+            @test issorted(idxs)
+            append!(stored, idxs)
+        end
+        @test sort!(stored) == 1:length(X)
     end
     # Okay, now let's use the `C` set where we can analytically compute correlation sums
     # for `r = 0.7` each point has 2 neighbors
