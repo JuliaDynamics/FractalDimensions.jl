@@ -62,7 +62,7 @@ sizesH = estimate_boxsizes(H; z = -2)
         # And just to be extra safe, let's check the equivalence between the boxed
         # and unboxed version of the corrsums
         @testset "irrelevance from r0" begin
-            for r0 in [0.1, 0.2, 4.0, 5.0]
+            for r0 in [0.2, 4.0, 5.0]
                 @test boxed_correlationsum(C, 0.07, r0) ≈ 2N / normal2
                 @test boxed_correlationsum(C, 0.13, r0) ≈ 4N / normal2
             end

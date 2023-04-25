@@ -83,7 +83,8 @@ boxed_correlationsum(X, e::Real, r0 = e; kwargs...) = boxed_correlationsum(X, [e
 function boxed_correlationsum(
         X, εs, r0 = maximum(εs); q = 2, P = autoprismdim(X), kwargs...
     )
-    @assert P ≤ size(X, 2) "Prism dimension has to be ≤ than X dimension."
+    P ≤ size(X, 2)   || error("Prism dimension has to be ≤ than X dimension.")
+    r0 ≥ maximum(εs) || error("Box size `r0` has to be ≥ than `maximum(εs)`.")
     boxes, contents = data_boxing(X, r0, P)
     Cs = if q == 2
         boxed_correlationsum_2(boxes, contents, X, εs; kwargs...)
@@ -193,7 +194,7 @@ function find_neighborboxes_2(index, boxes, contents)
     box = boxes[index]
     N_box = length(boxes)
     for index2 in index:N_box
-        if evaluate(Chebyshev(), box, boxes[index2]) ≤ 2
+        if evaluate(Chebyshev(), box, boxes[index2]) < 2
             append!(indices, contents[index2])
         end
     end
