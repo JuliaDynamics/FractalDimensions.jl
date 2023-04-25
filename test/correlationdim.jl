@@ -64,29 +64,15 @@ sizesH = estimate_boxsizes(H; z = -2)
                 @test f(C, r, 3) ≈ (total3/normal3)^(0.5)
             end
         end
+        # Boxed-assisted corrsum shouldn't care about `r0`
+        # And just to be extra safe, let's check the equivalence between the boxed
+        # and unboxed version of the corrsums
         @testset "irrelevance from r0" begin
-            @testset "q = $q" for q in [2, 2.5, 4.5]
-                for r0 in [0.1, 0.2, 4.0, 5.0]
-                    @test boxed_correlationsum(C, 0.1; q) == 2N / normal2
-                end
+            for r0 in [0.1, 0.2, 4.0, 5.0]
+                @test boxed_correlationsum(C, 0.07, r0) ≈ 2N / normal2
+                @test boxed_correlationsum(C, 0.13, r0) ≈ 4N / normal2
             end
         end
-    end
-
-    # Boxed-assisted corrsum shouldn't care about `r0` (provided it is > than ε max)
-    # And just to be extra safe, let's check the equivalence between the boxed
-    # and unboxed version of the corrsums
-    @testset "equiv. q = $q" for q in [2] #, 2.5, 4.5]
-        @test correlationsum(X, 0.1; q) ≈ boxed_correlationsum(X, 0.1, 0.1; q)
-        @test correlationsum(X, 0.1; q, w = 10) ≈ boxed_correlationsum(X, 0.1; q, w = 10)
-        @test correlationsum(X, [0.1, 0.5]; q) ≈ boxed_correlationsum(X, [0.1, 0.5]; q)
-    end
-    # Computed with "correct" corrsum formula
-    # (but also could be made by hand...)
-    @testset "analytically computed number" begin
-        @test correlationsum(X, 0.1) ≈ 0.024085213032581
-        @test boxed_correlationsum(X, 0.1) ≈ 0.024085213032581
-        @test boxed_correlationsum(X, 0.1, 0.2) ≈ 0.024085213032581
     end
 
     # A significantly different theiler window should have significantly

@@ -208,8 +208,11 @@ function chebyshev_offsets(r::Int, P::Int)
 end
 
 @inbounds function add_to_corrsum!(Cs, Csdummy, εs, X, indices_in_box, nearby_indices_iter, skip, norm, q)
+    # first, we iterate over points inside the histogram box
     for i in indices_in_box
-        Csdummy .= 0
+        Csdummy .= 0 # reset set count for the given point to 0
+        # Then, we iterate over points in current box and all other boxes
+        # within radius (in histogram discrete size Chebyshev distance metric)
         for j in nearby_indices_iter
             skip(i, j) && continue
             dist = norm(X[i], X[j])
@@ -217,13 +220,14 @@ end
                 if dist < εs[k]
                     Csdummy[k] += 1
                 else
-                    break
+                    break # since `εs` are ordered, we don't have to check for smaller
                 end
             end
         end
         if q == 2
             Cs .+= Csdummy
         else
+            # the q != 2 formula requires this inner exponentiation
             Cs .+= Csdummy .^ (q-1)
         end
     end
@@ -268,8 +272,7 @@ end
     )
     offsets, L, origin = getproperty.(Ref(iter), (:offsets, :L, :origin))
     box_number, inner_i, idxs_in_box = state
-    X = length(idxs_in_box)
-    if inner_i > X
+    if inner_i > length(idxs_in_box)
         # we have exhausted IDs in current box, so we go to next
         box_number += 1
         # Stop iteration if `box_index` exceeded the amount of positions
@@ -297,7 +300,7 @@ end
     valid_bounds = all(D -> checkindex(Bool, hist_axes[D], box_index[D]), Base.OneTo(D))
     valid_bounds || return true
     # Then, check if there are points in the nearby histogram box
-    haskey(boxes_to_contents, CartesianIndex(box_index)) || return true
+    haskey(boxes_to_contents, box_index) || return true
     # If a box exists, it is guaranteed to have at least one point by construction
     return false
 end
