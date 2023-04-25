@@ -131,6 +131,9 @@ Procaccia[^Grassberger1983]. If `P` is smaller than the dimension of the data,
 only the first `P` dimensions are considered for the distribution into boxes.
 If `P` is not given, all data dimensions are used.
 
+The returned values are sorted (and this is crucial for optimal implementation
+of the boxed correlation sum).
+
 See also: [`boxed_correlationsum`](@ref).
 
 [^Theiler1987]:
@@ -196,6 +199,10 @@ end
 
 """
     find_neighborboxes_2(index, boxes, contents) → indices
+
+Return all `indices` of the points in the boxes around the box that has `index`
+in `boxes` (`boxes, contents` are the output of `data_boxing`).
+
 For an `index` into `boxes` all neighbouring boxes beginning from the current
 one are searched. If the found box is indeed a neighbour, the `contents` of
 that box are added to `indices`.
@@ -204,7 +211,14 @@ function find_neighborboxes_2(index, boxes, contents)
     indices = Int[]
     box = boxes[index]
     N_box = length(boxes)
+    # Note here the search range: it explicitly uses the knowledge that q=2,
+    # and hence knows that we only need to store indices _after_ the index
+    # we are currently looping over, as future indices are included,
+    # but no reason to scan for previous indices: distance between points
+    # only needs to be computed once!
     for index2 in index:N_box
+        # Since the boxes are in cartesian coordinates in integer space,
+        # We know guarnteed the max distance in cartesian coordinates: it is ± 1.
         if evaluate(Chebyshev(), box, boxes[index2]) < 2
             append!(indices, contents[index2])
         end
