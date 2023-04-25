@@ -213,7 +213,7 @@ end
         Csdummy .= 0 # reset set count for the given point to 0
         # Then, we iterate over points in current box and all other boxes
         # within radius (in histogram discrete size Chebyshev distance metric)
-        for j in nearby_indices_iter
+        @inbounds for j in nearby_indices_iter
             skip(i, j) && continue
             dist = norm(X[i], X[j])
             for k in length(εs):-1:1
@@ -271,10 +271,13 @@ Base.IteratorSize(::Type{<:PointsInBoxesIterator}) = Base.SizeUnknown()
 # Notice that the initial state of the iteration ensures we are in
 # a box with indices inside it (as we start with offset = 0)
 @inbounds function Base.iterate(
-        iter::PointsInBoxesIterator, state = (1, 1, iter.origin_indices)
+        iter::PointsInBoxesIterator, state = (1, 1)
     )
     offsets, L, origin = getproperty.(Ref(iter), (:offsets, :L, :origin))
-    box_number, inner_i, idxs_in_box = state
+    box_number, inner_i = state
+    box_index = offsets[box_number] .+ origin
+    idxs_in_box::Vector{Int} = iter.boxes_to_contents[box_index]
+
     if inner_i > length(idxs_in_box)
         # we have exhausted IDs in current box, so we go to next
         box_number += 1
@@ -294,7 +297,7 @@ Base.IteratorSize(::Type{<:PointsInBoxesIterator}) = Base.SizeUnknown()
     end
     # We are in a valid box with indices inside it
     id::Int = idxs_in_box[inner_i]
-    return (id, (box_number, inner_i + 1, idxs_in_box))
+    return (id, (box_number, inner_i + 1))
 end
 
 
