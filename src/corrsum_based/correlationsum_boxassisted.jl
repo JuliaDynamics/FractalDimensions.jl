@@ -186,14 +186,14 @@ function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w =
     Cs = zeros(Int, length(εs))
     N = length(X)
     M = length(boxes)
-    if show_progress
-        progress = ProgressMeter.Progress(M; desc = "Boxed correlation sum: ", dt = 1.0)
-    end
+    progress = ProgressMeter.Progress(M;
+        desc = "Boxed correlation sum: ", enabled = show_progress
+    )
     for index in 1:M
         indices_neighbors = find_neighborboxes_2(index, boxes, contents)
         indices_box = contents[index]
         inner_correlationsum_2!(Cs, indices_box, indices_neighbors, X, εs; w, norm)
-        show_progress && ProgressMeter.update!(progress, index)
+        ProgressMeter.next!(progress)
     end
     Cs .* (2 / ((N - w) * (N - w - 1)))
 end
@@ -261,38 +261,31 @@ end
 ################################################################################
 # Concrete implementation, q != 2
 ################################################################################
-"""
-    boxed_correlationsum_q(boxes, contents, X, εs, q; w = 0)
-For a vector of `boxes` and the indices of their `contents` inside of `X`,
-calculate the `q`-order correlationsum of a radius or radii `εs`.
-`w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
-"""
+# As the code is very similar to the one above, no docstirngs here.
+
 function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), w = 0, show_progress = false)
-    q <= 1 && @warn "This function is currently not specialized for q <= 1" *
+    q ≤ 1 && @warn "This function is currently not specialized for q ≤ 1" *
     " and may show unexpected behaviour for these values."
     Cs = zeros(eltype(X), length(εs))
     N = length(X)
     M = length(boxes)
-    if show_progress
-        progress = ProgressMeter.Progress(M; desc = "Boxed correlation sum: ", dt = 1.0)
-    end
+    progress = ProgressMeter.Progress(M;
+        desc = "Boxed correlation sum: ", enabled = show_progress
+    )
     for index in 1:M
         indices_neighbors = find_neighborboxes_q(index, boxes, contents)
         indices_box = contents[index]
         Cs .+= inner_correlationsum_q(indices_box, indices_neighbors, X, εs, q; w, norm)
-        show_progress && ProgressMeter.update!(progress, index)
+        ProgressMeter.next!(progress)
     end
     clamp.((Cs ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
 end
 
-"""
-    find_neighborboxes_q(index, boxes, contents) → indices
-For an `index` into `boxes` all neighbouring boxes are searched. If the found
-box is indeed a neighbour, the `contents` of that box are added to `indices`.
-"""
 function find_neighborboxes_q(index, boxes, contents)
     indices = Int[]
     box = boxes[index]
+    # Notice how here we cannot do the same optimization as in the q=2
+    # case where we already start from i. :(
     for (index2, box2) in enumerate(boxes)
         if evaluate(Chebyshev(), box, box2) < 2
             append!(indices, contents[index2])
@@ -301,19 +294,6 @@ function find_neighborboxes_q(index, boxes, contents)
     indices
 end
 
-"""
-    inner_correlationsum_q(idxs_box, idxs_neigh, data, εs, q::Real; norm, w)
-Calculates the `q`-order correlation sum for values `X` inside a box,
-considering `Y` consisting of all values in that box and the ones in
-neighbouring boxes for all distances `ε ∈ εs` calculated by `norm`. To obtain
-the position of the values in the original time series `data`, they are passed
-as `idxs_box` and `idxs_neigh`.
-
-`w` is the Theiler window. The first and last `w` points of this data set are
-not used by themselves to calculate the correlationsum.
-
-See also: [`correlationsum`](@ref)
-"""
 function inner_correlationsum_q(
         idxs_box, idxs_neigh, data, εs, q::Real; norm = Euclidean(), w = 0
     )
@@ -329,7 +309,6 @@ function inner_correlationsum_q(
         for j in idxs_neigh
             # Check that this index is not whithin the Theiler window
         	if abs(i - j) > w
-                # Calculate the distance for the correlationsum
 		        dist = evaluate(norm, x, data[j])
 		        for k in Nε:-1:1
 		            if dist < εs[k]
