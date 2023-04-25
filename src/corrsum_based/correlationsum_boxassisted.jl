@@ -268,20 +268,23 @@ end
 function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), w = 0, show_progress = false)
     q ≤ 1 && @warn "This function is currently not specialized for q ≤ 1" *
     " and may show unexpected behaviour for these values."
-    Cs = zeros(eltype(X), length(εs))
-    C_current = zeros(Int, length(εs))
+    Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
+    C_currents = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     N = length(X)
     M = length(boxes)
     progress = ProgressMeter.Progress(M;
         desc = "Boxed correlation sum: ", enabled = show_progress
     )
-    for index in 1:M
+    Threads.@threads for index in 1:M
+        Cs = Css[Threads.threadid()]
+        C_current = C_currents[Threads.threadid()]
         indices_neighbors = find_neighborboxes_q(index, boxes, contents)
         indices_box = contents[index]
         inner_correlationsum_q!(Cs, C_current, indices_box, indices_neighbors, X, εs, q; w, norm)
         ProgressMeter.next!(progress)
     end
-    clamp.((Cs ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
+    C = .+(Css...,)
+    return clamp.((C ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
 end
 
 function find_neighborboxes_q(index, boxes, contents)
@@ -300,7 +303,6 @@ end
 function inner_correlationsum_q!(
         Cs, C_current, idxs_box, idxs_neigh, data, εs, q::Real; norm = Euclidean(), w = 0
     )
-    @assert issorted(εs) "Sorted εs required for optimized version."
     N, Nε = length(data), length(εs)
     for i in idxs_box
         # Check that this index is not within Theiler window of the boundary
