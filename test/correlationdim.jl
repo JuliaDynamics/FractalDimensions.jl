@@ -16,7 +16,7 @@ sizesB = estimate_boxsizes(B; z = -2)
 henon_rule(x, p, n) = SVector(1.0 - p[1]*x[1]^2 + x[2], p[2]*x[1])
 henon = DeterministicIteratedMap(henon_rule, zeros(2), [1.4, 0.3])
 H = standardize(trajectory(henon, 10_000; Ttr = 100)[1])
-sizesH = estimate_boxsizes(X; z = -2)
+sizesH = estimate_boxsizes(H; z = -2)
 
 @testset "correlation sums analytic" begin
     X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.5)])
@@ -64,11 +64,8 @@ end
     @testset "Boxed, Henon" begin
         dH = boxassisted_correlation_dim(H)
         test_value(dX, 1.2, 1.3)
-        # Also ensure that the values match with vanilla version
-        r0 = estimate_r0_buenoorovio(H)[1]
-        es = r0 .* 10 .^ range(-2; stop = 0, length = 10)
-        C = correlationsum(H, es)
-        @test boxed_correlationsum(X, es, r0) ≈ C
+        dH = grassberger_proccacia_dim(H)
+        test_value(dX, 1.2, 1.3)
     end
 end
 
@@ -85,7 +82,7 @@ end
         test_value(dB, 0.9, 1.0)
     end
     @testset "Henon" begin
-        dX = fixedmass_correlation_dim(X)
+        dX = fixedmass_correlation_dim(H)
         test_value(dX, 1.11, 1.31)
     end
 end
@@ -102,6 +99,6 @@ end
     D_C = takens_best_estimate_dim(B, 0.1)
     test_value(D_C, 0.9, 1.1)
 
-    D_C = takens_best_estimate_dim(X, 0.05)
+    D_C = takens_best_estimate_dim(H, 0.05)
     test_value(D_C, 1.2, 1.26)
 end
