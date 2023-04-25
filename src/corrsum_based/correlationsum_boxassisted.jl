@@ -84,8 +84,7 @@ end
 
 function boxed_correlationsum(X, εs, r0 = maximum(εs); P = autoprismdim(X), kwargs...)
     boxes_to_contents, hist_size = data_boxing(X, float(r0), P)
-    r0 < maximum(εs) && error("r0 (boxing size) can't be less than `maximum(εs)`.")
-    return _boxed_correlationsum(boxes_to_contents, hist_size, X, εs; kwargs...)
+    return _boxed_correlationsum(boxes_to_contents, hist_size, X, εs; r0, kwargs...)
 end
 
 boxed_correlationsum(X, e::Real, args...; kwargs...) = boxed_correlationsum(X, [e], args...; kwargs...)[1]
@@ -126,10 +125,6 @@ If `P` is given, only the first `P` dimensions of `X` are considered for constru
 the boxes and distributing the points into them.
 
 Used in: [`boxed_correlationsum`](@ref).
-
-[^Theiler1987]:
-    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
-    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
 """
 function data_boxing(X, r0::AbstractFloat, P::Int = autoprismdim(X))
     P ≤ dimension(X) || error("Prism dimension has to be ≤ than data dimension.")
@@ -158,7 +153,7 @@ end
 ################################################################################
 # Actual implementation
 function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs;
-        w = 0, show_progress = false, q = 2, norm = Euclidean(),
+        w = 0, show_progress = false, q = 2, norm = Euclidean(), r0 = maximum(εs)
     )
     Cs = zeros(eltype(X), length(εs))
     Csdummy = copy(Cs)
@@ -174,7 +169,7 @@ function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs
     else
         (i, j) -> (i < w + 1) || (i > N - w) || (abs(i - j) ≤ w)
     end
-    offsets = chebyshev_1_offsets(length(hist_size))
+    offsets = chebyshev_offsets(ceil(Int, maximum(εs)/r0), length(hist_size))
     # We iterate over all existing boxes; for each box, we iterate over
     # all points in the box and all neighboring boxes (offsets added to box coordinate)
     # Note that the `box_index` is also its cartesian index in the histogram
@@ -195,11 +190,11 @@ function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs
     end
 end
 
-function chebyshev_1_offsets(P)
+function chebyshev_offsets(r::Int, P)
     # Offsets, which are required by the nearest neighbor algorithm, are constants
     # and depend only on `P` (histogram dimension = prism). We compute them here:
     # 1 is the radius (distance) of boxes in Chebyshev metric that we need to include
-    hypercube = Iterators.product(repeat([-1:1], P)...)
+    hypercube = Iterators.product(repeat([-r:r], P)...)
     offsets = vec([β for β ∈ hypercube])
     # make it guaranteed so that (0s...) offset is first in order
     z = ntuple(i -> 0, Val(P))
@@ -234,7 +229,6 @@ end
 ################################################################################
 # Extremely optimized custom iterator for nearby boxes
 ################################################################################
-
 # Notice that from creation we know the first box index, and its nubmer
 # in the box offseting sequence is by construction 1
 

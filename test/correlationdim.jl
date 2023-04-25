@@ -51,6 +51,14 @@ sizesH = estimate_boxsizes(H; z = -2)
         @test correlationsum(X, 0.1; q, w = 10) ≈ boxed_correlationsum(X, 0.1; q, w = 10)
         @test correlationsum(X, [0.1, 0.5]; q) ≈ boxed_correlationsum(X, [0.1, 0.5]; q)
     end
+    # Computed with "correct" corrsum formula
+    # (but also could be made by hand...)
+    @testset "analytically computed number" begin
+        @test correlationsum(X, 0.1) ≈ 0.024085213032581
+        @test boxed_correlationsum(X, 0.1) ≈ 0.024085213032581
+        @test boxed_correlationsum(X, 0.1, 0.2) ≈ 0.024085213032581
+    end
+
     # A significantly different theiler window should have significantly
     # different correlation sum for data that close in space
     # is also close in time;
