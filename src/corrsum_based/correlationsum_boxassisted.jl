@@ -139,6 +139,9 @@ function _data_boxing(X, encoding)
     boxes_to_contents = Dict{NTuple{dimension(X), Int}, Vector{Int}}()
     for (j, x) in enumerate(X)
         i = encode(encoding, x) # linear index of box in histogram
+        if i == -1
+            error("$(j)-th point was encoded as -1. Point = $(x)")
+        end
         ci = Tuple(encoding.ci[i]) # cartesian index of box in histogram
         if !haskey(boxes_to_contents, ci)
             boxes_to_contents[ci] = Int[]
@@ -258,6 +261,8 @@ function PointsInBoxesIterator(
     )
 end
 
+# Notice that the initial state of the iteration ensures we are in
+# a box with indices inside it (as we start with offset = 0)
 @inbounds function Base.iterate(
         iter::PointsInBoxesIterator, state = (1, 1, iter.origin_indices)
     )
@@ -293,7 +298,7 @@ end
     valid_bounds || return true
     # Then, check if there are points in the nearby histogram box
     haskey(boxes_to_contents, CartesianIndex(box_index)) || return true
-    # If a box exists, it is guaranteed to have at least one point
+    # If a box exists, it is guaranteed to have at least one point by construction
     return false
 end
 

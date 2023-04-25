@@ -72,7 +72,10 @@ with ``N`` the length of `X` and ``B`` gives 1 if its argument is
 See the article of Grassberger for the general definition [^Grassberger2007] and
 the book "Nonlinear Time Series Analysis" [^Kantz2003], Ch. 6, for
 a discussion around choosing best values for `w`, and Ch. 11.3 for the
-explicit definition of the q-order correlationsum.
+explicit definition of the q-order correlationsum. Note that the formula in 11.3
+is incorrect, but corrected here, and also note that we immediatelly exponentiate
+``C_q`` to ``1/(q-1)``, so that it scales exponentially as
+``C_q \\propto \\varepsilon ^\\Delta_q`` versus the size ``\\varepsilon``.
 
 [^Grassberger2007]:
     Peter Grassberger (2007) [Grassberger-Procaccia algorithm. Scholarpedia,

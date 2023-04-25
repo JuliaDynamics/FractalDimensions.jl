@@ -12,6 +12,10 @@ sizesA = estimate_boxsizes(A; z = -2)
 θ = rand(Xoshiro(1234), 10_000) .* 2π
 B = StateSpaceSet(cos.(θ), sin.(θ))
 sizesB = estimate_boxsizes(B; z = -2)
+# Circle with exact points
+θ = collect(range(0, 2π; length = 101))
+pop!(θ)
+C = StateSpaceSet(cos.(θ), sin.(θ))
 # Henon with Δ ≈ 1.2
 henon_rule(x, p, n) = SVector(1.0 - p[1]*x[1]^2 + x[2], p[2]*x[1])
 henon = DeterministicIteratedMap(henon_rule, zeros(2), [1.4, 0.3])
@@ -29,13 +33,6 @@ sizesH = estimate_boxsizes(H; z = -2)
     # q shouldn't matter here; we're just checking the correlation sum formula
     X = SVector{2, Float64}.(vec(collect(Iterators.product(0:0.05:0.99, 0:0.05:0.99))))
     X = StateSpaceSet(X)
-    @testset "boxing" begin
-        btc, hs = data_boxing(X, 0.1)
-        @test all(isequal(4), length.(values(btc)))
-        @test hs == (10, 10)
-    end
-
-    # X = StateSpaceSet(X .+ 1e-12randn(SVector{2, Float64}, length(X)))
     @testset "norm, q = $q" for q in [2, 2.5, 4.5]
         @testset "vanilla" begin
             @test correlationsum(X, 5; q) ≈ 1
@@ -44,6 +41,33 @@ sizesH = estimate_boxsizes(H; z = -2)
             @test boxed_correlationsum(X, 5; q) ≈ 1
         end
     end
+    # check the boxing for safety
+    @testset "boxing" begin
+        btc, hs = data_boxing(X, 0.1)
+        @test all(isequal(4), length.(values(btc)))
+        @test hs == (10, 10)
+    end
+    # Okay, now let's use the `C` set where we can analytically compute correlation sums
+    # for `r = 0.7` each point has 2 neighbors
+    # and for r = 0.13` each point has 4 neighbors
+    @testset "analytic circle" begin
+        N = length(C)
+        r = 0.07
+        @testset "vanilla" begin
+            @test correlationsum(C, 0.07) ≈ 2N / (N * (N - 1))
+            @test correlationsum(C, 0.13) ≈ 4N / (N * (N - 1))
+            # For q=3 we have 2 (the neighbors) to the power of 2, so total is 4
+            # total = 4*N
+            # normal =
+        end
+
+        @testset "boxed" begin
+            boxed_correlationsum(C, 0.07) ≈ 2N / (N * (N - 1))
+            boxed_correlationsum(C, 0.13) ≈ 4N / (N * (N - 1))
+        end
+
+    end
+
     # Boxed-assisted corrsum shouldn't care about `r0` (provided it is > than ε max)
     @testset "irrelevance from r0" begin
         @testset "q = $q" for q in [2, 2.5, 4.5]
