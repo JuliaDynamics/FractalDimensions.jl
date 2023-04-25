@@ -265,6 +265,9 @@ function PointsInBoxesIterator(
     )
 end
 
+Base.eltype(::Type{<:PointsInBoxesIterator}) = Int # It returns indices
+Base.IteratorSize(::Type{<:PointsInBoxesIterator}) = Base.SizeUnknown()
+
 # Notice that the initial state of the iteration ensures we are in
 # a box with indices inside it (as we start with offset = 0)
 @inbounds function Base.iterate(
@@ -290,9 +293,10 @@ end
         idxs_in_box = iter.boxes_to_contents[box_index]
     end
     # We are in a valid box with indices inside it
-    id = idxs_in_box[inner_i]
+    id::Int = idxs_in_box[inner_i]
     return (id, (box_number, inner_i + 1, idxs_in_box))
 end
+
 
 # Return `true` if the access to the histogram box with `box_index` is invalid
 @inbounds function invalid_access(box_index, boxes_to_contents, hist_axes::NTuple{D, Base.OneTo{Int}}) where {D}
