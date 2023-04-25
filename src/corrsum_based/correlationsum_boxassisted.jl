@@ -85,6 +85,7 @@ function boxed_correlationsum(
     )
     P ≤ size(X, 2)   || error("Prism dimension has to be ≤ than X dimension.")
     r0 ≥ maximum(εs) || error("Box size `r0` has to be ≥ than `maximum(εs)`.")
+    issorted(εs)     || error("Sorted εs required for optimized version.")
     boxes, contents = data_boxing(X, r0, P)
     Cs = if q == 2
         boxed_correlationsum_2(boxes, contents, X, εs; kwargs...)
@@ -216,7 +217,6 @@ its element is not used in the calculation of the correlationsum.
 See also: [`correlationsum`](@ref)
 """
 function inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean(), w = 0)
-    @assert issorted(εs) "Sorted εs required for optimized version."
     Cs, Ny, Nε = zeros(length(εs)), length(indices_Y), length(εs)
     for (i, index_X) in enumerate(indices_X)
     	x = X[index_X]
@@ -297,7 +297,7 @@ function inner_correlationsum_q(
     )
     @assert issorted(εs) "Sorted εs required for optimized version."
     Cs = zeros(length(εs))
-    N, Ny, Nε = length(data), length(indices_Y), length(εs)
+    N, Nε = length(data), length(εs)
     for i in indices_X
         # Check that this index is not within Theiler window of the boundary
         # This step is neccessary for easy normalisation.
