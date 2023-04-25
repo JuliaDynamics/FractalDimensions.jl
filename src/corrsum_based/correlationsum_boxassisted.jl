@@ -78,6 +78,8 @@ function boxed_correlationsum(X; P = 2, kwargs...)
     return εs, Cs
 end
 
+boxed_correlationsum(X, e::Real, r0 = e; kwargs...) = boxed_correlationsum(X, [e], r0; kwargs...)[1]
+
 function boxed_correlationsum(
         X, εs, r0 = maximum(εs); q = 2, P = autoprismdim(X), kwargs...
     )
@@ -191,7 +193,7 @@ function find_neighborboxes_2(index, boxes, contents)
     box = boxes[index]
     N_box = length(boxes)
     for index2 in index:N_box
-        if evaluate(Chebyshev(), box, boxes[index2]) < 2
+        if evaluate(Chebyshev(), box, boxes[index2]) ≤ 2
             append!(indices, contents[index2])
         end
     end
