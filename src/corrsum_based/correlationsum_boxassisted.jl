@@ -190,10 +190,11 @@ function _boxed_correlationsum(boxes_to_contents::Dict, hist_size::Tuple, X, εs
     end
 end
 
-function chebyshev_offsets(r::Int, P)
+function chebyshev_offsets(r::Int, P::Int)
     # Offsets, which are required by the nearest neighbor algorithm, are constants
-    # and depend only on `P` (histogram dimension = prism). We compute them here:
-    # 1 is the radius (distance) of boxes in Chebyshev metric that we need to include
+    # and depend only on `P` (histogram dimension = prism) and the ceiling
+    # of the maximum `ε` over the box size. They don't depend on the points themselves.
+    # We pre-compute them here once and we are done with it
     hypercube = Iterators.product(repeat([-r:r], P)...)
     offsets = vec([β for β ∈ hypercube])
     # make it guaranteed so that (0s...) offset is first in order
@@ -264,21 +265,23 @@ end
     box_number, inner_i, idxs_in_box = state
     X = length(idxs_in_box)
     if inner_i > X
-        # we have exhausted IDs in current position, so we reset and go to next
+        # we have exhausted IDs in current box, so we go to next
         box_number += 1
         # Stop iteration if `box_index` exceeded the amount of positions
         box_number > L && return nothing
+        # Reset count of indices inside current box
         inner_i = 1
         box_index = offsets[box_number] .+ origin
         # Of course, we need to check if we have valid index
         while invalid_access(box_index, iter.boxes_to_contents, iter.hist_axes)
+            # if not, again go to next box
             box_number += 1
             box_number > L && return nothing
             box_index = offsets[box_number] .+ origin
         end
         idxs_in_box = iter.boxes_to_contents[box_index]
     end
-    # We reached the next valid position and non-empty position
+    # We are in a valid box with indices inside it
     id = idxs_in_box[inner_i]
     return (id, (box_number, inner_i + 1, idxs_in_box))
 end
@@ -286,7 +289,7 @@ end
 # Return `true` if the access to the histogram box with `box_index` is invalid
 @inbounds function invalid_access(box_index, boxes_to_contents, hist_axes::NTuple{D, Base.OneTo{Int}}) where {D}
     # Check if within bounds of the histogram (for iterating near edges of histogram)
-    valid_bounds = all(D -> checkbounds(Bool, hist_axes[D], box_index[D]), Base.OneTo(D))
+    valid_bounds = all(D -> checkindex(Bool, hist_axes[D], box_index[D]), Base.OneTo(D))
     valid_bounds || return true
     # Then, check if there are points in the nearby histogram box
     haskey(boxes_to_contents, CartesianIndex(box_index)) || return true
