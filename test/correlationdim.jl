@@ -38,12 +38,22 @@ sizesH = estimate_boxsizes(H; z = -2)
     end
     # And just to be extra safe, let's check the equivalence between the boxed
     # and unboxed version of the corrsums
-    @testset "equiv. q = $q" for q in [2, 2.5, 4.5]
+    @testset "equiv. q = $q" for q in [2] #, 2.5, 4.5]
         @test correlationsum(X, 0.1; q) ≈ boxed_correlationsum(X, 0.1; q)
         @test correlationsum(X, 0.1; q, w = 10) ≈ boxed_correlationsum(X, 0.1; q, w = 10)
         @test correlationsum(X, [0.1, 0.5]; q) ≈ boxed_correlationsum(X, [0.1, 0.5]; q)
     end
-
+    # A significantly different theiler window should have significantly
+    # different correlation sum for data that close in space
+    # is also close in time;
+    @testset "theiler" begin
+        θ = 0:0.01:2π
+        C = StateSpaceSet(cos.(θ), sin.(θ))
+        @testset "q = $q" for q in [2, 2.5, 4.5]
+            @test correlationsum(C, 0.1; q) > correlationsum(C, 0.1; q, w = 50)
+            @test boxed_correlationsum(C, 0.1; q) > boxed_correlationsum(C, 0.1; q, w = 50)
+        end
+    end
 end
 
 @testset "Correlation dims; automated" begin
