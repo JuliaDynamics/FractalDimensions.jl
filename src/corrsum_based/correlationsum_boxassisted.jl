@@ -183,19 +183,21 @@ calculate the classic correlationsum of a radius or multiple radii `εs`.
 `w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
 """
 function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w = 0, show_progress = false)
-    Cs = zeros(Int, length(εs))
+    Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     N = length(X)
     M = length(boxes)
     progress = ProgressMeter.Progress(M;
         desc = "Boxed correlation sum: ", enabled = show_progress
     )
-    for index in 1:M
+    Threads.@threads for index in 1:M
+        Cs = Css[Threads.threadid()]
         indices_neighbors = find_neighborboxes_2(index, boxes, contents)
         indices_box = contents[index]
         inner_correlationsum_2!(Cs, indices_box, indices_neighbors, X, εs; w, norm)
         ProgressMeter.next!(progress)
     end
-    Cs .* (2 / ((N - w) * (N - w - 1)))
+    C = .+(Css...,)
+    return C .* (2 / ((N - w) * (N - w - 1)))
 end
 
 """
