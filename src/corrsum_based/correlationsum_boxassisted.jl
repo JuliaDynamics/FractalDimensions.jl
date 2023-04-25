@@ -88,6 +88,8 @@ function boxed_correlationsum(X, εs, r0 = maximum(εs); P = autoprismdim(X), kw
     return _boxed_correlationsum(boxes_to_contents, hist_size, X, εs; kwargs...)
 end
 
+boxed_correlationsum(X, e::Real; kwargs...) = boxed_correlationsum(X, [e]; kwargs...)[1]
+
 """
     autoprismdim(X, version = :bueno)
 

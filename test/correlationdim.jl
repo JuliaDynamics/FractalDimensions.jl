@@ -26,11 +26,15 @@ sizesH = estimate_boxsizes(H; z = -2)
     Csb2 = boxed_correlationsum(X, εs, 1.5)
     @test Cs == Csb == Csb2 == [0, 1]
     # If max radious, all points are in
-    X = StateSpaceSet(rand(Xoshiro(1234), 1000, 2))
-    @test correlationsum(X, 5) ≈ boxed_correlationsum(X, [5])[1] ≈ 1
     # q shouldn't matter here; we're just checking the correlation sum formula
+    X = StateSpaceSet(rand(Xoshiro(1234), 1000, 2))
     @testset "norm, q = $q" for q in [2, 2.5, 4.5]
-        @test correlationsum(X, 5; q) ≈ boxed_correlationsum(X, [5]; q)[1] ≈ 1
+        @testset "vanilla" begin
+            @test correlationsum(X, 5; q) ≈ 1
+        end
+        @testset "boxed" begin
+            @test boxed_correlationsum(X, 5; q) ≈ 1
+        end
     end
     # And just to be extra safe, let's check the equivalence between the boxed
     # and unboxed version of the corrsums
@@ -42,7 +46,7 @@ sizesH = estimate_boxsizes(H; z = -2)
 
 end
 
-@testset "Correlation dim; automated" begin
+@testset "Correlation dims; automated" begin
     # We can't test q != 1 here; it doesn't work. It doesn't give correct results.
     @testset "Grassberger" begin
         dA = grassberger_proccacia_dim(A; q = 2.0)
@@ -51,6 +55,8 @@ end
         test_value(dA, 1.9, 2.1)
         dB = grassberger_proccacia_dim(B, sizesB; q = 2.0)
         test_value(dB, 0.9, 1.1)
+        dH = grassberger_proccacia_dim(H)
+        test_value(dH, 1.2, 1.3)
     end
     @testset "Boxed" begin
         # We use the internal method because the sizes don't work out well
@@ -60,31 +66,22 @@ end
         Cs = boxed_correlationsum(B, sizesB, 0.1)
         dB = linear_region(log.(sizesB), log.(Cs))[2]
         test_value(dB, 0.9, 1.1)
-    end
-    @testset "Boxed, Henon" begin
         dH = boxassisted_correlation_dim(H)
-        test_value(dX, 1.2, 1.3)
-        dH = grassberger_proccacia_dim(H)
         test_value(dX, 1.2, 1.3)
     end
 end
 
 @testset "Fixed mass correlation sum" begin
-    @testset "Analytic" begin
-        rs, ys = fixedmass_correlationsum(A, 64)
-        @test all(<(0), rs) # since max is 1, log(r) must be negative
-        reg, tan = linear_region(rs, ys)
-        test_value(tan, 1.8, 2.0)
-        reg, tan = linear_region(rs[40:end], ys[40:end])
-        test_value(tan, 1.9, 2.0)
-
-        dB = fixedmass_correlation_dim(B)
-        test_value(dB, 0.9, 1.0)
-    end
-    @testset "Henon" begin
-        dX = fixedmass_correlation_dim(H)
-        test_value(dX, 1.11, 1.31)
-    end
+    rs, ys = fixedmass_correlationsum(A, 64)
+    @test all(<(0), rs) # since max is 1, log(r) must be negative
+    reg, tan = linear_region(rs, ys)
+    test_value(tan, 1.8, 2.0)
+    reg, tan = linear_region(rs[40:end], ys[40:end])
+    test_value(tan, 1.9, 2.0)
+    dB = fixedmass_correlation_dim(B)
+    test_value(dB, 0.9, 1.0)
+    dX = fixedmass_correlation_dim(H)
+    test_value(dX, 1.11, 1.31)
 end
 
 @testset "Takens best est" begin
