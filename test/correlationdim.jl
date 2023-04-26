@@ -100,7 +100,7 @@ end
         Cs = boxed_correlationsum(A, sizesA)
         dA = linear_region(log.(sizesA), log.(Cs))[2]
         test_value(dA, 1.9, 2.1)
-        Cs = boxed_correlationsum(B, sizesB, 0.1)
+        Cs = boxed_correlationsum(B, sizesB)
         dB = linear_region(log.(sizesB), log.(Cs))[2]
         test_value(dB, 0.9, 1.1)
         dH = boxassisted_correlation_dim(H)

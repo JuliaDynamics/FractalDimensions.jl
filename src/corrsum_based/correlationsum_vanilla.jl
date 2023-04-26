@@ -95,7 +95,7 @@ function correlationsum(X, ε; q = 2, norm = Euclidean(), w = 0, show_progress =
 end
 
 #######################################################################################
-# Real ε implementations
+# Real ε implementations (in case matrix doesn't fit in memory)
 #######################################################################################
 function correlationsum_2(X, ε::Real, norm, w, show_progress)
     N = length(X)
@@ -171,7 +171,7 @@ function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     )
 
     # First loop: mid-way ε until lower saturation point (C=0)
-    @inbounds for (ki, k) in enumerate(length(εs)÷2:-1:1)
+    @inbounds for (ki, k) in enumerate(lower_ε_range)
         ε = εs[k]
         for i in 1:N
             Cs[k] += count(<(ε), distances[i])
@@ -219,12 +219,12 @@ end
 #######################################################################################
 function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
     issorted(εs) || error("Sorted `ε` required for optimized version.")
-    distances = distances_q(X, norm, w)
-    return correlationsum_q_optimized(X, εs, distances, w, show_progress)
     try # in case we don't have enough memory for all vectors
+        distances = distances_q(X, norm, w)
+        return correlationsum_q_optimized(X, εs, distances, w, show_progress)
     catch err
         @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
-        correlationsum_q(X, εs, eltype(X)(q), norm, w, show_progress)
+        [correlationsum_q(X, e, eltype(X)(q), norm, w, show_progress) for e in εs]
     end
 end
 
@@ -287,11 +287,11 @@ function distances_q(X::AbstractStateSpaceSet, norm, w)
         v = X[i]
         out = zeros(eltype(X), lr1+length(r2))
         i = 1
-        Polyester.@batch for j in eachindex(r1)
+        for j in eachindex(r1)
             ξ = r1[j]
             out[j] = norm(v, X[ξ])
         end
-        Polyester.@batch for j in eachindex(r2)
+        for j in eachindex(r2)
             ξ = r2[j]
             out[j+lr1] = norm(v, X[ξ])
         end
