@@ -287,11 +287,11 @@ function distances_q(X::AbstractStateSpaceSet, norm, w)
         v = X[i]
         out = zeros(eltype(X), lr1+length(r2))
         i = 1
-        for j in eachindex(r1)
+        Polyester.@batch for j in eachindex(r1)
             ξ = r1[j]
             out[j] = norm(v, X[ξ])
         end
-        for j in eachindex(r2)
+        Polyester.@batch for j in eachindex(r2)
             ξ = r2[j]
             out[j+lr1] = norm(v, X[ξ])
         end
