@@ -9,6 +9,7 @@ end FractalDimensions
 
 using StateSpaceSets
 export StateSpaceSet
+import Distances
 using ComplexityMeasures
 export entropy, Shannon, Renyi, ValueHistogram
 

@@ -1,5 +1,7 @@
 import ProgressMeter
-using Distances: evaluate, Euclidean
+import Polyester # low-overhead threading
+
+using Distances: evaluate, Euclidean, pairwise, Metric
 
 export correlationsum, boxed_correlationsum
 export grassberger_proccacia_dim
@@ -70,7 +72,10 @@ with ``N`` the length of `X` and ``B`` gives 1 if its argument is
 See the article of Grassberger for the general definition [^Grassberger2007] and
 the book "Nonlinear Time Series Analysis" [^Kantz2003], Ch. 6, for
 a discussion around choosing best values for `w`, and Ch. 11.3 for the
-explicit definition of the q-order correlationsum.
+explicit definition of the q-order correlationsum. Note that the formula in 11.3
+is incorrect, but corrected here, and also note that we immediatelly exponentiate
+``C_q`` to ``1/(q-1)``, so that it scales exponentially as
+``C_q \\propto \\varepsilon ^\\Delta_q`` versus the size ``\\varepsilon``.
 
 [^Grassberger2007]:
     Peter Grassberger (2007) [Grassberger-Procaccia algorithm. Scholarpedia,
@@ -89,6 +94,9 @@ function correlationsum(X, ε; q = 2, norm = Euclidean(), w = 0, show_progress =
     end
 end
 
+#######################################################################################
+# Real ε implementations (in case matrix doesn't fit in memory)
+#######################################################################################
 function correlationsum_2(X, ε::Real, norm, w, show_progress)
     N = length(X)
     if show_progress
@@ -128,61 +136,127 @@ function correlationsum_q(X, ε::Real, q, norm, w, show_progress)
 end
 
 #######################################################################################
-# Optimized versions (vector ε)
+# Vector ε implementations: q = 2
 #######################################################################################
+# Many different algorithms were tested for a fast implementation of the vanilla
+# correlation sum. The fastest was the one currently here. It pre-computes
+# the distances as a vector of vectors (as not all distances need be computed
+# due to the theiler window and duplicity). Then, for each vector of distances
+# we simply count how many are less that ε.
+# We also tested sorting the distances and then using `searchsortedfirst`.
+# However, oddly, this was consistently slower. I guess it is because
+# counting <(ε) has different scaling with N than sort has.
+
 function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
-    @assert issorted(εs) "Sorted `ε` required for optimized version."
-    d = try
-        distancematrix(X, norm)
+    issorted(εs) || error("Sorted `ε` required for optimized version.")
+    try # in case we don't have enough memory for all vectors
+        distances = distances_2(X, norm, w)
+        return correlationsum_2_optimized(X, εs, distances, w, show_progress)
     catch err
-        @warn "Couldn't create distance matrix ($(typeof(err))). Using slower algorithm..."
+        @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
         return [correlationsum_2(X, ε, norm, w, show_progress) for ε in εs]
     end
-    return correlationsum_2_optimized(X, εs, d, w, show_progress) # function barrier
 end
-function correlationsum_2_optimized(X, εs, d, w, show_progress)
+
+function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     Cs = zeros(eltype(X), length(εs))
     N = length(X)
     factor = 2/((N-w)*(N-1-w))
-    if show_progress
-        K = length(length(εs)÷2:-1:1)
-        M = K + length((length(εs)÷2 + 1):length(εs))
-        progress = ProgressMeter.Progress(M; desc = "Correlation sum: ", dt = 1.0)
-    end
+    lower_ε_range = length(εs)÷2:-1:1
+    upper_ε_range = (length(εs)÷2 + 1):length(εs)
+    # progress bar
+    K = length(lower_ε_range)
+    progress = ProgressMeter.Progress(K + length(upper_ε_range);
+        desc = "Correlation sum: ", dt = 1.0, enabled = show_progress
+    )
 
     # First loop: mid-way ε until lower saturation point (C=0)
-    for (ki, k) in enumerate(length(εs)÷2:-1:1)
+    @inbounds for (ki, k) in enumerate(lower_ε_range)
         ε = εs[k]
         for i in 1:N
-            @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
+            Cs[k] += count(<(ε), distances[i])
         end
-        show_progress && ProgressMeter.update!(progress, ki)
+        ProgressMeter.update!(progress, ki)
         Cs[k] == 0 && break
     end
     # Second loop: mid-way ε until higher saturation point (C=max)
-    for (ki, k) in enumerate((length(εs)÷2 + 1):length(εs))
+    @inbounds for (ki, k) in enumerate(upper_ε_range)
         ε = εs[k]
         for i in 1:N
-            @inbounds Cs[k] += count(d[j, i] < ε for j in i+1+w:N)
+            Cs[k] += count(<(ε), distances[i])
         end
-        show_progress && ProgressMeter.update!(progress, ki+K)
+        ProgressMeter.update!(progress, ki+K)
         if Cs[k] ≈ 1/factor
             Cs[k:end] .= 1/factor
             break
         end
     end
-    show_progress && ProgressMeter.finish!(progress)
+    ProgressMeter.finish!(progress)
     return Cs .* factor
 end
 
+function distances_2(X::AbstractStateSpaceSet, norm, w)
+    # Distances are only evaluated for a subset of the total indices
+    # and hence we only compute those distances
+    @inbounds function threaded_fast_distance(X, i, w, norm)
+        r = i+1+w:length(X)
+        v = X[i]
+        out = zeros(eltype(X), length(r))
+        Polyester.@batch for j in eachindex(r)
+            ξ = r[j]
+            out[j] = norm(v, X[ξ])
+        end
+        return out
+    end
+
+    distances = [threaded_fast_distance(X, i, w, norm) for i in 1:length(X)]
+    return distances
+end
+
+
+#######################################################################################
+# Vector ε implementations: q ≠ 2
+#######################################################################################
 function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
-    @assert issorted(εs) "Sorted εs required for optimized version."
+    issorted(εs) || error("Sorted `ε` required for optimized version.")
+    try # in case we don't have enough memory for all vectors
+        distances = distances_q(X, norm, w)
+        return correlationsum_q_optimized(X, εs, distances, w, show_progress)
+    catch err
+        @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
+        [correlationsum_q(X, e, eltype(X)(q), norm, w, show_progress) for e in εs]
+    end
+end
+
+function correlationsum_q_optimized(X, εs::AbstractVector, q, distances::Vector, show_progress)
+    E, T, N = length(εs), eltype(X), length(X)
+    C_current = zeros(T, E)
+    Cs = copy(C_current)
+    factor = (N-2w)*(N-2w-one(T))^(q-1)
+    irange = 1+w:N-w
+    progress = ProgressMeter.Progress(length(irange);
+        desc="Correlation sum: ", dt=1, enabled=show_progress
+    )
+
+    for (ii, i) in enumerate(1+w:N-w)
+        fill!(C_current, 0)
+        dist = distances[ii] # distances of points in the range of indices around `i`
+        for k in E:-1:1
+            C_current[k] = count(<(εs[k]), dist)
+        end
+        Cs .+= C_current .^ (q-1)
+        ProgressMeter.next!(progress)
+    end
+    return (Cs ./ factor) .^ (1/(q-1))
+end
+
+# Unoptimized version:
+function correlationsum_q(X, εs::AbstractVector, q, norm::Metric, w, show_progress)
+    issorted(εs) || error("Sorted εs required for optimized version.")
     Nε, T, N = length(εs), eltype(X), length(X)
     Cs = zeros(T, Nε)
     normalisation = (N-2w)*(N-2w-one(T))^(q-1)
-    if show_progress
-        progress = ProgressMeter.Progress(length(1+w:N-w); desc="Correlation sum: ", dt=1)
-    end
+    progress = ProgressMeter.Progress(length(1+w:N-w); desc="Correlation sum: ", dt=1, enabled=show_progress)
     for i in 1+w:N-w
         x = X[i]
         C_current = zeros(T, Nε)
@@ -203,13 +277,29 @@ function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
     return (Cs ./ normalisation) .^ (1/(q-1))
 end
 
-function distancematrix(X, norm = Euclidean())
-    N = length(X)
-    d = zeros(eltype(X), N, N)
-    @inbounds for i in 1:N
-        for j in i+1:N
-            d[j, i] = evaluate(norm, X[i], X[j])
+function distances_q(X::AbstractStateSpaceSet, norm, w)
+    # Distances are only evaluated for a subset of the total indices
+    # and hence we only compute those distances
+    @inbounds function threaded_fast_distance(X, i, w, norm)
+        r1 = 1:i-w-1
+        lr1 = length(r1)
+        r2 = i+w+1:length(X)
+        v = X[i]
+        out = zeros(eltype(X), lr1+length(r2))
+        i = 1
+        Polyester.@batch for j in eachindex(r1)
+            ξ = r1[j]
+            out[j] = norm(v, X[ξ])
         end
+        Polyester.@batch for j in eachindex(r2)
+            ξ = r2[j]
+            out[j+lr1] = norm(v, X[ξ])
+        end
+        # sort!(out)
+        return out
     end
-    return d
+
+    distances = [threaded_fast_distance(X, i, w, norm) for i in 1+w:length(X)-w]
+    return distances
 end
+
