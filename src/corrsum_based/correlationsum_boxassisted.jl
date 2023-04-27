@@ -1,6 +1,6 @@
 import ProgressMeter
 export boxed_correlationsum, boxassisted_correlation_dim
-export estimate_r0_buenoorovio, autoprismdim, estimate_r0_theiler
+export estimate_r0_buenoorovio, prismdim_theiler, estimate_r0_theiler
 
 ################################################################################
 # Boxed correlation sum docstrings
@@ -32,24 +32,23 @@ end
 """
     boxed_correlationsum(X::AbstractStateSpaceSet, εs, r0 = maximum(εs); kwargs...) → Cs
 
-Estimate the box assisted q-order correlation sum `Cs` of `X` for each radius in `εs`,
-by splitting the data into boxes of size `r0`
-beforehand. This method is much faster than [`correlationsum`](@ref), **provided that** the
+Estimate the [`correlationsum`](@ref) for each size `ε ∈ εs` using an optimized algorithm
+that first distributes data into boxes of size `r0`, and then computes the correlation sum
+for each box and each neighboring box of each box.
+This method is much faster than [`correlationsum`](@ref), **provided that** the
 box size `r0` is significantly smaller than the attractor length.
-Good choices for `r0` are [`estimate_r0_buenoorovio`](@ref) and
+Good choices for `r0` are [`estimate_r0_buenoorovio`](@ref) or
 [`estimate_r0_theiler`](@ref).
-
-See [`correlationsum`](@ref) for the definition of the correlation sum.
 
     boxed_correlationsum(X::AbstractStateSpaceSet; kwargs...) → εs, Cs
 
 In this method the minimum inter-point distance and [`estimate_r0_buenoorovio`](@ref)
-of `X` are used to estimate good `εs` for the calculation, which are also returned.
+of `X` are used to estimate suitable `εs` for the calculation, which are also returned.
 
 ## Keyword arguments
 
 * `q = 2` : The order of the correlation sum.
-* `P = autoprismdim(X)` : The prism dimension.
+* `P = 2` : The prism dimension.
 * `w = 0` : The [Theiler window](@ref).
 * `show_progress = false` : Whether to display a progress bar for the calculation.
 * `norm = Euclidean()` : Distance norm.
@@ -61,17 +60,19 @@ summed up afterwards. The method of splitting the data into boxes was
 implemented according to Theiler[^Theiler1987]. `w` is the [Theiler window](@ref).
 `P` is the prism dimension. If `P` is unequal to the dimension of the data, only the
 first `P` dimensions are considered for the box distribution (this is called the
-prism-assisted version). By default `P` is choosen automatically.
-
-The function is explicitly optimized for `q = 2` but becomes quite slow for `q ≠ 2`.
-
-See [`correlationsum`](@ref) for the definition of `C_q`.
+prism-assisted version). By default `P` is 2, which is the version
+suggested by [^Bueno2007]. Alternative for `P` is the [`prismdim_theiler`](@ref).
+Note that only when `P = dimension(X)` the boxed version is guaranteed to be
+exact to the original [`correlationsum`](@ref). For any other `P`, some
+point pairs that should have been included may be skipped due to having smaller
+distance in the remaining dimensions, but larger distance in the first `P` dimensions.
 
 [^Theiler1987]:
     Theiler, [Efficient algorithm for estimating the correlation dimension from a set
     of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
 """
 function boxed_correlationsum(X; P = 2, kwargs...)
+    P = min(P, dimension(X))
     r0, ε0 = estimate_r0_buenoorovio(X, P)
     εs = 2.0 .^ range(log2(ε0), log2(r0); length = 16)
     Cs = boxed_correlationsum(X, εs, r0; P, kwargs...)
@@ -81,11 +82,11 @@ end
 boxed_correlationsum(X, e::Real, r0 = e; kwargs...) = boxed_correlationsum(X, [e], r0; kwargs...)[1]
 
 function boxed_correlationsum(
-        X, εs, r0 = maximum(εs); q = 2, P = autoprismdim(X), kwargs...
+        X, εs, r0 = maximum(εs); q = 2, P = 2, kwargs...
     )
-    P ≤ size(X, 2)   || error("Prism dimension has to be ≤ than X dimension.")
+    P ≤ size(X, 2)   || error("Prism dimension has to be ≤ than `X` dimension.")
     r0 ≥ maximum(εs) || error("Box size `r0` has to be ≥ than `maximum(εs)`.")
-    issorted(εs)     || error("Sorted εs required for optimized version.")
+    issorted(εs)     || error("Sorted `εs` required for optimized version.")
     boxes, contents = data_boxing(X, r0, P)
     Cs = if q == 2
         boxed_correlationsum_2(boxes, contents, X, εs; kwargs...)
@@ -96,25 +97,18 @@ function boxed_correlationsum(
 end
 
 """
-    autoprismdim(X, version = :bueno)
+    prismdim_theiler(X)
 
 An algorithm to find the ideal choice of a prism dimension for
-[`boxed_correlationsum`](@ref). `version = :bueno` uses `P=2`, while
-`version = :theiler` uses Theiler's original suggestion.
+[`boxed_correlationsum`](@ref) using Theiler's original suggestion.
 """
-function autoprismdim(X, version = :bueno)
+function prismdim_theiler(X)
     D = dimension(X)
     N = length(X)
-    if version == :bueno
-        return min(D, 2)
-    elseif version == :theiler
-        if D > 0.75 * log2(N)
-            return max(2, ceil(0.5 * log2(N)))
-        else
-            return D
-        end
+    if D > 0.75 * log2(N)
+        return max(2, ceil(0.5 * log2(N)))
     else
-        error("Unknown method.")
+        return D
     end
 end
 
@@ -145,7 +139,7 @@ See also: [`boxed_correlationsum`](@ref).
     ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
 function data_boxing(X, r0, P)
-    Xreduced = P == dimension(X) ? X : X[:, SVector{Int, P}(1:P)]
+    Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
     data_boxing(Xreduced, r0)
 end
 function data_boxing(X, r0)
@@ -217,7 +211,7 @@ function find_neighborboxes_2(index, boxes, contents)
     # only needs to be computed once!
     for index2 in index:N_box
         # Since the boxes are in cartesian coordinates in integer space,
-        # We know guarnteed the max distance in cartesian coordinates: it is ± 1.
+        # We know guaranteed the max distance in cartesian coordinates: it is ± 1.
         if evaluate(Chebyshev(), box, boxes[index2]) < 2
             append!(indices, contents[index2])
         end
