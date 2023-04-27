@@ -105,6 +105,7 @@ correlationsum
 ```@docs
 boxassisted_correlation_dim
 boxed_correlationsum
+prismdim_theiler
 estimate_r0_buenoorovio
 estimate_r0_theiler
 ```
