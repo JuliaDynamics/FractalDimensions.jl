@@ -145,7 +145,7 @@ See also: [`boxed_correlationsum`](@ref).
     ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
 function data_boxing(X, r0, P)
-    Xreduced = P == dimension(X) ? X : X[:, SVector{Int, P}(1:P)]
+    Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
     data_boxing(Xreduced, r0)
 end
 function data_boxing(X, r0)

@@ -68,7 +68,6 @@ sizesH = estimate_boxsizes(H; z = -2)
             end
         end
     end
-
     # A significantly different theiler window should have significantly
     # different correlation sum for data that close in space
     # is also close in time;
@@ -80,7 +79,11 @@ sizesH = estimate_boxsizes(H; z = -2)
             @test boxed_correlationsum(C, 0.1; q) > boxed_correlationsum(C, 0.1; q, w = 50)
         end
     end
-
+    # Lastly, ensure things make sense also in high dimensional spaces
+    F = StateSpaceSet(rand(Xoshiro(1234), SVector{4, Float64}, 10_000))
+    @testset "4D, prism=$(P)" for P in [2, 4]
+        @test boxed_correlationsum(F, 5.1; P) ≈ 1
+    end
 end
 
 @testset "Correlation dims; automated" begin
