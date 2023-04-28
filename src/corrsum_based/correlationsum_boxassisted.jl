@@ -372,8 +372,11 @@ function estimate_r0_theiler(data)
     return r0, min_d
 end
 
+
+using Random: shuffle!
+
 """
-    estimate_r0_buenoorovio(X::AbstractStateSpaceSet, P = autoprismdim(X)) → r0, ε0
+    estimate_r0_buenoorovio(X::AbstractStateSpaceSet, P = 2) → r0, ε0
 
 Estimate a reasonable size for boxing `X`, proposed by
 Bueno-Orovio and Pérez-García[^Bueno2007], before calculating the correlation
@@ -417,11 +420,10 @@ r_0 = \\ell / \\eta_\\textrm{opt}^{1/\\nu}.
     Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
     ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
-function estimate_r0_buenoorovio(X, P = autoprismdim(X))
+function estimate_r0_buenoorovio(X, P = 2)
     mini, maxi = minmaxima(X)
     N = length(X)
     R = mean(maxi .- mini)
-    # The possibility of a bad pick exists, if so, the calculation is repeated.
     ν = zero(eltype(X))
     min_d, _ = minimum_pairwise_distance(X)
     if min_d == 0
@@ -430,17 +432,22 @@ function estimate_r0_buenoorovio(X, P = autoprismdim(X))
         "with low resolution, or duplicate data points. Setting to `d₊/1000` for now.")
         min_d = R/(10^3)
     end
+    # Define logarithmic series of radii
+    εs = 10.0 .^ range(log10(min_d), log10(R); length = 12)
 
     # Sample N/10 datapoints out of data for rough estimate of effective size.
-    sample1 = X[unique(rand(1:N, N÷10))] |> StateSpaceSet
+    allidxs = collect(1:N)
+    idxs = shuffle!(allidxs)[1:N÷10]
+    sample1 = X[idxs]
     r_ℓ = R / 10
     η_ℓ = length(data_boxing(sample1, r_ℓ, P)[1])
     r0 = zero(eltype(X))
+
+    # The possibility of a bad pick exists, if so, the calculation is repeated.
     while true
         # Sample √N datapoints for rough dimension estimate
-        sample2 = X[unique(rand(1:N, ceil(Int, sqrt(N))))] |> StateSpaceSet
-        # Define logarithmic series of radii.
-        εs = 10.0 .^ range(log10(min_d), log10(R); length = 16)
+        idxs = shuffle!(allidxs)[1:ceil(Int, sqrt(N))]
+        sample2 = X[idxs]
         # Estimate ν from a sample using the Grassberger Procaccia algorithm.
         cm = correlationsum(sample2, εs)
         ν = linear_region(log.(εs), log.(cm); tol = 0.5, warning = false)[2]
@@ -453,11 +460,12 @@ function estimate_r0_buenoorovio(X, P = autoprismdim(X))
         r0 = ℓ / η_opt^(1/ν)
         !isnan(r0) && break
     end
+
     if r0 < min_d
         warn("The calculated `r0` box size was smaller than the minimum interpoint " *
         "distance. Please provide `r0` manually. For now, setting `r0` to "*
-        "average attractor length divided by 16")
-        r0 = max(4min_d, R/16)
+        "average attractor length divided by `MathConstants.e^3`.")
+        r0 = max(MathConstants.e*min_d, R/MathConstants.e^3)
     end
     return r0, min_d
 end
