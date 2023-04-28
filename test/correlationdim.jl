@@ -84,6 +84,21 @@ sizesH = estimate_boxsizes(H; z = -2)
     @testset "4D, prism=$(P)" for P in [2, 4]
         @test boxed_correlationsum(F, 5.1; P) ≈ 1
     end
+
+    @testset "Bueno-orovio r0" begin
+        r0 = estimate_r0_buenoorovio(F)[1]
+        @test 0 < r0 < 1
+        r0 = estimate_r0_buenoorovio(F, 4)[1]
+        @test 0 < r0 < 1
+    end
+
+    @testset "Theiler r0" begin
+        r0 = estimate_r0_theiler(F)[1]
+        @test 0 < r0 < 1
+        r0 = estimate_r0_theiler(F[:, 1:2])[1]
+        @test 0 < r0 < 1
+    end
+
 end
 
 @testset "Correlation dims; automated" begin
