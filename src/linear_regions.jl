@@ -149,15 +149,16 @@ that are a good estimate for sizes ε that are used in calculating a [Fractal Di
 It is strongly recommended to [`standardize`](@ref) input dataset before using this
 function.
 
-Let `d₋` be the minimum pair-wise distance in `A` and `d₊` the average total length of `A`
-along each of the dimensions of `A`.
+Let `d₋` be the minimum pair-wise distance in `X` and `d₊` the average total length of `X`
+along each of the dimensions of `X`. Specifically, `d₊ = mean(ma - mi)` with
+`mi, ma = minmaxima(X)`.
 Then `lower = log(base, d₋)` and `upper = log(base, d₊)`.
 Because by default `w=1, z=-1`, the returned sizes are an order of mangitude
 larger than the minimum distance, and an order of magnitude smaller than the maximum
 distance.
 
 ## Keywords
-* `w = 1, z = -1, k = 20` : as explained above.
+* `w = 1, z = -1, k = 16` : as explained above.
 * `base = MathConstants.e` : the base used in the `log` function.
 * `warning = true`: Print some warnings for bad estimates.
 * `autoexpand = true`: If the final estimated range does not cover at least 2 orders of
@@ -165,14 +166,14 @@ distance.
   You can set different default values to the keywords `we = w, ze = z`.
 """
 function estimate_boxsizes(
-        A::AbstractStateSpaceSet;
-        k::Int = 20, z = -1, w = 1, base = MathConstants.e,
+        X::AbstractStateSpaceSet;
+        k::Int = 16, z = -1, w = 1, base = MathConstants.e,
         warning = true, autoexpand = true, ze = z, we = w
     )
 
-    mi, ma = minmaxima(A)
+    mi, ma = minmaxima(X)
     max_d = Statistics.mean(ma - mi)
-    min_d, _ = minimum_pairwise_distance(A)
+    min_d, _ = minimum_pairwise_distance(X)
     if min_d == 0 && warning
         @warn(
         "Minimum distance in the dataset is zero! Probably because of having data "*
@@ -207,17 +208,17 @@ end
 
 import Neighborhood
 """
-    minimum_pairwise_distance(A::StateSpaceSet, metric = Euclidean())
+    minimum_pairwise_distance(X::StateSpaceSet, metric = Euclidean())
 Return `min_d, min_pair`: the minimum pairwise distance
 of all points in the dataset, and the corresponding point pair.
 """
-function minimum_pairwise_distance(A::AbstractStateSpaceSet, metric = Euclidean())
-    tree = Neighborhood.KDTree(A, metric)
-    min_d = eltype(A[1])(Inf)
+function minimum_pairwise_distance(X::AbstractStateSpaceSet, metric = Euclidean())
+    tree = Neighborhood.KDTree(X, metric)
+    min_d = eltype(X[1])(Inf)
     min_pair = (0, 0)
     theiler = Neighborhood.Theiler(0)
-    for i in eachindex(A)
-        inds, dists = Neighborhood.knn(tree, A[i], 1, theiler(i); sortds=false)
+    for i in eachindex(X)
+        inds, dists = Neighborhood.knn(tree, X[i], 1, theiler(i); sortds=false)
         ind, dist = inds[1], dists[1]
         if dist < min_d
             min_d = dist

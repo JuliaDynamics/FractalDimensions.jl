@@ -8,7 +8,10 @@ module FractalDimensions
 end FractalDimensions
 
 using StateSpaceSets
-export StateSpaceSet
+export StateSpaceSet, SVector, AbstractStateSpaceSet
+
+import Distances
+
 using ComplexityMeasures
 export entropy, Shannon, Renyi, ValueHistogram
 

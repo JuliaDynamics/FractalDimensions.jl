@@ -1,7 +1,10 @@
 import ProgressMeter
 export boxed_correlationsum, boxassisted_correlation_dim
-export estimate_r0_buenoorovio, autoprismdim, estimate_r0_theiler
+export estimate_r0_buenoorovio, prismdim_theiler, estimate_r0_theiler
 
+################################################################################
+# Boxed correlation sum docstrings
+################################################################################
 """
     boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
 
@@ -26,32 +29,29 @@ function boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
     return linear_region(log2.(εs), log2.(Cs))[2]
 end
 
-################################################################################
-# Boxed Correlation sum (we distribute data to boxes beforehand)
-################################################################################
 """
     boxed_correlationsum(X::AbstractStateSpaceSet, εs, r0 = maximum(εs); kwargs...) → Cs
 
-Estimate the box assisted q-order correlation sum `Cs` out of a
-dataset `X` for each radius in `εs`, by splitting the data into boxes of size `r0`
-beforehand. This method is much faster than [`correlationsum`](@ref), **provided that** the
-box size `r0` is significantly smaller than then the attractor length.
-Good choices for `r0` are [`estimate_r0_buenoorovio`](@ref) and
+Estimate the [`correlationsum`](@ref) for each size `ε ∈ εs` using an optimized algorithm
+that first distributes data into boxes of size `r0`, and then computes the correlation sum
+for each box and each neighboring box of each box.
+This method is much faster than [`correlationsum`](@ref), **provided that** the
+box size `r0` is significantly smaller than the attractor length.
+Good choices for `r0` are [`estimate_r0_buenoorovio`](@ref) or
 [`estimate_r0_theiler`](@ref).
-
-See [`correlationsum`](@ref) for the definition of the correlation sum.
 
     boxed_correlationsum(X::AbstractStateSpaceSet; kwargs...) → εs, Cs
 
 In this method the minimum inter-point distance and [`estimate_r0_buenoorovio`](@ref)
-of `X` are used to estimate good `εs` for the calculation, which are also returned.
+of `X` are used to estimate suitable `εs` for the calculation, which are also returned.
 
 ## Keyword arguments
 
 * `q = 2` : The order of the correlation sum.
-* `P = autoprismdim(X)` : The prism dimension.
+* `P = 2` : The prism dimension.
 * `w = 0` : The [Theiler window](@ref).
 * `show_progress = false` : Whether to display a progress bar for the calculation.
+* `norm = Euclidean()` : Distance norm.
 
 ## Description
 
@@ -60,69 +60,73 @@ summed up afterwards. The method of splitting the data into boxes was
 implemented according to Theiler[^Theiler1987]. `w` is the [Theiler window](@ref).
 `P` is the prism dimension. If `P` is unequal to the dimension of the data, only the
 first `P` dimensions are considered for the box distribution (this is called the
-prism-assisted version). By default `P` is choosen automatically.
-
-The function is explicitly optimized for `q = 2` but becomes quite slow for `q ≠ 2`.
-
-See [`correlationsum`](@ref) for the definition of `C_q`.
+prism-assisted version). By default `P` is 2, which is the version
+suggested by [^Bueno2007]. Alternative for `P` is the [`prismdim_theiler`](@ref).
+Note that only when `P = dimension(X)` the boxed version is guaranteed to be
+exact to the original [`correlationsum`](@ref). For any other `P`, some
+point pairs that should have been included may be skipped due to having smaller
+distance in the remaining dimensions, but larger distance in the first `P` dimensions.
 
 [^Theiler1987]:
     Theiler, [Efficient algorithm for estimating the correlation dimension from a set
     of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
 """
 function boxed_correlationsum(X; P = 2, kwargs...)
+    P = min(P, dimension(X))
     r0, ε0 = estimate_r0_buenoorovio(X, P)
     εs = 2.0 .^ range(log2(ε0), log2(r0); length = 16)
     Cs = boxed_correlationsum(X, εs, r0; P, kwargs...)
     return εs, Cs
 end
 
+boxed_correlationsum(X, e::Real, r0 = e; kwargs...) = boxed_correlationsum(X, [e], r0; kwargs...)[1]
+
 function boxed_correlationsum(
-        X, εs, r0 = maximum(εs);
-        q = 2, P = autoprismdim(X), w = 0,
-        show_progress = false,
+        X, εs, r0 = maximum(εs); q = 2, P = 2, kwargs...
     )
-    @assert P ≤ size(X, 2) "Prism dimension has to be ≤ than X dimension."
+    P ≤ size(X, 2)   || error("Prism dimension has to be ≤ than `X` dimension.")
+    r0 ≥ maximum(εs) || error("Box size `r0` has to be ≥ than `maximum(εs)`.")
+    issorted(εs)     || error("Sorted `εs` required for optimized version.")
     boxes, contents = data_boxing(X, r0, P)
     Cs = if q == 2
-        boxed_correlationsum_2(boxes, contents, X, εs; w, show_progress)
+        boxed_correlationsum_2(boxes, contents, X, εs; kwargs...)
     else
-        boxed_correlationsum_q(boxes, contents, X, εs, q; w, show_progress)
+        boxed_correlationsum_q(boxes, contents, X, εs, q; kwargs...)
     end
     return Cs
 end
 
 """
-    autoprismdim(X, version = :bueno)
+    prismdim_theiler(X)
 
 An algorithm to find the ideal choice of a prism dimension for
-[`boxed_correlationsum`](@ref). `version = :bueno` uses `P=2`, while
-`version = :theiler` uses Theiler's original suggestion.
+[`boxed_correlationsum`](@ref) using Theiler's original suggestion.
 """
-function autoprismdim(X, version = :bueno)
+function prismdim_theiler(X)
     D = dimension(X)
     N = length(X)
-    if version == :bueno
-        return min(D, 2)
-    elseif version == :theiler
-        if D > 0.75 * log2(N)
-            return max(2, ceil(0.5 * log2(N)))
-        else
-            return D
-        end
+    if D > 0.75 * log2(N)
+        return max(2, ceil(0.5 * log2(N)))
     else
-        error("Unknown method.")
+        return D
     end
 end
 
+################################################################################
+# Data boxing
+################################################################################
 """
-    data_boxing(X_i, r0, P) → boxes, contents
+    data_boxing(X, r0 [, P]) → boxes, contents
 
-Distribute `X` into boxes of size `r0`. Return box positions
+Distribute `X` into boxes of size `r0`. Return box positions (in cartesian coordinates)
 and the contents of each box as two separate vectors. Implemented according to
 the paper by Theiler[^Theiler1987] improving the algorithm by Grassberger and
 Procaccia[^Grassberger1983]. If `P` is smaller than the dimension of the data,
 only the first `P` dimensions are considered for the distribution into boxes.
+If `P` is not given, all data dimensions are used.
+
+The returned values are sorted (and this is crucial for optimal implementation
+of the boxed correlation sum).
 
 See also: [`boxed_correlationsum`](@ref).
 
@@ -135,12 +139,15 @@ See also: [`boxed_correlationsum`](@ref).
     ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
 function data_boxing(X, r0, P)
-    @assert P ≤ size(X, 2) "Prism dimension has to be ≤ than data dimension."
-    mini = minima(X)[1:P]
+    Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
+    data_boxing(Xreduced, r0)
+end
+function data_boxing(X, r0)
+    mini = minima(X)
 
     # Map each datapoint to its bin edge and sort the resulting list:
-    bins = map(point -> floor.(Int, (point[1:P] - mini)/r0), X)
-    permutations = sortperm(bins, alg=QuickSort)
+    bins = map(point -> floor.(Int, (point - mini)/r0), X)
+    permutations = sortperm(bins; alg=QuickSort)
 
     boxes = unique(bins[permutations])
     contents = Vector{Vector{Int}}()
@@ -156,42 +163,55 @@ function data_boxing(X, r0, P)
     end
     push!(contents, permutations[prior:end])
 
-    StateSpaceSet(boxes), contents
+    boxes, contents
 end
 
+################################################################################
+# Concrete implementation, q = 2
+################################################################################
 """
     boxed_correlationsum_2(boxes, contents, X, εs; w = 0)
+
 For a vector of `boxes` and the indices of their `contents` inside of `X`,
 calculate the classic correlationsum of a radius or multiple radii `εs`.
 `w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
 """
-function boxed_correlationsum_2(boxes, contents, X, εs; w = 0, show_progress = false)
-    Cs = zeros(eltype(X), length(εs))
+function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w = 0, show_progress = false)
+    Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     N = length(X)
     M = length(boxes)
-    if show_progress
-        progress = ProgressMeter.Progress(M; desc = "Boxed correlation sum: ", dt = 1.0)
-    end
-    for index in 1:M
+    progress = ProgressMeter.Progress(M;
+        desc = "Boxed correlation sum: ", enabled = show_progress
+    )
+    Threads.@threads for index in 1:M
+        Cs = Css[Threads.threadid()]
         indices_neighbors = find_neighborboxes_2(index, boxes, contents)
         indices_box = contents[index]
-        Cs .+= inner_correlationsum_2(indices_box, indices_neighbors, X, εs; w)
-        show_progress && ProgressMeter.update!(progress, index)
+        inner_correlationsum_2!(Cs, indices_box, indices_neighbors, X, εs; w, norm)
+        ProgressMeter.next!(progress)
     end
-    Cs .* (2 / ((N - w) * (N - w - 1)))
+    C = .+(Css...,)
+    return C .* (2 / ((N - w) * (N - w - 1)))
 end
 
 """
-    find_neighborboxes_2(index, boxes, contents) → indices
-For an `index` into `boxes` all neighbouring boxes beginning from the current
-one are searched. If the found box is indeed a neighbour, the `contents` of
-that box are added to `indices`.
+    find_neighborboxes_2(index, boxes, contents) → indices::Vector{Int}
+
+Return all `indices` of the points in the boxes around the box that has `index`
+in `boxes` (`boxes, contents` are the output of `data_boxing`).
 """
 function find_neighborboxes_2(index, boxes, contents)
     indices = Int[]
     box = boxes[index]
     N_box = length(boxes)
+    # Note here the search range: it explicitly uses the knowledge that q=2,
+    # and hence knows that we only need to store indices _after_ the index
+    # we are currently looping over, as future indices are included,
+    # but no reason to scan for previous indices: distance between points
+    # only needs to be computed once!
     for index2 in index:N_box
+        # Since the boxes are in cartesian coordinates in integer space,
+        # We know guaranteed the max distance in cartesian coordinates: it is ± 1.
         if evaluate(Chebyshev(), box, boxes[index2]) < 2
             append!(indices, contents[index2])
         end
@@ -200,30 +220,26 @@ function find_neighborboxes_2(index, boxes, contents)
 end
 
 """
-    inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean(), w = 0)
-Calculates the classic correlation sum for values `X` inside a box, considering
-`Y` consisting of all values in that box and the ones in neighbouring boxes for
-all distances `ε ∈ εs` calculated by `norm`. To obtain the position of the
-values in the original time series `X`, they are passed as `indices_X` and
-`indices_Y`.
+    inner_correlationsum_2(idxs_box, idxs_neigh, X, εs; norm = Euclidean(), w = 0)
 
-`w` is the Theiler window. Each index to the original array is checked for the
-distance of the compared index. If this absolute value is not higher than `w`
-its element is not used in the calculation of the correlationsum.
+Calculate the classic correlation sum for values `X` inside a box,
+(which contains indices `idxs_box`), while considering as neighbors only the indices
+in `idxs_neigh`, which have been pre-calculated in `find_neighborboxes_2`.
 
-See also: [`correlationsum`](@ref)
+Compute for all distances `ε ∈ εs` using `norm`. `w` is the Theiler window.
+
+See [`boxed_correlationsum`](@ref)
 """
-function inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean(), w = 0)
-    @assert issorted(εs) "Sorted εs required for optimized version."
-    Cs, Ny, Nε = zeros(length(εs)), length(indices_Y), length(εs)
-    for (i, index_X) in enumerate(indices_X)
-    	x = X[index_X]
+function inner_correlationsum_2!(Cs, idxs_box, idxs_neigh, X, εs; norm = Euclidean(), w = 0)
+    Ny, Nε = length(idxs_neigh), length(εs)
+    @inbounds for (i, index_in_X) in enumerate(idxs_box)
+    	x = X[index_in_X]
         for j in i+1:Ny
-            index_Y = indices_Y[j]
+            neigh_index_in_X = idxs_neigh[j]
             # Check for Theiler window.
-            if abs(index_Y - index_X) > w
+            if abs(neigh_index_in_X - index_in_X) > w
                 # Calculate distance.
-		        dist = evaluate(norm, X[index_Y], x)
+		        dist = evaluate(norm, X[neigh_index_in_X], x)
 		        for k in Nε:-1:1
 		            if dist < εs[k]
 		                Cs[k] += 1
@@ -237,38 +253,39 @@ function inner_correlationsum_2(indices_X, indices_Y, X, εs; norm = Euclidean()
     return Cs
 end
 
-"""
-    boxed_correlationsum_q(boxes, contents, X, εs, q; w = 0)
-For a vector of `boxes` and the indices of their `contents` inside of `X`,
-calculate the `q`-order correlationsum of a radius or radii `εs`.
-`w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
-"""
-function boxed_correlationsum_q(boxes, contents, X, εs, q; w = 0, show_progress = false)
-    q <= 1 && @warn "This function is currently not specialized for q <= 1" *
+
+################################################################################
+# Concrete implementation, q != 2
+################################################################################
+# As the code is very similar to the one above, no docstirngs here.
+
+function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), w = 0, show_progress = false)
+    q ≤ 1 && @warn "This function is currently not specialized for q ≤ 1" *
     " and may show unexpected behaviour for these values."
-    Cs = zeros(eltype(X), length(εs))
+    Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
+    C_currents = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     N = length(X)
     M = length(boxes)
-    if show_progress
-        progress = ProgressMeter.Progress(M; desc = "Boxed correlation sum: ", dt = 1.0)
-    end
-    for index in 1:M
+    progress = ProgressMeter.Progress(M;
+        desc = "Boxed correlation sum: ", enabled = show_progress
+    )
+    Threads.@threads for index in 1:M
+        Cs = Css[Threads.threadid()]
+        C_current = C_currents[Threads.threadid()]
         indices_neighbors = find_neighborboxes_q(index, boxes, contents)
         indices_box = contents[index]
-        Cs .+= inner_correlationsum_q(indices_box, indices_neighbors, X, εs, q; w)
-        show_progress && ProgressMeter.update!(progress, index)
+        inner_correlationsum_q!(Cs, C_current, indices_box, indices_neighbors, X, εs, q; w, norm)
+        ProgressMeter.next!(progress)
     end
-    clamp.((Cs ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
+    C = .+(Css...,)
+    return clamp.((C ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
 end
 
-"""
-    find_neighborboxes_q(index, boxes, contents) → indices
-For an `index` into `boxes` all neighbouring boxes are searched. If the found
-box is indeed a neighbour, the `contents` of that box are added to `indices`.
-"""
 function find_neighborboxes_q(index, boxes, contents)
     indices = Int[]
     box = boxes[index]
+    # Notice how here we cannot do the same optimization as in the q=2
+    # case where we already start from i. :(
     for (index2, box2) in enumerate(boxes)
         if evaluate(Chebyshev(), box, box2) < 2
             append!(indices, contents[index2])
@@ -277,35 +294,19 @@ function find_neighborboxes_q(index, boxes, contents)
     indices
 end
 
-"""
-    inner_correlationsum_q(indices_X, indices_Y, data, εs, q::Real; norm, w)
-Calculates the `q`-order correlation sum for values `X` inside a box,
-considering `Y` consisting of all values in that box and the ones in
-neighbouring boxes for all distances `ε ∈ εs` calculated by `norm`. To obtain
-the position of the values in the original time series `data`, they are passed
-as `indices_X` and `indices_Y`.
-
-`w` is the Theiler window. The first and last `w` points of this data set are
-not used by themselves to calculate the correlationsum.
-
-See also: [`correlationsum`](@ref)
-"""
-function inner_correlationsum_q(
-        indices_X, indices_Y, data, εs, q::Real; norm = Euclidean(), w = 0
+function inner_correlationsum_q!(
+        Cs, C_current, idxs_box, idxs_neigh, data, εs, q::Real; norm = Euclidean(), w = 0
     )
-    @assert issorted(εs) "Sorted εs required for optimized version."
-    Cs = zeros(length(εs))
-    N, Ny, Nε = length(data), length(indices_Y), length(εs)
-    for i in indices_X
+    N, Nε = length(data), length(εs)
+    for i in idxs_box
         # Check that this index is not within Theiler window of the boundary
         # This step is neccessary for easy normalisation.
         (i < w + 1 || i > N - w) && continue
-        C_current = zeros(Nε)
+        C_current .= 0
         x = data[i]
-        for j in indices_Y
+        for j in idxs_neigh
             # Check that this index is not whithin the Theiler window
         	if abs(i - j) > w
-                # Calculate the distance for the correlationsum
 		        dist = evaluate(norm, x, data[j])
 		        for k in Nε:-1:1
 		            if dist < εs[k]
@@ -371,8 +372,11 @@ function estimate_r0_theiler(data)
     return r0, min_d
 end
 
+
+using Random: shuffle!
+
 """
-    estimate_r0_buenoorovio(X::AbstractStateSpaceSet, P = autoprismdim(X)) → r0, ε0
+    estimate_r0_buenoorovio(X::AbstractStateSpaceSet, P = 2) → r0, ε0
 
 Estimate a reasonable size for boxing `X`, proposed by
 Bueno-Orovio and Pérez-García[^Bueno2007], before calculating the correlation
@@ -416,11 +420,10 @@ r_0 = \\ell / \\eta_\\textrm{opt}^{1/\\nu}.
     Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
     ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
-function estimate_r0_buenoorovio(X, P = autoprismdim(X))
+function estimate_r0_buenoorovio(X, P = 2)
     mini, maxi = minmaxima(X)
     N = length(X)
     R = mean(maxi .- mini)
-    # The possibility of a bad pick exists, if so, the calculation is repeated.
     ν = zero(eltype(X))
     min_d, _ = minimum_pairwise_distance(X)
     if min_d == 0
@@ -429,17 +432,22 @@ function estimate_r0_buenoorovio(X, P = autoprismdim(X))
         "with low resolution, or duplicate data points. Setting to `d₊/1000` for now.")
         min_d = R/(10^3)
     end
+    # Define logarithmic series of radii
+    εs = 10.0 .^ range(log10(min_d), log10(R); length = 12)
 
     # Sample N/10 datapoints out of data for rough estimate of effective size.
-    sample1 = X[unique(rand(1:N, N÷10))] |> StateSpaceSet
+    allidxs = collect(1:N)
+    idxs = shuffle!(allidxs)[1:N÷10]
+    sample1 = X[idxs]
     r_ℓ = R / 10
     η_ℓ = length(data_boxing(sample1, r_ℓ, P)[1])
     r0 = zero(eltype(X))
+
+    # The possibility of a bad pick exists, if so, the calculation is repeated.
     while true
         # Sample √N datapoints for rough dimension estimate
-        sample2 = X[unique(rand(1:N, ceil(Int, sqrt(N))))] |> StateSpaceSet
-        # Define logarithmic series of radii.
-        εs = 10.0 .^ range(log10(min_d), log10(R); length = 16)
+        idxs = shuffle!(allidxs)[1:ceil(Int, sqrt(N))]
+        sample2 = X[idxs]
         # Estimate ν from a sample using the Grassberger Procaccia algorithm.
         cm = correlationsum(sample2, εs)
         ν = linear_region(log.(εs), log.(cm); tol = 0.5, warning = false)[2]
@@ -452,11 +460,12 @@ function estimate_r0_buenoorovio(X, P = autoprismdim(X))
         r0 = ℓ / η_opt^(1/ν)
         !isnan(r0) && break
     end
+
     if r0 < min_d
         warn("The calculated `r0` box size was smaller than the minimum interpoint " *
         "distance. Please provide `r0` manually. For now, setting `r0` to "*
-        "average attractor length divided by 16")
-        r0 = max(4min_d, R/16)
+        "average attractor length divided by `MathConstants.e^3`.")
+        r0 = max(MathConstants.e*min_d, R/MathConstants.e^3)
     end
     return r0, min_d
 end

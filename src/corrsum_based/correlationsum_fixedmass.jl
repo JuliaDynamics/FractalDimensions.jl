@@ -12,16 +12,14 @@ the result to compute the correlation dimension `Δ_M` of `X`.
 
 This function does something extremely simple:
 ```julia
-rs, ys = fixedmass_correlationsum(X, max_j; kwargs...)
+rs, ys = fixedmass_correlationsum(X, args...; kwargs...)
 linear_region(rs, ys)[2]
 ```
 """
-function fixedmass_correlation_dim(X, max_j = _max_j_from_data(X); kwargs...)
-    rs, ys = fixedmass_correlationsum(X, max_j; kwargs...)
+function fixedmass_correlation_dim(X, args...; kwargs...)
+    rs, ys = fixedmass_correlationsum(X, args...; kwargs...)
     return linear_region(rs, ys)[2]
 end
-
-_max_j_from_data(X) = (N = length(X); clamp(round(Int, sqrt(N*(N-1)/2)), 4, 64))
 
 """
     fixedmass_correlationsum(X [, max_j]; metric = Euclidean(), M = length(X)) → rs, ys
@@ -85,3 +83,5 @@ function fixedmass_correlationsum(X, max_j = _max_j_from_data(X);
     change = log(2, MathConstants.e)
     return rs .* change ./ M, ys .* change
 end
+
+_max_j_from_data(X) = (N = length(X); clamp(round(Int, sqrt(N*(N-1)/2)), 4, 64))
