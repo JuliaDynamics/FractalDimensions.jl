@@ -20,23 +20,23 @@ import ProgressMeter
 # Extremes, 10.1-2, 41-55, doi: 10.1007/s10687-007-0034-2
 
 """
-    extremevaltheory_dim(X::StateSpaceSet, q::Real; kwargs...) → Δ
+    extremevaltheory_dim(X::StateSpaceSet, p::Real; kwargs...) → Δ
 
 Convenience syntax that returns the mean of the local dimensions of
 [`extremevaltheory_dims_persistences`](@ref), which approximates
-a fractal dimension of `X` using extreme value theory and quantile `q`.
+a fractal dimension of `X` using extreme value theory and quantile probability `p`.
 """
-function extremevaltheory_dim(X, q)
-    Δloc, θloc = extremevaltheory_dims_persistences(X, q; compute_persistence = false)
+function extremevaltheory_dim(X, p)
+    Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false)
     return mean(Δloc)
 end
 
 
 """
-    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, q::Real; kwargs)
+    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p::Real; kwargs)
 
 Return the local dimensions `Δloc` and the extremal indices `θloc` for each point in the
-given set for a given quantile `q`, according to the estimation via extreme value theory.
+given set for quantile probability `p`, according to the estimation via extreme value theory.
 The computation is parallelized to available threads (`Threads.nthreads()`).
 
 # TODO: citations.
@@ -48,7 +48,7 @@ The computation is parallelized to available threads (`Threads.nthreads()`).
   Generalized Pareto Distribution. The local fractal dimension is `1/σ`.
   The possible values are: `:mean, :mm`. TODO: Write more about methods.
 """
-function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real;
+function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
         show_progress = true, kw...
     )
     # The algorithm in the end of the day loops over points in `X`
@@ -67,28 +67,28 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, q::Real;
         # `vec(X)` gives the underlying `Vector{SVector}` for which `pairwise`
         # is incredibly optimized for!
         logdistances = -log.(pairwise(Euclidean(), vec(X)))
-        _loop_over_matrix!(Δloc, θloc, progress, logdistances, q; kw...)
+        _loop_over_matrix!(Δloc, θloc, progress, logdistances, p; kw...)
     catch
         @warn "Couldn't create $(N)×$(N) distance matrix; using slower algorithm..."
-        _loop_and_compute_logdist!(Δloc, θloc, progress, X, q; kw...)
+        _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
     end
     return Δloc, θloc
 end
 
-function _loop_over_matrix!(Δloc, θloc, progress, logdistances, q; kw...)
+function _loop_over_matrix!(Δloc, θloc, progress, logdistances, p; kw...)
     Threads.@threads for (j, logdist) in enumerate(eachcol(logdistances))
-        D, θ = extremevaltheory_local_dim_persistence(logdist, q)
+        D, θ = extremevaltheory_local_dim_persistence(logdist, p)
         Δloc[j] = D
         θloc[j] = θ
         ProgressMeter.next!(progress)
     end
 end
-function _loop_and_compute_logdist!(Δloc, θloc, progress, X, q; kw...)
+function _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
     logdists = [copy(Δloc) for _ in 1:Threads.nthreads()]
     Threads.@threads for j in eachindex(X)
         logdist = logdists[Threads.threadid()]
         map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
-        D, θ = extremevaltheory_local_dim_persistence(logdist, q)
+        D, θ = extremevaltheory_local_dim_persistence(logdist, p)
         Δloc[j] = D
         θloc[j] = θ
         ProgressMeter.next!(progress)
@@ -96,16 +96,16 @@ function _loop_and_compute_logdist!(Δloc, θloc, progress, X, q; kw...)
 end
 
 function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, q::Real; compute_persistence = true, estimator = :mm
+        logdist::AbstractVector{<:Real}, p::Real; compute_persistence = true, estimator = :mm
     )
     # Here `logdist` is already the -log(euclidean) distance of one point
     # to all other points in the set.
     # Extract the threshold corresponding to the quantile defined
-    thresh = quantile(logdist, q)
+    thresh = quantile(logdist, p)
     # TODO: Operation `findall(≥(thresh), logdist)` is repeated
     # Compute the extremal index
     if compute_persistence
-        θ = extremal_index_sueveges(logdist, q, thresh)
+        θ = extremal_index_sueveges(logdist, p, thresh)
     else
         θ = NaN
     end
@@ -166,36 +166,36 @@ function estimate_gpd_parameters(X, estimator)
 end
 
 """
-    extremal_index_sueveges(y::AbstractVector, q)
+    extremal_index_sueveges(y::AbstractVector, p)
 
-Compute the extremal index θ of `y` through the Süveges formula for quantile `q`.
+Compute the extremal index θ of `y` through the Süveges formula for quantile `p`.
 """
-function extremal_index_sueveges(y::AbstractVector, q::Real,
+function extremal_index_sueveges(y::AbstractVector, p::Real,
         # These arguments are given for performance optim; not part of public API
-        thresh::Real = quantile(y, q)
+        thresh::Real = quantile(y, p)
     )
     # TODO: This is wrong for now
-    q = 1 - q
+    p = 1 - p
     Li = findall(x -> x > thresh, y)
     Ti = diff(Li)
     Si = Ti .- 1
     Nc = length(findall(x->x>0, Si))
     N = length(Ti)
-    θ = (sum(q.*Si)+N+Nc - sqrt( (sum(q.*Si) +N+Nc).^2 - 8*Nc*sum(q.*Si)) )./(2*sum(q.*Si))
+    θ = (sum(p.*Si)+N+Nc - sqrt( (sum(p.*Si) +N+Nc).^2 - 8*Nc*sum(p.*Si)) )./(2*sum(p.*Si))
     return θ
 end
 
 # convenience function
 """
-    extremevaltheory_local_dim_persistence(X::StateSpaceSet, ζ, q::Real; kw...)
+    extremevaltheory_local_dim_persistence(X::StateSpaceSet, ζ, p::Real; kw...)
 
 Return the local values `Δ, θ` of the fractal dimension and persistence of `X` around a
-state space point `ζ`. `q` and `kw` are as in [`extremevaltheory_dims_persistences`](@ref).
+state space point `ζ`. `p` and `kw` are as in [`extremevaltheory_dims_persistences`](@ref).
 """
 function extremevaltheory_local_dim_persistence(
-        X::AbstractStateSpaceSet, ζ::AbstractVector, q::Real; kw...
+        X::AbstractStateSpaceSet, ζ::AbstractVector, p::Real; kw...
     )
     logdist = map(x -> -log(euclidean(x, ζ)), X)
-    Δ, θ = extremevaltheory_local_dim_persistence(logdist, q; kw...)
+    Δ, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
     return Δ, θ
 end
