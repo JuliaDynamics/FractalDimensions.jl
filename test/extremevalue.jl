@@ -1,4 +1,5 @@
-using Statistics, DynamicalSystemsBase, FractalDimensions
+using Test, FractalDimensions
+using Statistics, DynamicalSystemsBase
 
 @testset "Lorenz63" begin
     @inline @inbounds function lorenz_rule(u, p, t)
@@ -30,7 +31,7 @@ end
 @testset "analytic uniform noise" begin
     x = rand(100001)
     y = [max(x[i],x[i+1]) for i in 1:length(x)-1]
-    q = 0.98
-    θ = FractalDimensions.extremal_index_sueveges(y, q)
+    p = 0.98
+    θ = extremal_index_sueveges(y, p)
     @test mean(θloc) ≈ 0.5 atol = 1e-2
 end

@@ -46,7 +46,7 @@ The computation is parallelized to available threads (`Threads.nthreads()`).
 - `show_progress = true`: displays a progress bar.
 - `estimator = :exponential`: how to estimate the `σ` parameter of the
   Generalized Pareto Distribution. The local fractal dimension is `1/σ`.
-  The possible values are: `:mean, :mm`. TODO: Write more about methods.
+  The possible values are: `:mean, :mm`, as in [`estimate_gpd_parameters`](@ref).
 """
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
         show_progress = true, kw...
@@ -87,7 +87,7 @@ function _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
     logdists = [copy(Δloc) for _ in 1:Threads.nthreads()]
     Threads.@threads for j in eachindex(X)
         logdist = logdists[Threads.threadid()]
-        map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
+        @inbounds map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
         D, θ = extremevaltheory_local_dim_persistence(logdist, p)
         Δloc[j] = D
         θloc[j] = θ
@@ -102,15 +102,9 @@ function extremevaltheory_local_dim_persistence(
     # to all other points in the set.
     # Extract the threshold corresponding to the quantile defined
     thresh = quantile(logdist, p)
-    # TODO: Operation `findall(≥(thresh), logdist)` is repeated
-    # Compute the extremal index
-    if compute_persistence
-        θ = extremal_index_sueveges(logdist, p, thresh)
-    else
-        θ = NaN
-    end
-    # Sort the time series and find all the Peaks Over Threshold (PoTs)
-    PoTs = logdist[findall(≥(thresh), logdist)]
+    # Filter to obtain Peaks Over Threshold (PoTs)
+    # PoTs = logdist[findall(≥(thresh), logdist)]
+    PoTs = filter(≥(thresh), logdist)
     # We need to filter, because one entry will have infinite value,
     # because one entry has 0 Euclidean distance in the set.
     filter!(isfinite, PoTs)
@@ -119,6 +113,12 @@ function extremevaltheory_local_dim_persistence(
     σ = estimate_gpd_parameters(exceedances, estimator)[1]
     # The local dimension is the reciprocal σ
     Δ = 1/σ
+    # Lastly, obtain θ if asked for
+    if compute_persistence
+        θ = extremal_index_sueveges(logdist, p, thresh)
+    else
+        θ = NaN
+    end
     return Δ, θ
 end
 
@@ -143,7 +143,7 @@ Optionally choose the estimator, which can be:
   \\xi = (\\bar{x}^2/s^2 - 1)/2, \\quad \\sigma = \\bar{x}(\\bar{x}^2/s^2 + 1)/2
   ```
   with ``\\bar{x}`` the sample mean and ``s^2`` the sample variance. This estimator
-  only exists of the true distribution `ξ` value is ≤ 0.5.
+  only exists if the true distribution `ξ` value is < 0.5.
 - `:pwm`: standing for "probability weighted moments" TODO.
 """
 function estimate_gpd_parameters(X, estimator)
@@ -168,7 +168,7 @@ end
 """
     extremal_index_sueveges(y::AbstractVector, p)
 
-Compute the extremal index θ of `y` through the Süveges formula for quantile `p`.
+Compute the extremal index θ of `y` through the Süveges formula for quantile probability `p`.
 """
 function extremal_index_sueveges(y::AbstractVector, p::Real,
         # These arguments are given for performance optim; not part of public API
