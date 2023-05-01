@@ -131,6 +131,15 @@ kaplanyorke_dim
 higuchi_dim
 ```
 
+## Extreme value value theory dimension
+```@docs
+extremevaltheory_dim
+extremevaltheory_dims_persistences
+extremevaltheory_local_dim_persistence
+extremal_index_sueveges
+estimate_gpd_parameters
+```
+
 ## Theiler window
 
 The Theiler window is a concept that is useful when finding neighbors in a dataset that is coming from the sampling of a continuous dynamical system.
