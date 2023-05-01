@@ -1,6 +1,7 @@
 export extremevaltheory_dims_persistences, extremevaltheory_dim
 export extremevaltheory_local_dim_persistence
 export extremal_index_sueveges
+export estimate_gpd_parameters
 using Distances: euclidean
 using Statistics: mean, quantile, var
 import ProgressMeter
