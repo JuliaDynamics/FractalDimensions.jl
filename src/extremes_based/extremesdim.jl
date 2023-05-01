@@ -96,7 +96,6 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
         logdistances = -log.(pairwise(Euclidean(), vec(X)))
         _loop_over_matrix!(Δloc, θloc, progress, logdistances, p; kw...)
     catch
-        @warn "Couldn't create $(N)×$(N) distance matrix; using slower algorithm..."
         _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
     end
     return Δloc, θloc
@@ -164,14 +163,13 @@ in [^Pons2023].
 Optionally choose the estimator, which can be:
 
 - `:exp`: Assume the distribution is exponential instead of GP and
-  get `σ` from sample mean and `ξ = 0`.
+  get `σ` from mean of `X` and set `ξ = 0`.
 - `mm`: Standing for "method of moments", estimants are given by
   ```math
   \\xi = (\\bar{x}^2/s^2 - 1)/2, \\quad \\sigma = \\bar{x}(\\bar{x}^2/s^2 + 1)/2
   ```
-  with ``\\bar{x}`` the sample mean and ``s^2`` the sample variance. This estimator
-  only exists if the true distribution `ξ` value is < 0.5.
-- `:pwm`: standing for "probability weighted moments" TODO.
+  with ``\\bar{x}`` the sample mean and ``s^2`` the sample variance.
+  This estimator only exists if the true distribution `ξ` value is < 0.5.
 """
 function estimate_gpd_parameters(X, estimator)
     if estimator == :exp
