@@ -25,20 +25,22 @@ sizesH = estimate_boxsizes(H; z = -2)
 @testset "correlation sums analytic" begin
     X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.5)])
     εs = [0.1, 1.0]
-    Cs = correlationsum(X, εs)
-    Csb = boxed_correlationsum(X, εs, 1.0)
-    Csb2 = boxed_correlationsum(X, εs, 1.5)
-    @test Cs == Csb == Csb2 == [0, 1]
+    @testset "two-point q=$(q)" for q in [2, 3]
+        Cs = correlationsum(X, εs; q)
+        Csb = boxed_correlationsum(X, εs, 1.0; q)
+        Csb2 = boxed_correlationsum(X, εs, 1.5; q)
+        @test Cs == Csb == Csb2 == [0, 1]
+    end
     # If max radious, all points are in
     # q shouldn't matter here; we're just checking the correlation sum formula
     X = SVector{2, Float64}.(vec(collect(Iterators.product(0:0.05:0.99, 0:0.05:0.99))))
     X = StateSpaceSet(X)
     @testset "norm, q = $q" for q in [2, 2.5, 4.5]
         @testset "vanilla" begin
-            @test correlationsum(X, 5; q) ≈ 1
+            @test correlationsum(X, [5]; q)[1] ≈ 1
         end
         @testset "boxed" begin
-            @test boxed_correlationsum(X, 5; q) ≈ 1
+            @test boxed_correlationsum(X, [5]; q)[1] ≈ 1
         end
     end
     # Okay, now let's use the `C` set where we can analytically compute correlation sums
