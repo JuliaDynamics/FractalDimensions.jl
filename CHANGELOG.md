@@ -1,3 +1,7 @@
+# 1.2
+
+- Added extreme value theory based estimators for local fractal dimension and persistence
+
 # 1.1
 
 - Massive performance boosts in correlation sum and box-assisted version
