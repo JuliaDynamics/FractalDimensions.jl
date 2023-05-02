@@ -48,7 +48,14 @@ If `εs` is a vector, `C_q` is calculated for each `ε ∈ εs` more efficiently
 If also `q=2`, we attempt to do further optimizations, if the allocation of
 a matrix of size `N×N` is possible.
 
-The function [`boxed_correlationsum`](@ref) is faster and should be preferred over this one.
+The function [`boxed_correlationsum`](@ref) is typically faster and should be preferred.
+
+## Keyword arguments
+
+- `q = 2`: order of the correlation sum
+- `norm = Euclidean()`: distance norm
+- `w = 0`: Theiler window
+- `show_progress = true`: display a progress bar
 
 ## Description
 
@@ -99,9 +106,10 @@ end
 #######################################################################################
 function correlationsum_2(X, ε::Real, norm, w, show_progress)
     N = length(X)
-    progress = ProgressMeter.Progress(N; desc = "Correlation sum: ", enabled = show_progress)
+    progress = ProgressMeter.Progress(N; desc="Correlation sum: ", enabled=show_progress)
     C = zero(eltype(X))
-    @inbounds for (i, x) in enumerate(X)
+    @inbounds Threads.@threads for i in Base.OneTo(N)
+        x = X[i]
         for j in i+1+w:N
             C += evaluate(norm, x, X[j]) < ε
         end
@@ -115,7 +123,7 @@ function correlationsum_q(X, ε::Real, q, norm, w, show_progress)
     progress = ProgressMeter.Progress(length(1+w:N-w);
         desc = "Correlation sum: ", enabled = show_progress
     )
-    for i in 1+w:N-w
+    @inbounds Threads.@threads for i in 1+w:N-w
         x = X[i]
         C_current = zero(eltype(X))
         # computes all distances from 0 up to i-w
