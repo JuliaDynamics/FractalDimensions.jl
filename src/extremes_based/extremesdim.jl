@@ -17,8 +17,6 @@ import ProgressMeter
 # of North Atlantic predictability and extremes. Scientific Reports, 7,
 # 41278, doi: 10.1038/srep41278
 
-# Süveges, Mária. 2007. Likelihood estimation of the extremal index.
-# Extremes, 10.1-2, 41-55, doi: 10.1007/s10687-007-0034-2
 
 """
     extremevaltheory_dim(X::StateSpaceSet, p::Real; kwargs...) → Δ
@@ -38,7 +36,7 @@ end
 
 Return the local dimensions `Δloc` and the persistences `θloc` for each point in the
 given set for quantile probability `p`, according to the estimation done via extreme value
-theory [^Lucarini2016] [^Faranda2011].
+theory [^Lucarini2016] [^Caby2018].
 The computation is parallelized to available threads (`Threads.nthreads()`).
 
 ## Keyword arguments
@@ -52,34 +50,34 @@ The computation is parallelized to available threads (`Threads.nthreads()`).
 - `allocate_matrix = false`: If `true`, the code calls a method that
   attempts to allocate an `N×N` matrix (`N = length(X)`) that stores the
   pairwise Euclidean distances. This method is faster due to optimizations of
-  `Distances.pairwise` but will error if the system does not have enough available
+  `Distances.pairwise` but will error if the computer does not have enough available
   memory for the matrix allocation.
 
 ## Description
 
 For each state space point ``\\mathbf{x}_i`` in `X` we compute
-``g_j = -\\log(||\\mathbf{x}_i - \\mathbf{x}_j|| ) \\; \\forall j = 1, \\ldots, N``
+``g_j = -\\log(||\\mathbf{x}_i - \\mathbf{x}_j|| ) \\; \\forall j = 1, \\ldots, N`` with
 ``||\\cdot||`` the Euclidean distance. Next, we choose an extreme quantile probability
 ``p`` (e.g., 0.99) for the distribution of ``g_j``. We compute ``g_p`` as the ``p``-th
 quantile of ``g_j``. Then, we collect the exceedances of ``g_j``, defined as
-``E = \\{ g_j - g_q: g_j \\ge g_q \\}``, i.e., all values of ``g_j`` larger or equal to
-``g_q``, also shifted by ``g_q``. There are in total ``n = N(1-q)`` values in ``E``.
+``E = \\{ g_j - g_p: g_j \\ge g_p \\}``, i.e., all values of ``g_j`` larger or equal to
+``g_p``, also shifted by ``g_p``. There are in total ``n = N(1-q)`` values in ``E``.
 According to extreme value theory, in the limit ``N \\to \\infty`` the values ``E``
 follow a two-parameter Generalized Pareto Distribution (GPD) with parameters
 ``\\sigma,\\xi`` (the third parameter ``\\mu`` of the GPD is zero due to the
 positive-definite construction of ``E``). Within this extreme value theory approach,
 the local dimension ``\\Delta^{(E)}_i`` assigned to state space point ``\\textbf{x}_i``
 is given by the inverse of the ``\\sigma`` parameter of the
-GPD fit to the data[^Faranda2011], ``\\Delta^{(E)}_i = /\\sigma``.
+GPD fit to the data[^Faranda2011], ``\\Delta^{(E)}_i = 1/\\sigma``.
 ``\\sigma`` is estimated according to the `estimator` keyword.
 
 [^Lucarini2016]:
-    Lucarini et al., [Extremes and Recurrence in Dynamical Systems](
-    https://www.wiley.com/en-gb/Extremes+and+Recurrence+in+Dynamical+Systems-p-9781118632192)
+    Lucarini et al., [Extremes and Recurrence in Dynamical Systems
+    ](https://www.wiley.com/en-gb/Extremes+and+Recurrence+in+Dynamical+Systems-p-9781118632192)
 
-[^Faranda2011]:
-    Faranda et al., [J. Stat. Phys., 605 145(5):1156-1180.](
-    https://link.springer.com/article/10.1007/s10955-011-0234-7)
+[^Caby2018]:
+    Caby et al., [Physica D 400 132143
+    ](https://doi.org/10.1016/j.physd.2019.06.009)
 """
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
         show_progress = true, allocate_matrix = false, kw...
@@ -201,9 +199,9 @@ end
 
 Compute the extremal index θ of `y` through the Süveges formula for quantile probability `p`.
 
-# Süveges, Mária. 2007. Likelihood estimation of the extremal index.
-# Extremes, 10.1-2, 41-55, doi: 10.1007/s10687-007-0034-2
-
+[^Süveges2007]:
+    Süveges. 2007. Likelihood estimation of the extremal index.
+    Extremes, 10.1-2, 41-55, doi: 10.1007/s10687-007-0034-2
 """
 function extremal_index_sueveges(y::AbstractVector, p::Real,
         # These arguments are given for performance optim; not part of public API
