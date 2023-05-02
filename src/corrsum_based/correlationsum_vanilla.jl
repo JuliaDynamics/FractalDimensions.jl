@@ -99,24 +99,22 @@ end
 #######################################################################################
 function correlationsum_2(X, ε::Real, norm, w, show_progress)
     N = length(X)
-    if show_progress
-        progress = ProgressMeter.Progress(N; desc = "Correlation sum: ", dt = 1.0)
-    end
+    progress = ProgressMeter.Progress(N; desc = "Correlation sum: ", enabled = show_progress)
     C = zero(eltype(X))
     @inbounds for (i, x) in enumerate(X)
         for j in i+1+w:N
             C += evaluate(norm, x, X[j]) < ε
         end
-        show_progress && ProgressMeter.next!(progress)
+        ProgressMeter.next!(progress)
     end
     return C * 2 / ((N-w-1)*(N-w))
 end
 
 function correlationsum_q(X, ε::Real, q, norm, w, show_progress)
     N, C = length(X), zero(eltype(X))
-    if show_progress
-        progress = ProgressMeter.Progress(length(1+w:N-w); desc="Correlation sum: ", dt=1)
-    end
+    progress = ProgressMeter.Progress(length(1+w:N-w);
+        desc = "Correlation sum: ", enabled = show_progress
+    )
     for i in 1+w:N-w
         x = X[i]
         C_current = zero(eltype(X))
@@ -129,7 +127,7 @@ function correlationsum_q(X, ε::Real, q, norm, w, show_progress)
             C_current += evaluate(norm, x, X[j]) < ε
         end
         C += C_current^(q - 1)
-        show_progress && ProgressMeter.next!(progress)
+        ProgressMeter.next!(progress)
     end
     normalisation = (N-2w)*(N-2w-1)^(q-1)
     return (C / normalisation) ^ (1 / (q-1))
