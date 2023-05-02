@@ -27,8 +27,8 @@ Convenience syntax that returns the mean of the local dimensions of
 [`extremevaltheory_dims_persistences`](@ref), which approximates
 a fractal dimension of `X` using extreme value theory and quantile probability `p`.
 """
-function extremevaltheory_dim(X, p)
-    Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false)
+function extremevaltheory_dim(X, p; kw...)
+    Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
     return mean(Δloc)
 end
 
@@ -49,6 +49,11 @@ The computation is parallelized to available threads (`Threads.nthreads()`).
   The possible values are: `:exp, :mm`, as in [`estimate_gpd_parameters`](@ref).
 - `compute_persistence = true:` whether to aso compute local persistences
   `θloc` (also called extremal index). If `false`, `θloc` are `NaN`s.
+- `allocate_matrix = false`: If `true`, the code calls a method that
+  attempts to allocate an `N×N` matrix (`N = length(X)`) that stores the
+  pairwise Euclidean distances. This method is faster due to optimizations of
+  `Distances.pairwise` but will error if the system does not have enough available
+  memory for the matrix allocation.
 
 ## Description
 
@@ -77,7 +82,7 @@ GPD fit to the data[^Faranda2011], ``\\Delta^{(E)}_i = /\\sigma``.
     https://link.springer.com/article/10.1007/s10955-011-0234-7)
 """
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
-        show_progress = true, kw...
+        show_progress = true, allocate_matrix = false, kw...
     )
     # The algorithm in the end of the day loops over points in `X`
     # and applies the local algorithm.
@@ -91,25 +96,25 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
     progress = ProgressMeter.Progress(
         N; desc = "Extreme value theory dim: ", enabled = show_progress
     )
-    try
-        # `vec(X)` gives the underlying `Vector{SVector}` for which `pairwise`
-        # is incredibly optimized for!
-        logdistances = -log.(pairwise(Euclidean(), vec(X)))
-        _loop_over_matrix!(Δloc, θloc, progress, logdistances, p; kw...)
-    catch
+    if allocate_matrix
+        _loop_over_matrix!(Δloc, θloc, progress, X, p; kw...)
+    else
         _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
     end
     return Δloc, θloc
 end
 
-function _loop_over_matrix!(Δloc, θloc, progress, logdistances, p; kw...)
-    Threads.@threads for (j, logdist) in enumerate(eachcol(logdistances))
+function _loop_over_matrix!(Δloc, θloc, progress, X, p; kw...)
+    logdistances = -log.(pairwise(Euclidean(), vec(X)))
+    Threads.@threads for j in axes(logdistances, 2)
+        logdist = view(logdistances, :, j)
         D, θ = extremevaltheory_local_dim_persistence(logdist, p)
         Δloc[j] = D
         θloc[j] = θ
         ProgressMeter.next!(progress)
     end
 end
+
 function _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
     logdists = [copy(Δloc) for _ in 1:Threads.nthreads()]
     Threads.@threads for j in eachindex(X)
@@ -195,6 +200,10 @@ end
     extremal_index_sueveges(y::AbstractVector, p)
 
 Compute the extremal index θ of `y` through the Süveges formula for quantile probability `p`.
+
+# Süveges, Mária. 2007. Likelihood estimation of the extremal index.
+# Extremes, 10.1-2, 41-55, doi: 10.1007/s10687-007-0034-2
+
 """
 function extremal_index_sueveges(y::AbstractVector, p::Real,
         # These arguments are given for performance optim; not part of public API
