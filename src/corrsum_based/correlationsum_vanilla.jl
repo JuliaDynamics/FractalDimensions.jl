@@ -5,6 +5,7 @@ using Distances: evaluate, Euclidean, pairwise, Metric
 
 export correlationsum, boxed_correlationsum
 export grassberger_proccacia_dim
+export pointwise_dimensions, pointwise_correlationsums
 
 """
     grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(data); kwargs...)
@@ -48,7 +49,14 @@ If `εs` is a vector, `C_q` is calculated for each `ε ∈ εs` more efficiently
 If also `q=2`, we attempt to do further optimizations, if the allocation of
 a matrix of size `N×N` is possible.
 
-The function [`boxed_correlationsum`](@ref) is faster and should be preferred over this one.
+The function [`boxed_correlationsum`](@ref) is typically faster and should be preferred.
+
+## Keyword arguments
+
+- `q = 2`: order of the correlation sum
+- `norm = Euclidean()`: distance norm
+- `w = 0`: Theiler window
+- `show_progress = true`: display a progress bar
 
 ## Description
 
@@ -99,9 +107,10 @@ end
 #######################################################################################
 function correlationsum_2(X, ε::Real, norm, w, show_progress)
     N = length(X)
-    progress = ProgressMeter.Progress(N; desc = "Correlation sum: ", enabled = show_progress)
+    progress = ProgressMeter.Progress(N; desc="Correlation sum: ", enabled=show_progress)
     C = zero(eltype(X))
-    @inbounds for (i, x) in enumerate(X)
+    @inbounds Threads.@threads for i in Base.OneTo(N)
+        x = X[i]
         for j in i+1+w:N
             C += evaluate(norm, x, X[j]) < ε
         end
@@ -115,7 +124,7 @@ function correlationsum_q(X, ε::Real, q, norm, w, show_progress)
     progress = ProgressMeter.Progress(length(1+w:N-w);
         desc = "Correlation sum: ", enabled = show_progress
     )
-    for i in 1+w:N-w
+    @inbounds Threads.@threads for i in 1+w:N-w
         x = X[i]
         C_current = zero(eltype(X))
         # computes all distances from 0 up to i-w
@@ -151,7 +160,6 @@ function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
         distances = distances_2(X, norm, w)
         return correlationsum_2_optimized(X, εs, distances, w, show_progress)
     catch err
-        @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
         return [correlationsum_2(X, ε, norm, w, show_progress) for ε in εs]
     end
 end
@@ -162,8 +170,8 @@ function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     factor = 2/((N-w)*(N-1-w))
     lower_ε_range = length(εs)÷2:-1:1
     upper_ε_range = (length(εs)÷2 + 1):length(εs)
-    # progress bar
     K = length(lower_ε_range)
+
     progress = ProgressMeter.Progress(K + length(upper_ε_range);
         desc = "Correlation sum: ", dt = 1.0, enabled = show_progress
     )
@@ -196,7 +204,7 @@ end
 function distances_2(X::AbstractStateSpaceSet, norm, w)
     # Distances are only evaluated for a subset of the total indices
     # and hence we only compute those distances
-    @inbounds function threaded_fast_distance(X, i, w, norm)
+    @inbounds function _threaded_fast_distance(X, i, w, norm)
         r = i+1+w:length(X)
         v = X[i]
         out = zeros(eltype(X), length(r))
@@ -207,7 +215,7 @@ function distances_2(X::AbstractStateSpaceSet, norm, w)
         return out
     end
 
-    distances = [threaded_fast_distance(X, i, w, norm) for i in 1:length(X)]
+    distances = [_threaded_fast_distance(X, i, w, norm) for i in 1:length(X)]
     return distances
 end
 
@@ -221,7 +229,6 @@ function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
         distances = distances_q(X, norm, w)
         return correlationsum_q_optimized(X, εs, distances, w, show_progress)
     catch err
-        @warn "Couldn't pre-compute all distaces ($(typeof(err))). Using slower algorithm..."
         [correlationsum_q(X, e, eltype(X)(q), norm, w, show_progress) for e in εs]
     end
 end
@@ -276,9 +283,7 @@ function correlationsum_q(X, εs::AbstractVector, q, norm::Metric, w, show_progr
 end
 
 function distances_q(X::AbstractStateSpaceSet, norm, w)
-    # Distances are only evaluated for a subset of the total indices
-    # and hence we only compute those distances
-    @inbounds function threaded_fast_distance(X, i, w, norm)
+    @inbounds function _threaded_fast_distance(X, i, w, norm)
         r1 = 1:i-w-1
         lr1 = length(r1)
         r2 = i+w+1:length(X)
@@ -296,8 +301,84 @@ function distances_q(X::AbstractStateSpaceSet, norm, w)
         # sort!(out)
         return out
     end
-
-    distances = [threaded_fast_distance(X, i, w, norm) for i in 1+w:length(X)-w]
+    # Distances are only evaluated for a subset of the total indices
+    # and hence we only compute those distances
+    distances = [_threaded_fast_distance(X, i, w, norm) for i in 1+w:length(X)-w]
     return distances
 end
 
+
+
+#######################################################################################
+# Pointwise dimension
+#######################################################################################
+"""
+    pointwise_dimensions(X::StateSpaceSet, εs::AbstractVector; kw...) → Δloc
+
+Return the pointwise dimensions for each point in `X`, i.e.,
+the exponential scaling of the inner correlation sum
+
+```math
+c_q(\\epsilon) = \\left[\\sum_{j:|i-j| > w} B(||X_i - X_j|| < \\epsilon)\\right]^{q-1}
+```
+versus ``\\epsilon``. `Δloc[i]` is the exponential scaling (deduced by a call to
+[`linear_region`](@ref)) of ``c_q`` versus ``\\epsilon`` for the `i`th point of `X`.
+
+Keywords are the same as in [`correlationsum`](@ref).
+To obtain the inner correlation sums without doing the exponential scaling fit
+use `pointwise_correlationsums`.
+"""
+function pointwise_dimensions(X, εs::AbstractVector = estimate_boxsizes(X); kw...)
+    Cs = pointwise_correlationsums(X, εs; kw...)
+    # Linear region loop
+    x = log.(εs)
+    function local_slope(x, C)
+        L = length(x)
+        i = findfirst(c -> c > 0, C)
+        z = view(x, i:L)
+        y = log.(C)[i:end]
+        return linear_region(z, y; warning = false)[2]
+    end
+    Dlocs = map(C -> local_slope(x, C), Cs)
+    return Dlocs
+end
+
+function pointwise_correlationsums(X, εs::AbstractVector;
+        norm = Euclidean(), w = 0, q = 2, show_progress = true
+    )
+    E, T = length(εs), eltype(X)
+    Cs = [zeros(T, E) for _ in eachindex(X)]
+    progress = ProgressMeter.Progress(length(X);
+        desc="Pointwise corrsum: ", dt=1, enabled=show_progress
+    )
+
+    Threads.@threads for i in eachindex(X)
+        C = Cs[i]
+        # distances of points in the range of indices around `i`
+        distances = pointwise_distances_fast(X, i, w, norm)
+        for k in E:-1:1
+            C[k] = count(<(εs[k]), distances)^(q-1)
+        end
+        ProgressMeter.next!(progress)
+    end
+    # We do not do any normalization here on the correlation sums
+    return Cs
+end
+
+# similar function as used in the q-order correlation sum
+@inbounds function pointwise_distances_fast(X, i, w, norm)
+    r1 = 1:i-w-1
+    lr1 = length(r1)
+    r2 = i+w+1:length(X)
+    v = X[i]
+    out = zeros(eltype(X), lr1+length(r2))
+    for j in eachindex(r1)
+        ξ = r1[j]
+        out[j] = norm(v, X[ξ])
+    end
+    for j in eachindex(r2)
+        ξ = r2[j]
+        out[j+lr1] = norm(v, X[ξ])
+    end
+    return out
+end

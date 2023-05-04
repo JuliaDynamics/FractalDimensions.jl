@@ -7,8 +7,8 @@ module FractalDimensions
     read(path, String)
 end FractalDimensions
 
-using StateSpaceSets
-export StateSpaceSet, SVector, AbstractStateSpaceSet
+using Reexport
+@reexport using StateSpaceSets
 
 import Distances
 

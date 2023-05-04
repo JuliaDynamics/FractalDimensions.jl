@@ -19,7 +19,9 @@ using Random: Xoshiro
     @test sigma < 0.01
 
     @testset "Convenience API" begin
-        D = extremevaltheory_dim(A, 0.95)
+        D = extremevaltheory_dim(A, 0.95;
+        show_progress = false,
+        allocate_matrix = true)
         @test 0.9 < D < 1.1
     end
 end

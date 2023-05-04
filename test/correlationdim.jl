@@ -156,3 +156,15 @@ end
     D_C = takens_best_estimate_dim(H, 0.05)
     test_value(D_C, 1.2, 1.26)
 end
+
+@testset "pointwise dimension" begin
+
+    Dlocs = pointwise_dimensions(A, sizesA; show_progress = false)
+    Csums = pointwise_correlationsums(A, sizesA; show_progress = false)
+
+    filter!(!iszero, Dlocs)
+
+    @test all(d -> 0 < d < 4, Dlocs)
+    @test all(c -> c[end] > 0, Csums)
+
+end
