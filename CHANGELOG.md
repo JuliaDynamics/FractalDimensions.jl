@@ -1,3 +1,7 @@
+# 1.3
+
+- New function `pointwise_dimensions`.
+
 # 1.2
 
 - Added extreme value theory based estimators for local fractal dimension and persistence

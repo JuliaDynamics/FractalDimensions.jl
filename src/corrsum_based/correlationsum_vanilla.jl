@@ -170,8 +170,8 @@ function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     factor = 2/((N-w)*(N-1-w))
     lower_ε_range = length(εs)÷2:-1:1
     upper_ε_range = (length(εs)÷2 + 1):length(εs)
-    # progress bar
     K = length(lower_ε_range)
+
     progress = ProgressMeter.Progress(K + length(upper_ε_range);
         desc = "Correlation sum: ", dt = 1.0, enabled = show_progress
     )
