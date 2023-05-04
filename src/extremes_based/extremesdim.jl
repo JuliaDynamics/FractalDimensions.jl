@@ -6,18 +6,6 @@ using Distances: euclidean
 using Statistics: mean, quantile, var
 import ProgressMeter
 
-# The functions in this section are versions inspired from the code
-# for MATLAB given in the following papers:
-
-# Davide Faranda, Gabriele Messori, Pascal Yiou. 2020. Diagnosing concurrent
-# drivers of weather extremes: application to hot and cold days in North
-# America, Climate Dynamics, 54, 2187-2201. doi: 10.1007/s00382-019-05106-3
-
-# Davide Faranda, Gabriele Messori and Pascal Yiou. 2017. Dynamical proxies
-# of North Atlantic predictability and extremes. Scientific Reports, 7,
-# 41278, doi: 10.1038/srep41278
-
-
 """
     extremevaltheory_dim(X::StateSpaceSet, p::Real; kwargs...) → Δ
 
