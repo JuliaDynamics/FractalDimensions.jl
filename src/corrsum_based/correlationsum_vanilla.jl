@@ -147,7 +147,7 @@ end
 #######################################################################################
 # Many different algorithms were tested for a fast implementation of the vanilla
 # correlation sum. The fastest was the one currently here. It pre-computes
-# the distances as a vector of vectors (as not all distances need be computed
+# the distances as a vector (as not all distances need be computed
 # due to the theiler window and duplicity). Then, for each vector of distances
 # we simply count how many are less that ε.
 # We also tested sorting the distances and then using `searchsortedfirst`.
@@ -156,69 +156,52 @@ end
 
 function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
     issorted(εs) || error("Sorted `ε` required for optimized version.")
-    try # in case we don't have enough memory for all vectors
-        distances = distances_2(X, norm, w)
-        return correlationsum_2_optimized(X, εs, distances, w, show_progress)
-    catch err
-        return [correlationsum_2(X, ε, norm, w, show_progress) for ε in εs]
-    end
-end
-
-function correlationsum_2_optimized(X, εs, distances, w, show_progress)
     Cs = zeros(eltype(X), length(εs))
     N = length(X)
     factor = 2/((N-w)*(N-1-w))
     lower_ε_range = length(εs)÷2:-1:1
     upper_ε_range = (length(εs)÷2 + 1):length(εs)
-    K = length(lower_ε_range)
 
-    progress = ProgressMeter.Progress(K + length(upper_ε_range);
+    progress = ProgressMeter.Progress(N;
         desc = "Correlation sum: ", dt = 1.0, enabled = show_progress
     )
 
-    # First loop: mid-way ε until lower saturation point (C=0)
-    @inbounds for (ki, k) in enumerate(lower_ε_range)
-        ε = εs[k]
-        for i in 1:N
-            Cs[k] += count(<(ε), distances[i])
+    Threads.@threads for i in 1:N
+        dist = _fast_distance_2(X, i, w, norm)
+        # First loop: mid-way ε until lower saturation point (C=0)
+        @inbounds for k in lower_ε_range
+            ε = εs[k]
+            for i in 1:N
+                Cs[k] += count(<(ε), dist)
+            end
+            Cs[k] == 0 && break
         end
-        ProgressMeter.update!(progress, ki)
-        Cs[k] == 0 && break
+        # Second loop: mid-way ε until higher saturation point (C=max)
+        @inbounds for k in upper_ε_range
+            ε = εs[k]
+            for i in 1:N
+                Cs[k] += count(<(ε), dist)
+            end
+            if Cs[k] ≈ 1/factor
+                Cs[k:end] .= 1/factor
+                break
+            end
+        end
+        ProgressMeter.next!(progress)
     end
-    # Second loop: mid-way ε until higher saturation point (C=max)
-    @inbounds for (ki, k) in enumerate(upper_ε_range)
-        ε = εs[k]
-        for i in 1:N
-            Cs[k] += count(<(ε), distances[i])
-        end
-        ProgressMeter.update!(progress, ki+K)
-        if Cs[k] ≈ 1/factor
-            Cs[k:end] .= 1/factor
-            break
-        end
-    end
-    ProgressMeter.finish!(progress)
     return Cs .* factor
 end
 
-function distances_2(X::AbstractStateSpaceSet, norm, w)
-    # Distances are only evaluated for a subset of the total indices
-    # and hence we only compute those distances
-    @inbounds function _threaded_fast_distance(X, i, w, norm)
-        r = i+1+w:length(X)
-        v = X[i]
-        out = zeros(eltype(X), length(r))
-        Polyester.@batch for j in eachindex(r)
-            ξ = r[j]
-            out[j] = norm(v, X[ξ])
-        end
-        return out
+@inbounds function _fast_distance_2(X, i, w, norm)
+    r = i+1+w:length(X)
+    v = X[i]
+    out = zeros(eltype(X), length(r))
+    Polyester.@batch for j in eachindex(r)
+        ξ = r[j]
+        out[j] = norm(v, X[ξ])
     end
-
-    distances = [_threaded_fast_distance(X, i, w, norm) for i in 1:length(X)]
-    return distances
+    return out
 end
-
 
 #######################################################################################
 # Vector ε implementations: q ≠ 2
