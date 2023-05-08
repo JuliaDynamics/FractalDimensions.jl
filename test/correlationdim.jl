@@ -26,9 +26,9 @@ sizesH = estimate_boxsizes(H; z = -2)
     X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.5)])
     εs = [0.1, 1.0]
     @testset "two-point q=$(q)" for q in [2, 3]
-        Cs = correlationsum(X, εs; q)
-        Csb = boxed_correlationsum(X, εs, 1.0; q)
-        Csb2 = boxed_correlationsum(X, εs, 1.5; q)
+        Cs = correlationsum(X, εs; q, show_progress = false)
+        Csb = boxed_correlationsum(X, εs, 1.0; q, show_progress = false)
+        Csb2 = boxed_correlationsum(X, εs, 1.5; q, show_progress = false)
         @test Cs == Csb == Csb2 == [0, 1]
     end
     # If max radious, all points are in
@@ -37,10 +37,10 @@ sizesH = estimate_boxsizes(H; z = -2)
     X = StateSpaceSet(X)
     @testset "norm, q = $q" for q in [2, 2.5, 4.5]
         @testset "vanilla" begin
-            @test correlationsum(X, [5]; q)[1] ≈ 1
+            @test correlationsum(X, [5]; q, show_progress = false)[1] ≈ 1
         end
         @testset "boxed" begin
-            @test boxed_correlationsum(X, [5]; q)[1] ≈ 1
+            @test boxed_correlationsum(X, [5]; q, show_progress = false)[1] ≈ 1
         end
     end
     # Okay, now let's use the `C` set where we can analytically compute correlation sums
@@ -52,8 +52,8 @@ sizesH = estimate_boxsizes(H; z = -2)
         N = length(C)
         normal2 = (N * (N - 1))
         normal3 = N*(N-1)^2
-        vanilla(C, r, q, w=0) = correlationsum(C, r; q, w)
-        boxed(C, r, q, w=0) = boxed_correlationsum(C, r; q, w)
+        vanilla(C, r, q, w=0) = correlationsum(C, r; q, w, show_progress = false)
+        boxed(C, r, q, w=0) = boxed_correlationsum(C, r; q, w, show_progress = false)
         @testset "version: $(f)" for f in (vanilla,  boxed)
             for (r, total2, total3) in zip((0.07, 0.13), (2N, 4N), (4N, 16N))
                 @test f(C, r, 2) ≈ total2 / normal2
@@ -65,8 +65,8 @@ sizesH = estimate_boxsizes(H; z = -2)
         # and unboxed version of the corrsums
         @testset "irrelevance from r0" begin
             for r0 in [0.2, 4.0, 5.0]
-                @test boxed_correlationsum(C, 0.07, r0) ≈ 2N / normal2
-                @test boxed_correlationsum(C, 0.13, r0) ≈ 4N / normal2
+                @test boxed_correlationsum(C, 0.07, r0; show_progress = false) ≈ 2N / normal2
+                @test boxed_correlationsum(C, 0.13, r0; show_progress = false) ≈ 4N / normal2
             end
         end
     end
@@ -77,14 +77,16 @@ sizesH = estimate_boxsizes(H; z = -2)
         θ = 0:0.01:2π
         C = StateSpaceSet(cos.(θ), sin.(θ))
         @testset "q = $q" for q in [2, 2.5, 4.5]
-            @test correlationsum(C, 0.1; q) > correlationsum(C, 0.1; q, w = 50)
-            @test boxed_correlationsum(C, 0.1; q) > boxed_correlationsum(C, 0.1; q, w = 50)
+            @test correlationsum(C, 0.1; q, show_progress = false) >
+                correlationsum(C, 0.1; q, w = 50, show_progress = false)
+            @test boxed_correlationsum(C, 0.1; q, show_progress = false) >
+                boxed_correlationsum(C, 0.1; q, w = 50, show_progress = false)
         end
     end
     # Lastly, ensure things make sense also in high dimensional spaces
     F = StateSpaceSet(rand(Xoshiro(1234), SVector{4, Float64}, 10_000))
     @testset "4D, prism=$(P)" for P in [2, 4]
-        @test boxed_correlationsum(F, 5.1; P) ≈ 1
+        @test boxed_correlationsum(F, 5.1; P, show_progress = false) ≈ 1
     end
 
     @testset "Bueno-orovio r0" begin

@@ -45,10 +45,9 @@ to display a progress bar for large `X`.
     correlationsum(X, εs::AbstractVector; w, norm, q) → C_q(ε)
 
 If `εs` is a vector, `C_q` is calculated for each `ε ∈ εs` more efficiently.
-If also `q=2`, we attempt to do further optimizations, if the allocation of
-a matrix of size `N×N` is possible.
-
-The function [`boxed_correlationsum`](@ref) is typically faster and should be preferred.
+Multithreading is also enabled over the available threads (`Threads.nthreads()`).
+The function [`boxed_correlationsum`](@ref) is typically faster if the dimension of `X`
+is small and if `maximum(εs)` is smaller than the size of `X`.
 
 ## Keyword arguments
 
@@ -92,161 +91,71 @@ is incorrect, but corrected here, and also note that we immediatelly exponentiat
     Kantz, H., & Schreiber, T. (2003). [Nonlinear Time Series Analysis,
     Cambridge University Press.](https://doi.org/10.1017/CBO9780511755798)
 """
-function correlationsum(X, ε; q = 2, norm = Euclidean(), w = 0, show_progress = false)
+correlationsum(X, ε::Real; kw...) = correlationsum(X, [ε]; kw...)[1]
+
+function correlationsum(X, εs; q = 2, norm = Euclidean(), w = 0, show_progress = true)
     q ≤ 1 && @warn "The correlation sum is ill-defined for q ≤ 1."
+    issorted(εs) || error("Sorted `ε` required for optimized version.")
     if q == 2
-        correlationsum_2(X, ε, norm, w, show_progress)
+        correlationsum_2(X, εs, norm, w, show_progress)
     else
-        correlationsum_q(X, ε, eltype(X)(q), norm, w, show_progress)
+        correlationsum_q(X, εs, eltype(X)(q), norm, w, show_progress)
     end
 end
 
-#######################################################################################
-# Real ε implementations (in case matrix doesn't fit in memory)
-#######################################################################################
-function correlationsum_2(X, ε::Real, norm, w, show_progress)
+# Many different algorithms were tested for a fast implementation of the vanilla
+# correlation sum. At the end, we went full circle and returned to the simplest
+# possible implementation, which becomes the fastest once multithreading is enabled.
+
+function correlationsum_2(X, εs::AbstractVector{<:Real}, norm, w, show_progress)
     N = length(X)
     progress = ProgressMeter.Progress(N; desc="Correlation sum: ", enabled=show_progress)
-    C = zero(eltype(X))
+    Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     @inbounds Threads.@threads for i in Base.OneTo(N)
         x = X[i]
+        Cs = Css[Threads.threadid()]
         for j in i+1+w:N
-            C += evaluate(norm, x, X[j]) < ε
+            dist = norm(x, X[j])
+            lastidx = searchsortedfirst(εs, dist)
+            Cs[lastidx:end] .+= 1
         end
         ProgressMeter.next!(progress)
     end
-    return C * 2 / ((N-w-1)*(N-w))
+    C = sum(Css)
+    return C .* (2 / ((N-w-1)*(N-w)))
 end
 
-function correlationsum_q(X, ε::Real, q, norm, w, show_progress)
+function correlationsum_q(X, εs::AbstractVector{<:Real}, q, norm, w, show_progress)
     N, C = length(X), zero(eltype(X))
-    progress = ProgressMeter.Progress(length(1+w:N-w);
+    irange = 1+w:N-w
+    progress = ProgressMeter.Progress(length(irange);
         desc = "Correlation sum: ", enabled = show_progress
     )
-    @inbounds Threads.@threads for i in 1+w:N-w
+    Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
+    Css_dum = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
+    @inbounds Threads.@threads for i in irange
         x = X[i]
-        C_current = zero(eltype(X))
+        Cs = Css[Threads.threadid()]
+        Cs_dum = Css_dum[Threads.threadid()]
+        Cs_dum .= zero(eltype(X))
         # computes all distances from 0 up to i-w
         for j in 1:i-w-1
-            C_current += evaluate(norm, x, X[j]) < ε
+            dist = norm(x, X[j])
+            lastidx = searchsortedfirst(εs, dist)
+            Cs_dum[lastidx:end] .+= 1
         end
         # computes all distances after i+w till the end
         for j in i+w+1:N
-            C_current += evaluate(norm, x, X[j]) < ε
+            dist = norm(x, X[j])
+            lastidx = searchsortedfirst(εs, dist)
+            Cs_dum[lastidx:end] .+= 1
         end
-        C += C_current^(q - 1)
+        @. Cs += Cs_dum^(q-1)
         ProgressMeter.next!(progress)
     end
     normalisation = (N-2w)*(N-2w-1)^(q-1)
-    return (C / normalisation) ^ (1 / (q-1))
-end
-
-#######################################################################################
-# Vector ε implementations: q = 2
-#######################################################################################
-# Many different algorithms were tested for a fast implementation of the vanilla
-# correlation sum. The fastest was the one currently here. It pre-computes
-# the distances as a vector (as not all distances need be computed
-# due to the theiler window and duplicity). Then, for each vector of distances
-# we simply count how many are less that ε.
-# We also tested sorting the distances and then using `searchsortedfirst`.
-# However, oddly, this was consistently slower. I guess it is because
-# counting <(ε) has different scaling with N than sort has.
-
-function correlationsum_2(X, εs::AbstractVector, norm, w, show_progress)
-    issorted(εs) || error("Sorted `ε` required for optimized version.")
-    Cs = zeros(eltype(X), length(εs))
-    N = length(X)
-    factor = 2/((N-w)*(N-1-w))
-    lower_ε_range = length(εs)÷2:-1:1
-    upper_ε_range = (length(εs)÷2 + 1):length(εs)
-
-    progress = ProgressMeter.Progress(N;
-        desc = "Correlation sum: ", dt = 1.0, enabled = show_progress
-    )
-
-    Threads.@threads for i in 1:N
-        dist = _fast_distance_2(X, i, w, norm)
-        # First loop: mid-way ε until lower saturation point (C=0)
-        @inbounds for k in lower_ε_range
-            ε = εs[k]
-            for i in 1:N
-                Cs[k] += count(<(ε), dist)
-            end
-            Cs[k] == 0 && break
-        end
-        # Second loop: mid-way ε until higher saturation point (C=max)
-        @inbounds for k in upper_ε_range
-            ε = εs[k]
-            for i in 1:N
-                Cs[k] += count(<(ε), dist)
-            end
-            if Cs[k] ≈ 1/factor
-                Cs[k:end] .= 1/factor
-                break
-            end
-        end
-        ProgressMeter.next!(progress)
-    end
-    return Cs .* factor
-end
-
-@inbounds function _fast_distance_2(X, i, w, norm)
-    r = i+1+w:length(X)
-    v = X[i]
-    out = zeros(eltype(X), length(r))
-    for j in eachindex(r)
-        ξ = r[j]
-        out[j] = norm(v, X[ξ])
-    end
-    return out
-end
-
-#######################################################################################
-# Vector ε implementations: q ≠ 2
-#######################################################################################
-function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
-    issorted(εs) || error("Sorted `ε` required for optimized version.")
-    E, T, N = length(εs), eltype(X), length(X)
-    C_currents = [zeros(T, E) for _ in 1:Threads.nthreads()]
-    Css = [zeros(T, E) for _ in 1:Threads.nthreads()]
-    factor = (N-2w)*(N-2w-one(T))^(q-1)
-    irange = 1+w:N-w
-    progress = ProgressMeter.Progress(length(irange);
-        desc="Correlation sum: ", dt=1, enabled=show_progress
-    )
-
-    Threads.@threads for i in irange
-        C_current = C_currents[Threads.threadid()]
-        Cs = Css[Threads.threadid()]
-        fill!(C_current, 0)
-        dist = _fast_distance_q(X, i, w, norm)
-        for k in E:-1:1
-            C_current[k] = count(<(εs[k]), dist)
-        end
-        Cs .+= C_current .^ (q-1)
-        ProgressMeter.next!(progress)
-    end
-    Cs = sum(Css)
-    return (Cs ./ factor) .^ (1/(q-1))
-end
-
-@inbounds function _fast_distance_q(X, i, w, norm)
-    r1 = 1:i-w-1
-    lr1 = length(r1)
-    r2 = i+w+1:length(X)
-    v = X[i]
-    out = zeros(eltype(X), lr1+length(r2))
-    i = 1
-    for j in eachindex(r1)
-        ξ = r1[j]
-        out[j] = norm(v, X[ξ])
-    end
-    for j in eachindex(r2)
-        ξ = r2[j]
-        out[j+lr1] = norm(v, X[ξ])
-    end
-    return out
+    C = sum(Css)
+    return @. (C / normalisation) ^ (1 / (q-1))
 end
 
 #######################################################################################
