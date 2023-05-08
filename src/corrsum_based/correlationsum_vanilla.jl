@@ -1,5 +1,4 @@
 import ProgressMeter
-import Polyester # low-overhead threading
 
 using Distances: evaluate, Euclidean, pairwise, Metric
 
@@ -196,7 +195,7 @@ end
     r = i+1+w:length(X)
     v = X[i]
     out = zeros(eltype(X), length(r))
-    Polyester.@batch for j in eachindex(r)
+    for j in eachindex(r)
         ξ = r[j]
         out[j] = norm(v, X[ξ])
     end
@@ -208,89 +207,47 @@ end
 #######################################################################################
 function correlationsum_q(X, εs::AbstractVector, q, norm, w, show_progress)
     issorted(εs) || error("Sorted `ε` required for optimized version.")
-    try # in case we don't have enough memory for all vectors
-        distances = distances_q(X, norm, w)
-        return correlationsum_q_optimized(X, εs, distances, w, show_progress)
-    catch err
-        [correlationsum_q(X, e, eltype(X)(q), norm, w, show_progress) for e in εs]
-    end
-end
-
-function correlationsum_q_optimized(X, εs::AbstractVector, q, distances::Vector, show_progress)
     E, T, N = length(εs), eltype(X), length(X)
-    C_current = zeros(T, E)
-    Cs = copy(C_current)
+    C_currents = [zeros(T, E) for _ in 1:Threads.nthreads()]
+    Css = [zeros(T, E) for _ in 1:Threads.nthreads()]
     factor = (N-2w)*(N-2w-one(T))^(q-1)
     irange = 1+w:N-w
     progress = ProgressMeter.Progress(length(irange);
         desc="Correlation sum: ", dt=1, enabled=show_progress
     )
 
-    for (ii, i) in enumerate(1+w:N-w)
+    Threads.@threads for i in irange
+        C_current = C_currents[Threads.threadid()]
+        Cs = Css[Threads.threadid()]
         fill!(C_current, 0)
-        dist = distances[ii] # distances of points in the range of indices around `i`
+        dist = _fast_distance_q(X, i, w, norm)
         for k in E:-1:1
             C_current[k] = count(<(εs[k]), dist)
         end
         Cs .+= C_current .^ (q-1)
         ProgressMeter.next!(progress)
     end
+    Cs = sum(Css)
     return (Cs ./ factor) .^ (1/(q-1))
 end
 
-# Unoptimized version:
-function correlationsum_q(X, εs::AbstractVector, q, norm::Metric, w, show_progress)
-    issorted(εs) || error("Sorted εs required for optimized version.")
-    Nε, T, N = length(εs), eltype(X), length(X)
-    Cs = zeros(T, Nε)
-    normalisation = (N-2w)*(N-2w-one(T))^(q-1)
-    progress = ProgressMeter.Progress(length(1+w:N-w); desc="Correlation sum: ", dt=1, enabled=show_progress)
-    for i in 1+w:N-w
-        x = X[i]
-        C_current = zeros(T, Nε)
-        # Compute distances for j outside the Theiler window
-        for j in Iterators.flatten((1:i-w-1, i+w+1:N))
-            dist = evaluate(norm, x, X[j])
-            for k in Nε:-1:1
-                if dist < εs[k]
-                    C_current[k] += 1
-                else
-                    break
-                end
-            end
-        end
-        Cs .+= C_current .^ (q-1)
-        show_progress && ProgressMeter.next!(progress)
+@inbounds function _fast_distance_q(X, i, w, norm)
+    r1 = 1:i-w-1
+    lr1 = length(r1)
+    r2 = i+w+1:length(X)
+    v = X[i]
+    out = zeros(eltype(X), lr1+length(r2))
+    i = 1
+    for j in eachindex(r1)
+        ξ = r1[j]
+        out[j] = norm(v, X[ξ])
     end
-    return (Cs ./ normalisation) .^ (1/(q-1))
-end
-
-function distances_q(X::AbstractStateSpaceSet, norm, w)
-    @inbounds function _threaded_fast_distance(X, i, w, norm)
-        r1 = 1:i-w-1
-        lr1 = length(r1)
-        r2 = i+w+1:length(X)
-        v = X[i]
-        out = zeros(eltype(X), lr1+length(r2))
-        i = 1
-        Polyester.@batch for j in eachindex(r1)
-            ξ = r1[j]
-            out[j] = norm(v, X[ξ])
-        end
-        Polyester.@batch for j in eachindex(r2)
-            ξ = r2[j]
-            out[j+lr1] = norm(v, X[ξ])
-        end
-        # sort!(out)
-        return out
+    for j in eachindex(r2)
+        ξ = r2[j]
+        out[j+lr1] = norm(v, X[ξ])
     end
-    # Distances are only evaluated for a subset of the total indices
-    # and hence we only compute those distances
-    distances = [_threaded_fast_distance(X, i, w, norm) for i in 1+w:length(X)-w]
-    return distances
+    return out
 end
-
-
 
 #######################################################################################
 # Pointwise dimension
