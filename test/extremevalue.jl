@@ -1,6 +1,7 @@
 using Test, FractalDimensions
 using Statistics, DynamicalSystemsBase
 using Random: Xoshiro
+ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 @testset "Circle" begin
     θ = collect(range(0, 2π; length = 1001))

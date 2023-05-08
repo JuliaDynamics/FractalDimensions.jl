@@ -93,7 +93,7 @@ is incorrect, but corrected here, and also note that we immediatelly exponentiat
 """
 correlationsum(X, ε::Real; kw...) = correlationsum(X, [ε]; kw...)[1]
 
-function correlationsum(X, εs; q = 2, norm = Euclidean(), w = 0, show_progress = true)
+function correlationsum(X, εs; q = 2, norm = Euclidean(), w = 0, show_progress = envprog())
     q ≤ 1 && @warn "The correlation sum is ill-defined for q ≤ 1."
     issorted(εs) || error("Sorted `ε` required for optimized version.")
     if q == 2

@@ -68,7 +68,7 @@ GPD fit to the data[^Faranda2011], ``\\Delta^{(E)}_i = 1/\\sigma``.
     ](https://doi.org/10.1016/j.physd.2019.06.009)
 """
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
-        show_progress = true, allocate_matrix = false, kw...
+        show_progress = envprog(), allocate_matrix = false, kw...
     )
     # The algorithm in the end of the day loops over points in `X`
     # and applies the local algorithm.

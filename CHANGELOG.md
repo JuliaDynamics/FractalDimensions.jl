@@ -1,3 +1,8 @@
+# 1.4
+
+- Showing progress bars can be turned off "globally" by setting `ENV["FRACTALDIMENSIONS_PROGRESS"] = false`.
+- New, faster multithreaded implementation for `correlationsum`.
+
 # 1.3
 
 - New function `pointwise_dimensions`.

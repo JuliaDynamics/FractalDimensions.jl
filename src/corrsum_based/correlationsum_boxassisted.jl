@@ -176,7 +176,7 @@ For a vector of `boxes` and the indices of their `contents` inside of `X`,
 calculate the classic correlationsum of a radius or multiple radii `εs`.
 `w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
 """
-function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w = 0, show_progress = true)
+function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w = 0, show_progress = envprog())
     Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     N = length(X)
     M = length(boxes)
@@ -259,7 +259,7 @@ end
 ################################################################################
 # As the code is very similar to the one above, no docstirngs here.
 
-function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), w = 0, show_progress = true)
+function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), w = 0, show_progress = envprog())
     q ≤ 1 && @warn "This function is currently not specialized for q ≤ 1" *
     " and may show unexpected behaviour for these values."
     Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]

@@ -4,6 +4,7 @@ using Random: Xoshiro
 using DynamicalSystemsBase
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
+ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 # Random with Δ ≈ 2
 A = StateSpaceSet(rand(Xoshiro(1234), 10_000, 2))
