@@ -3,7 +3,7 @@
 - Showing progress bars can be turned off module-wide by setting `ENV["FRACTALDIMENSIONS_PROGRESS"] = false`.
 - New, faster multithreaded implementation for `correlationsum`.
 - Progress bar for entropy dimension.
--
+- Generalized dimension is now also multithreaded and has a progress bar.
 
 # 1.3
 

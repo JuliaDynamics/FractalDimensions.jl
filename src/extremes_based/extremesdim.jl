@@ -1,4 +1,4 @@
-export extremevaltheory_dims_persistences, extremevaltheory_dim
+export extremevaltheory_dims_persistences, extremevaltheory_dims, extremevaltheory_dim
 export extremevaltheory_local_dim_persistence
 export extremal_index_sueveges
 export estimate_gpd_parameters
@@ -16,6 +16,17 @@ a fractal dimension of `X` using extreme value theory and quantile probability `
 function extremevaltheory_dim(X, p; kw...)
     Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
     return mean(Δloc)
+end
+
+"""
+    extremevaltheory_dims(X::StateSpaceSet, p::Real; kwargs...) → Δloc
+
+Convenience syntax that returns the local dimensions of
+[`extremevaltheory_dims_persistences`](@ref).
+"""
+function extremevaltheory_dims(X, p; kw...)
+    Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
+    return Δloc
 end
 
 
