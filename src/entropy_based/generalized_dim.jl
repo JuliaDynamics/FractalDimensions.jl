@@ -46,15 +46,15 @@ The source code of this function is only 3 lines of code.
 function generalized_dim(X::AbstractStateSpaceSet, sizes = estimate_boxsizes(X);
         base = 2, q = 1.0, show_progress = envprog(),
     )
-    progress = ProgressMeter.Progress(length(sizes);
-        desc = "Boxed correlation sum: ", enabled = show_progress
-    )
-    H = _threaded_entropies(X, sizes, q, progress)
+    H = _threaded_entropies(X, sizes, q, show_progress)
     x = -log.(base, sizes)
     return linear_region(x, H)[2]
 end
 
-function _threaded_entropies(X, sizes, q, progress)
+function _threaded_entropies(X, sizes, q, show_progress)
+    progress = ProgressMeter.Progress(length(sizes);
+        desc = "Entropy calculation: ", enabled = show_progress
+    )
     H = zeros(eltype(X), length(sizes))
     Threads.@threads for i in eachindex(sizes)
         ε = sizes[i]
