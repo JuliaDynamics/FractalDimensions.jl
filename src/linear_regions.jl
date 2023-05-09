@@ -1,4 +1,5 @@
 export linear_region, linear_regions, estimate_boxsizes, linreg
+export minimum_pairwise_distance
 #####################################################################################
 # Functions and methods to deduce linear scaling regions
 #####################################################################################
@@ -144,13 +145,14 @@ end
 #####################################################################################
 """
     estimate_boxsizes(X::AbstractStateSpaceSet; kwargs...) → εs
+
 Return `k` exponentially spaced values: `εs = base .^ range(lower + w, upper + z; length = k)`,
 that are a good estimate for sizes ε that are used in calculating a [Fractal Dimension](@ref).
 It is strongly recommended to [`standardize`](@ref) input dataset before using this
 function.
 
-Let `d₋` be the minimum pair-wise distance in `X` and `d₊` the average total length of `X`
-along each of the dimensions of `X`. Specifically, `d₊ = mean(ma - mi)` with
+Let `d₋` be the minimum pair-wise distance in `X`, `d₋ = dminimum_pairwise_distance(X)`.
+Let `d₊` be the average total length of `X`, `d₊ = mean(ma - mi)` with
 `mi, ma = minmaxima(X)`.
 Then `lower = log(base, d₋)` and `upper = log(base, d₊)`.
 Because by default `w=1, z=-1`, the returned sizes are an order of mangitude
@@ -208,11 +210,23 @@ end
 
 import Neighborhood
 """
-    minimum_pairwise_distance(X::StateSpaceSet, metric = Euclidean())
+    minimum_pairwise_distance(X::StateSpaceSet, kdtree = dimension(X) < 10, metric = Euclidean())
+
 Return `min_d, min_pair`: the minimum pairwise distance
 of all points in the dataset, and the corresponding point pair.
+The third argument is a switch of whether to use KDTrees or a brute force search.
 """
-function minimum_pairwise_distance(X::AbstractStateSpaceSet, metric = Euclidean())
+function minimum_pairwise_distance(
+        X::AbstractStateSpaceSet, kdtree = dimension(X) < 10, metric = Euclidean()
+    )
+    if kdtree
+        _mpd_kdtree(X, metric)
+    else
+        _mpd_brute(X, metric)
+    end
+end
+
+function _mpd_kdtree(X::AbstractStateSpaceSet, metric = Euclidean())
     tree = Neighborhood.KDTree(X, metric)
     min_d = eltype(X[1])(Inf)
     min_pair = (0, 0)
@@ -223,6 +237,21 @@ function minimum_pairwise_distance(X::AbstractStateSpaceSet, metric = Euclidean(
         if dist < min_d
             min_d = dist
             min_pair = (i, ind)
+        end
+    end
+    return min_d, min_pair
+end
+
+function _mpd_brute(X::AbstractStateSpaceSet, metric = Euclidean())
+    min_d = eltype(X)(Inf)
+    min_pair = (0, 0)
+    @inbounds for i in eachindex(X)
+        for j in (i+1):length(X)
+            dist = metric(X[i], X[j])
+            if dist < min_d
+                min_d = dist
+                min_pair = (i, j)
+            end
         end
     end
     return min_d, min_pair

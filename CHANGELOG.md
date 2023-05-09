@@ -4,6 +4,7 @@
 - New, faster multithreaded implementation for `correlationsum`.
 - Progress bar for entropy dimension.
 - Generalized dimension is now also multithreaded and has a progress bar.
+- `minimum_pairwise_distance` is now exported and also switches to a brute force search for high dimensional data.
 
 # 1.3
 
