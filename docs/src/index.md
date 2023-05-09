@@ -85,6 +85,7 @@ linear_regions
 linear_region
 linreg
 estimate_boxsizes
+minimum_pairwise_distance
 ```
 
 ## Generalized (entropy) dimension

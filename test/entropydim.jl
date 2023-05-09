@@ -2,6 +2,7 @@ using FractalDimensions
 using Test
 using Random: Xoshiro
 using DynamicalSystemsBase
+ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
 

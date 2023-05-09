@@ -43,10 +43,23 @@ By doing these steps one by one yourself, you can adjust the keyword arguments
 given to each of these function calls, refining the accuracy of the result.
 The source code of this function is only 3 lines of code.
 """
-function generalized_dim(data::AbstractStateSpaceSet, sizes = estimate_boxsizes(data);
-        base = 2, q = 1.0
+function generalized_dim(X::AbstractStateSpaceSet, sizes = estimate_boxsizes(X);
+        base = 2, q = 1.0, show_progress = envprog(),
     )
-    H = [entropy(Renyi(; q, base), ValueHistogram(ε), data) for ε ∈ sizes]
+    H = _threaded_entropies(X, sizes, q, base, show_progress)
     x = -log.(base, sizes)
     return linear_region(x, H)[2]
+end
+
+function _threaded_entropies(X, sizes, q, base, show_progress)
+    progress = ProgressMeter.Progress(length(sizes);
+        desc = "Entropy calculation: ", enabled = show_progress
+    )
+    H = zeros(eltype(X), length(sizes))
+    Threads.@threads for i in eachindex(sizes)
+        ε = sizes[i]
+        H[i] = entropy(Renyi(; q, base), ValueHistogram(ε), X)
+        ProgressMeter.next!(progress)
+    end
+    return H
 end

@@ -7,6 +7,9 @@ module FractalDimensions
     read(path, String)
 end FractalDimensions
 
+# Define function for turning off progress bars
+envprog() = get(ENV, "FRACTALDIMENSIONS_PROGRESS", "true") == "true"
+
 using Reexport
 @reexport using StateSpaceSets
 
