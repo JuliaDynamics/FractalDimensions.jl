@@ -161,7 +161,7 @@ end
 Estimate and return the parameters `σ, ξ` of a Generalized Pareto Distribution
 fit to `X`, assuming that `minimum(X) == 0` and hence the parameter `μ` is 0
 (if not, simply shift `X` by its minimum), according to the methods provided
-in [^Pons2023].
+in [^Flavio2023].
 
 Optionally choose the estimator, which can be:
 
@@ -173,6 +173,10 @@ Optionally choose the estimator, which can be:
   ```
   with ``\\bar{x}`` the sample mean and ``s^2`` the sample variance.
   This estimator only exists if the true distribution `ξ` value is < 0.5.
+
+[^Flavio2023]:
+    Flavio et al., Stability of attractor local dimension estimates in
+    non-Axiom A dynamical systems, [preprint](https://hal.science/hal-04051659)
 """
 function estimate_gpd_parameters(X, estimator)
     if estimator == :exp
