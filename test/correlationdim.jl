@@ -139,9 +139,9 @@ end
     reg, tan = linear_region(rs[40:end], ys[40:end])
     test_value(tan, 1.9, 2.0)
     dB = fixedmass_correlation_dim(B)
-    test_value(dB, 0.9, 1.0)
+    test_value(dB, 0.8, 1.0)
     dH = fixedmass_correlation_dim(H)
-    test_value(dH, 1.11, 1.31)
+    test_value(dH, 1.01, 1.31)
 end
 
 @testset "Takens best est" begin

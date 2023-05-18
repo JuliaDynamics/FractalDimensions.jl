@@ -22,43 +22,52 @@ To actually find $\Delta$, one needs to find a linearly scaling region in the gr
 
 ## Fractal dimension example
 
-In this simplest example we will calculate the fractal dimension of the [chaotic attractor of the Hénon map](https://en.wikipedia.org/wiki/H%C3%A9non_map) (for default parameters).
+In this simplest example we will calculate the fractal dimension of the [chaotic attractor of the Hénon map](https://en.wikipedia.org/wiki/H%C3%A9non_map) (for default parameters). For this example, we will generate the data on the spot:
 
 ```@example MAIN
-using DynamicalSystemsBase: DeterministicIteratedMap, trajectory
-using CairoMakie
+using DynamicalSystemsBase # for simulating dynamical systems
+using CairoMakie           # for plotting
 
 henon_rule(x, p, n) = SVector(1.0 - p[1]*x[1]^2 + x[2], p[2]*x[1])
 u0 = zeros(2)
 p0 = [1.4, 0.3]
 henon = DeterministicIteratedMap(henon_rule, u0, p0)
 
-X, t = trajectory(henon, 100_000; Ttr = 100)
+X, t = trajectory(henon, 20_000; Ttr = 100)
 scatter(X[:, 1], X[:, 2]; color = ("black", 0.01), markersize = 4)
 ```
+instead of simulating the set `X` we could load it from disk, e.g., if there was a text file with two columns as x and y coordinates, we would load it as
+```julia
+using DelimitedFiles
+file = "path/to/file.csv"
+M = readdlm(file)    # here `M` is a metrix with two columns
+X = StateSpaceSet(M) # important to convert to a state space set
+```
 
-Our goal is to compute entropies of the histogram of the above plot for many different partition sizes (bin widths) `ε`. Computing entropies is the job of [ComplexityMeasures.jl](https://github.com/JuliaDynamics/ComplexityMeasures.jl), but the two relevant names (`entropy, ValueHistogram`) are re-exported by FractalDimensions.jl.
+After we have `X`, we can start computing a fractal dimension and for this example we will use the [`correlationsum`](@ref). Our goal is to compute the correlation sum of `X` for many different sizes/radii `ε`. This is as simple as
 ```@example MAIN
 using FractalDimensions
 ες = 2 .^ (-15:0.5:5) # semi-random guess
-Hs = [entropy(ValueHistogram(ε), X) for ε in ες]
+Cs = correlationsum(X, ες; show_progress = false)
 ```
 
+For a fractal set `X` dynamical systems theory says that there should be an exponential relationship between the correlation sum and the sizes:
 ```@example MAIN
-xs = @. -log2(ες) # must use same base as `entropy`!!!
-scatterlines(xs, Hs; axis = (ylabel = L"H_1", xlabel = L"-\log (\epsilon)"))
+xs = log2.(ες)
+ys = log2.(Cs)
+scatterlines(xs, ys; axis = (ylabel = L"\log(C_2)", xlabel = L"\log (\epsilon)"))
 ```
 
-The slope of the linear scaling region of the above plot is the generalized dimension (of order q = 1) for the attractor of the Hénon map.
+The slope of the linear scaling region of the above plot is the fractal dimension (based on the correlation sum).
 
 Given that we _see_ the plot, we can estimate where the linear scaling region starts and ends. However, we can use the function [`linear_region`](@ref) to get an estimate of the result as well. First let's visualize what it does, as it uses [`linear_regions`](@ref).
 
 ```@example MAIN
-lrs, slopes = linear_regions(xs, Hs, tol = 0.25)
+lrs, slopes = linear_regions(xs, ys, tol = 0.25)
 fig = Figure()
-ax = Axis(fig[1,1]; ylabel = L"H_1", xlabel = L"-\log (\epsilon)")
+ax = Axis(fig[1,1]; ylabel = L"\log(C_2)", xlabel = L"\log (\epsilon)")
 for r in lrs
-    scatterlines!(ax, xs[r], Hs[r])
+    scatterlines!(ax, xs[r], ys[r])
 end
 fig
 ```
@@ -66,11 +75,11 @@ fig
 The [`linear_region`](@ref) function finds, and computes the slope of, the largest region:
 
 ```@example MAIN
-Δ = linear_region(xs, Hs)[2]
+Δ = linear_region(xs, ys)[2]
 ```
-This result is an approximation of the information dimension (because we used `q = 1`) of the attractor.
+This result is an approximation of _a_ fractal dimension.
 
-The whole above pipeline we went through is bundled in [`generalized_dim`](@ref). Similar pipeline is done by [`grassberger_proccacia_dim`](@ref) and many other functions.
+The whole above pipeline we went through is bundled in [`grassberger_proccacia_dim`](@ref). Similar work is done by [`generalized_dim`](@ref) and many other functions.
 
 !!! danger "Be wary when using `xxxxx_dim`"
     As stated clearly by the documentation strings, all pre-made dimension estimating functions (ending in `_dim`) perform a lot of automated steps, each having its own heuristic choices for function default values.
@@ -79,7 +88,6 @@ The whole above pipeline we went through is bundled in [`generalized_dim`](@ref)
 
 ## Linear scaling regions
 
-And other utilities, especially [`linreg`](@ref), used in both [`generalized_dim`] and [`grassberger_dim`](@ref).
 ```@docs
 linear_regions
 linear_region
@@ -89,6 +97,7 @@ minimum_pairwise_distance
 ```
 
 ## Generalized (entropy) dimension
+
 Based on the definition of the Generalized entropy ([`genentropy`](@ref)), one can calculate an appropriate dimension, called *generalized dimension*:
 ```@docs
 generalized_dim
@@ -97,12 +106,14 @@ molteno_boxing
 ```
 
 ## Correlation sum based dimension
+
 ```@docs
 grassberger_proccacia_dim
 correlationsum
 ```
 
 ### Box-assisted version
+
 ```@docs
 boxassisted_correlation_dim
 boxed_correlationsum
@@ -112,27 +123,32 @@ estimate_r0_theiler
 ```
 
 ## Fixed mass correlation sum
+
 ```@docs
 fixedmass_correlation_dim
 fixedmass_correlationsum
 ```
 
 ## Takens best estimate
+
 ```@docs
 takens_best_estimate_dim
 ```
 
 ## Kaplan-Yorke dimension
+
 ```@docs
 kaplanyorke_dim
 ```
 
 ## Higuchi dimension
+
 ```@docs
 higuchi_dim
 ```
 
 ## Extreme value value theory dimension
+
 ```@docs
 extremevaltheory_dim
 extremevaltheory_dims_persistences
