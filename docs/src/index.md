@@ -7,17 +7,17 @@ FractalDimensions
 ## Introduction
 
 !!! note
-    This package is accompanying a review paper on the fractal dimension: <https://arxiv.org/abs/2109.05937>. The paper is continuing the discussion of chapter 5 of [Nonlinear Dynamics](https://link.springer.com/book/10.1007/978-3-030-91032-7), Datseris & Parlitz, Springer 2022.
+    This package is accompanying a review paper on estimating the fractal dimension: <https://arxiv.org/abs/2109.05937>. The paper is continuing the discussion of chapter 5 of [Nonlinear Dynamics](https://link.springer.com/book/10.1007/978-3-030-91032-7), Datseris & Parlitz, Springer 2022.
 
 
 There are numerous methods that one can use to calculate a so-called "dimension" of a dataset which in the context of dynamical systems is called the [Fractal dimension](https://en.wikipedia.org/wiki/Fractal_dimension).
-In the majority of cases, computing a fractal dimension means estimating the **scaling behaviour of some quantity as a size/scale increases**. In the [Fractal dimension example](@ref) below, one finds the scaling of the entropy of the histogram of some data, versus the width of the bins of the histogram. In this case, it approximately holds
+One way to do this is to estimate the **scaling behaviour of some quantity as a size/scale increases**. In the [Fractal dimension example](@ref) below, one finds the scaling of the correlation sum versus a ball radius. In this case, it approximately holds
 $$
-H \approx -\Delta\log(\varepsilon)
+\log(C) \approx \Delta\log(\varepsilon)
 $$
-for bin width $\varepsilon$. The scaling of many other quantities can be estimated as well, such as the correlation sum, the Higuchi length, or others provided here.
+for radius $\varepsilon$. The scaling of many other quantities can be estimated as well, such as the generalized entropy, the Higuchi length, or others provided here.
 
-To actually find $\Delta$, one needs to find a linearly scaling region in the graph $H$ vs. $\log(\varepsilon)$ and estimate its slope. Hence, **identifying a linear region is central to estimating a fractal dimension**. That is why, the section [Linear scaling regions](@ref) is of central importance for this documentation.
+To actually find $\Delta$, one needs to find a linearly scaling region in the graph $\log(C)$ vs. $\log(\varepsilon)$ and estimate its slope. Hence, **identifying a linear region is central to estimating a fractal dimension**. That is why, the section [Linear scaling regions](@ref) is of central importance for this documentation.
 
 
 ## Fractal dimension example
