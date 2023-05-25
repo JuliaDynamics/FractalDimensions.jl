@@ -1,4 +1,35 @@
 import Statistics
+
+"""
+    LinearRegression <: SLopeFit
+    LinearRegression()
+
+Standard linear regression fit to all available data.
+Estimation of the confidence intervals is based om the standard error of the
+slope following a T-distribution, see:
+
+https://stattrek.com/regression/slope-confidence-interval
+"""
+struct LinearRegression end
+
+function _slopefit(x, y, ::LinearRegression, ci = 0.95)
+    a, s = linreg(x, y)
+    n = length(y)
+    # CI computed via https://stattrek.com/regression/slope-confidence-interval
+    # standard error of slope
+    df = max(n - 2, 1)
+    yhat = @. a + s*x
+    standard_error = sqrt((sum((y .- yhat).^2) ./ df)) / sqrt(sum((x .- mean(x)).^2))
+    α = 1 - ci
+    pstar = 1 - α/2
+    tdist = TDist(df)
+    critical_value = quantile(tdist, pstar)
+    margin_of_error = critical_value * standard_error
+    s05 = s - margin_of_error
+    s95 = s + margin_of_error
+    return s, s05, s95
+end
+
 # The following function comes from a version in StatsBase that is now deleted
 # StatsBase is copyrighted under the MIT License with
 # Copyright (c) 2012-2016: Dahua Lin, Simon Byrne, Andreas Noack, Douglas Bates,
@@ -25,23 +56,4 @@ function linreg(x::AbstractVector, y::AbstractVector)
     b = Statistics.covm(x, mx, y, my)/Statistics.varm(x, mx)
     a = my - b*mx
     return a, b
-end
-
-function _slopefit(x, y, ::LinearRegression)
-    a, s = linreg(x, y)
-    n = length(y)
-    # CI computed via https://stattrek.com/regression/slope-confidence-interval
-    # standard error of slope
-    df = max(n - 2, 1)
-    yhat = @. a + s*x
-    standard_error = sqrt((sum((y .- yhat).^2) ./ df)) / sqrt(sum((x .- mean(x)).^2))
-    ci = 0.95 # 95% confidence interval
-    α = 1 - ci
-    pstar = 1 - α/2
-    tdist = TDist(df)
-    critical_value = quantile(tdist, pstar)
-    margin_of_error = critical_value * standard_error
-    s05 = s - margin_of_error
-    s95 = s + margin_of_error
-    return s, s05, s95
 end

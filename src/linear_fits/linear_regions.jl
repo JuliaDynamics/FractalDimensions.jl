@@ -1,7 +1,17 @@
 export linear_region, linear_regions, estimate_boxsizes, linreg
 export minimum_pairwise_distance
+
 #####################################################################################
-# Functions and methods to deduce linear scaling regions
+# Type
+#####################################################################################
+
+struct LargestLinearRegion
+    dxi::Int
+    method::Symbol
+end
+
+#####################################################################################
+# Functions
 #####################################################################################
 
 """

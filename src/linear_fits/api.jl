@@ -14,10 +14,11 @@ abstract type SLopeFit end
 
 
 """
-    slopefit(x, y[, t::SLopeFit]; kw...) → s, s05, s95
+    slopefit(x, y[, t::SLopeFit] [, ci = 0.95]; kw...) → s, s05, s95
 
 Fit a linear scaling region in the curve of the two `AbstractVectors` `y` versus `x`.
-Return the estimated slope, as well as 5,95 confidence intervals for it.
+Return the estimated slope, as well as the confidence intervals for it.
+
 The methods `t` that can be used for the estimation are:
 
 - [`LinearRegression`](@ref)
@@ -30,8 +31,13 @@ The keyword `sat_threshold = 0.01` decides what saturation is:
 while `abs(y[i]-y[i+1]) < sat_threshold` we are in a saturation regime.
 Said differently, slopes with value `sat_threshold/dx` with `dx = x[i+1] - x[i]`
 are neglected.
+
+The keyword `ci = 0.95` specifies which quantile (and the 1 - quantile) the confidence
+interval values are returned at, and by defualt it is 95% (and hence also 5%).
 """
-function slopefit(x, y, t::SlopeFit; ignore_saturation = true, sat_threshold = 0.01)
+function slopefit(x, y, t::SlopeFit = LargestLinearRegion();
+        ignore_saturation = true, sat_threshold = 0.01, ci = 0.95,
+    )
     if ignore_saturation
         j = findfirst(i -> abs(y[i] - y[i-1]) > sat_threshold, length(y):-1:2)
         if !isnothing(j)
@@ -43,7 +49,7 @@ function slopefit(x, y, t::SlopeFit; ignore_saturation = true, sat_threshold = 0
             x, y = x[k:end], y[k:end]
         end
     end
-    return _slopefit(x, y, t)
+    return _slopefit(x, y, t, ci)
 end
 
 
