@@ -14,7 +14,7 @@ abstract type SLopeFit end
 
 
 """
-    slopefit(x, y[, t::SLopeFit] [, ci = 0.95]; kw...) → s, s05, s95
+    slopefit(x, y [, t::SLopeFit]; kw...) → s, s05, s95
 
 Fit a linear scaling region in the curve of the two `AbstractVectors` `y` versus `x`.
 Return the estimated slope, as well as the confidence intervals for it.

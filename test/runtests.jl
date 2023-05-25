@@ -6,7 +6,7 @@ testfile(file, testname=defaultname(file)) = @testset "$testname" begin; include
 ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 @testset "FractalDimensions" begin
-    testfile("linear_regions.jl")
+    testfile("slope_fits.jl")
     testfile("entropydim.jl")
     testfile("correlationdim.jl")
     testfile("roughness.jl")
