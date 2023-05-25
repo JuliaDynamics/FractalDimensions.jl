@@ -15,7 +15,7 @@ Theiler[^Theiler1986], to estimate the correlation dimension `Δ_C` of  `X`.
 This function does something extremely simple:
 ```julia
 cm = correlationsum(data, εs; kwargs...)
-Δ_C = slopefit(rs, ys)(log2.(sizes), log2.(cm))
+Δ_C = slopefit(rs, ys)(log2.(sizes), log2.(cm))[1]
 ```
 i.e. it calculates [`correlationsum`](@ref) for various radii and then tries to find
 a linear region in the plot of the log of the correlation sum versus log(ε).
@@ -32,7 +32,7 @@ See also [`takens_best_estimate`](@ref), [`boxassisted_correlation_dim`](@ref).
 """
 function grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(X); kwargs...)
     cm = correlationsum(X, εs; kwargs...)
-    return slopefit(log2.(εs), log2.(cm))
+    return slopefit(log2.(εs), log2.(cm))[1]
 end
 
 

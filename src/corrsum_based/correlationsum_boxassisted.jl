@@ -14,7 +14,7 @@ to estimate the correlation dimension `Δ_C` of `X`.
 This function does something extremely simple:
 ```julia
 εs, Cs = boxed_correlationsum(X; kwargs...)
-slopefit(log2.(εs), log2.(Cs))
+slopefit(log2.(εs), log2.(Cs))[1]
 ```
 
 and hence see [`boxed_correlationsum`](@ref) for more information and available keywords.
@@ -26,7 +26,7 @@ and hence see [`boxed_correlationsum`](@ref) for more information and available 
 """
 function boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
     εs, Cs = boxed_correlationsum(X; kwargs...)
-    return slopefit(log2.(εs), log2.(Cs))
+    return slopefit(log2.(εs), log2.(Cs))[1]
 end
 
 """
