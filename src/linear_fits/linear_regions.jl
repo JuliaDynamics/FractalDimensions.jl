@@ -3,37 +3,6 @@ export minimum_pairwise_distance
 #####################################################################################
 # Functions and methods to deduce linear scaling regions
 #####################################################################################
-import Statistics
-# The following function comes from a version in StatsBase that is now deleted
-# StatsBase is copyrighted under the MIT License with
-# Copyright (c) 2012-2016: Dahua Lin, Simon Byrne, Andreas Noack, Douglas Bates,
-# John Myles White, Simon Kornblith, and other contributors.
-"""
-    linreg(x, y) -> a, b
-Perform a linear regression to find the best coefficients so that the curve:
-`z = a + b*x` has the least squared error with `y`.
-"""
-function linreg(x::AbstractVector, y::AbstractVector)
-    # Least squares given
-    # Y = a + b*X
-    # where
-    # b = cov(X, Y)/var(X)
-    # a = mean(Y) - b*mean(X)
-    if size(x) != size(y)
-        throw(DimensionMismatch("x has size $(size(x)) and y has size $(size(y)), " *
-            "but these must be the same size"))
-    end
-    mx = Statistics.mean(x)
-    my = Statistics.mean(y)
-    # don't need to worry about the scaling (n vs n - 1)
-    # since they cancel in the ratio
-    b = Statistics.covm(x, mx, y, my)/Statistics.varm(x, mx)
-    a = my - b*mx
-    return a, b
-end
-
-slope(x, y) = linreg(x, y)[2]
-
 
 """
     linear_regions(x, y; dxi::Int = 1, tol = 0.25) -> (lrs, tangents)
