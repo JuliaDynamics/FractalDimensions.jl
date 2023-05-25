@@ -18,7 +18,11 @@ import Distances
 using ComplexityMeasures
 export entropy, Shannon, Renyi, ValueHistogram
 
-include("linear_regions.jl")
+include("linear_fits/api.jl")
+include("linear_fits/estimate_boxsizes.jl")
+include("linear_fits/linear_regression.jl")
+include("linear_fits/linear_regions.jl")
+include("linear_fits/slopes_distribution.jl")
 
 include("entropy_based/generalized_dim.jl")
 include("entropy_based/molteno.jl")

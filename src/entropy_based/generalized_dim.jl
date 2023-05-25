@@ -33,7 +33,7 @@ Calling this function performs a lot of automated steps:
      ```
      Let `x = -log.(sizes)`.
   3. The curve `H(x)` is decomposed into linear regions,
-     using [`linear_regions`](@ref)`(x, h)`.
+     using [`slopefit`](@ref)`(x, h)[1]`.
   4. The biggest linear region is chosen, and a fit for the slope of that
      region is performed using the function [`linear_region`](@ref),
      which does a simple linear regression fit using [`linreg`](@ref).
@@ -48,7 +48,7 @@ function generalized_dim(X::AbstractStateSpaceSet, sizes = estimate_boxsizes(X);
     )
     H = _threaded_entropies(X, sizes, q, base, show_progress)
     x = -log.(base, sizes)
-    return linear_region(x, H)[2]
+    return slopefit(x, H)[1]
 end
 
 function _threaded_entropies(X, sizes, q, base, show_progress)

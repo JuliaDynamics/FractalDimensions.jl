@@ -13,12 +13,12 @@ the result to compute the correlation dimension `Δ_M` of `X`.
 This function does something extremely simple:
 ```julia
 rs, ys = fixedmass_correlationsum(X, args...; kwargs...)
-linear_region(rs, ys)[2]
+slopefit(rs, ys)[1]
 ```
 """
 function fixedmass_correlation_dim(X, args...; kwargs...)
     rs, ys = fixedmass_correlationsum(X, args...; kwargs...)
-    return linear_region(rs, ys)[2]
+    return slopefit(rs, ys)[1]
 end
 
 """

@@ -60,7 +60,7 @@ scatterlines(xs, ys; axis = (ylabel = L"\log(C_2)", xlabel = L"\log (\epsilon)")
 
 The slope of the linear scaling region of the above plot is the fractal dimension (based on the correlation sum).
 
-Given that we _see_ the plot, we can estimate where the linear scaling region starts and ends. However, we can use the function [`linear_region`](@ref) to get an estimate of the result as well. First let's visualize what it does, as it uses [`linear_regions`](@ref).
+Given that we _see_ the plot, we can estimate where the linear scaling region starts and ends. This is generally done using [`LargestLinearRegion`](@ref) in [`slopefit`](@ref). But first, let's visualize what the method does, as it uses [`linear_regions`](@ref).
 
 ```@example MAIN
 lrs, slopes = linear_regions(xs, ys, tol = 0.25)
@@ -72,10 +72,10 @@ end
 fig
 ```
 
-The [`linear_region`](@ref) function finds, and computes the slope of, the largest region:
+The [`LargestLinearRegion`](@ref) method finds, and computes the slope of, the largest region:
 
 ```@example MAIN
-Δ = linear_region(xs, ys)[2]
+Δ = slopefit(xs, ys, LargestLinearRegion())
 ```
 This result is an approximation of _a_ fractal dimension.
 
@@ -89,9 +89,11 @@ The whole above pipeline we went through is bundled in [`grassberger_proccacia_d
 ## Linear scaling regions
 
 ```@docs
+slopefit
+LinearRegression
+LargestLinearRegion
 linear_regions
-linear_region
-linreg
+AllSlopesDistribution
 estimate_boxsizes
 minimum_pairwise_distance
 ```

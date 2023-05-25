@@ -1,3 +1,8 @@
+# 1.5
+- added an interface based on the `slopefit` function, that allows estimating the "linear scaling region" using an extendable API. The methods methods subtype `SlopeFit` and extend `_slopefit(x, y, t::SlopeFit, ci::Real)`.
+- Added returning confidence intervals for all slope fitting methods
+- The function `linear_region` is now deprecated/not-documented in favor of `slopefit(x, y, LargestLinearRegion())`
+
 # 1.4
 
 - Showing progress bars can be turned off module-wide by setting `ENV["FRACTALDIMENSIONS_PROGRESS"] = false`.
