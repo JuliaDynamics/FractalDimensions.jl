@@ -1,2 +1,2 @@
-TODO:
-struct AllSlopesDistribution end
+# TODO:
+struct AllSlopesDistribution <: SlopeFit end

@@ -23,7 +23,7 @@ linear regression of all points belonging to the largest linear region.
 
 Use [`linear_regions`](@ref) if you wish to obtain the decomposition into linear regions.
 """
-struct LargestLinearRegion
+struct LargestLinearRegion <: SlopeFit
     dxi::Int
     tol::Float64
     method::Symbol

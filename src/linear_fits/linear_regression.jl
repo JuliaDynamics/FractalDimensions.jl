@@ -1,4 +1,5 @@
 import Statistics
+using Distributions: TDist
 
 """
     LinearRegression <: SLopeFit
@@ -10,7 +11,7 @@ slope following a T-distribution, see:
 
 https://stattrek.com/regression/slope-confidence-interval
 """
-struct LinearRegression end
+struct LinearRegression <: SlopeFit end
 
 function _slopefit(x, y, ::LinearRegression, ci = 0.95)
     a, s = linreg(x, y)
@@ -57,3 +58,5 @@ function linreg(x::AbstractVector, y::AbstractVector)
     a = my - b*mx
     return a, b
 end
+
+slope(x, y) = linreg(x, y)[2]

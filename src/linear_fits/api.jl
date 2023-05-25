@@ -1,22 +1,23 @@
 # module LinearScalingRegion
 
-export linreg
 export slopefit
 export LinearRegression, LargestLinearRegion, AllSlopesDistribution
+export linreg, linear_regions, linear_region
 
 """
     SlopeFit
 
 Supertype of types used in [`slopefit`](@ref).
 """
-abstract type SLopeFit end
+abstract type SlopeFit end
 
 
 
 """
     slopefit(x, y [, t::SLopeFit]; kw...) → s, s05, s95
 
-Fit a linear scaling region in the curve of the two `AbstractVectors` `y` versus `x`.
+Fit a linear scaling region in the curve of the two `AbstractVectors` `y` versus `x`
+using `t` as the estimation method.
 Return the estimated slope, as well as the confidence intervals for it.
 
 The methods `t` that can be used for the estimation are:
