@@ -48,7 +48,7 @@ function generalized_dim(X::AbstractStateSpaceSet, sizes = estimate_boxsizes(X);
     )
     H = _threaded_entropies(X, sizes, q, base, show_progress)
     x = -log.(base, sizes)
-    return linear_region(x, H)[2]
+    return slopefit(x, H)
 end
 
 function _threaded_entropies(X, sizes, q, base, show_progress)

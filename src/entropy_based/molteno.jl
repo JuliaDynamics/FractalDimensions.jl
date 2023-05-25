@@ -12,7 +12,7 @@ in the entropy vs log(size) graph, just like in [`generalized_dim`](@ref).
 function molteno_dim(X, k0::Int = 10; q = 1.0, base = 2)
     probs, εs = molteno_boxing(X; k0)
     dd = entropy.(Ref(Renyi(;q, base)), probs)
-    return linear_region(-log.(base, εs), dd)[2]
+    return slopefit(-log.(base, εs), dd)
 end
 
 """
