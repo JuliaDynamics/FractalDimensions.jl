@@ -4,24 +4,54 @@ export minimum_pairwise_distance
 #####################################################################################
 # Type
 #####################################################################################
-
-struct LargestLinearRegion
-    dxi::Int
-    method::Symbol
-end
-
-#####################################################################################
-# Functions
-#####################################################################################
-
 """
-    linear_regions(x, y; dxi::Int = 1, tol = 0.25) -> (lrs, tangents)
+    LargestLinearRegion <: SlopeFit
+    LargestLinearRegion(; dxi::Int = 1, tol = 0.25)
 
 Identify regions where the curve `y(x)` is linear, by scanning the
 `x`-axis every `dxi` indices sequentially
 (e.g. at `x[1]` to `x[5]`, `x[5]` to `x[10]`, `x[10]` to `x[15]` and so on if `dxi=5`).
 
 If the slope (calculated via linear regression) of a region of width `dxi` is
+approximatelly equal to that of the previous region,
+within relative tolerance `tol` and absolute tolerance `0`,
+then these two regions belong to the same linear region.
+
+The largest such region is then used to estimate the slope via standard
+linear regression of all points belonging to the largest linear region.
+"Largest" here means the region that covers the more extent along the `x`-axis.
+
+Use [`linear_regions`](@ref) if you wish to obtain the decomposition into linear regions.
+"""
+struct LargestLinearRegion
+    dxi::Int
+    tol::Float64
+    method::Symbol
+end
+LargestLinearRegion(; dxi = 1, tol = 0.25) = LargestLinearRegion(dxi, tol, :sequential)
+
+function _slopefit(x, y, llr::LargestLinearRegion, ci)
+    lregions, tangents = linear_regions(x, y;
+        dxi = llr.dxi, tol = llr.tol, method = llr.method
+    )
+    # Find biggest linear region:
+    j = findmax(length, lregions)[2]
+    xfit, yfit = x[lregions[j]], y[lregions[j]]
+    return _slopefit(xfit, yfit, LinearRegression(), ci)
+end
+
+#####################################################################################
+# Functions
+#####################################################################################
+"""
+    LargestLinearRegion <: SlopeFit
+    LargestLinearRegion(; dxi::Int = 1, tol = 0.25)
+
+Identify regions where the curve `y(x)` is linear, by scanning the
+`x`-axis every `dxi` indices sequentially
+(e.g. at `x[1]` to `x[5]`, `x[5]` to `x[10]`, `x[10]` to `x[15]` and so on if `dxi=5`).
+
+If the slope (calculated via standard linear regression) of a region of width `dxi` is
 approximatelly equal to that of the previous region,
 within tolerance `tol`,
 then these two regions belong to the same linear region.
@@ -76,6 +106,10 @@ function linear_regions_sequential(x, y, dxi, tol)
     return lranges, tangents
 end
 
+
+# This function is deprecated in the new `SlopeFit` interface.
+# It is kept here because it was used extensively in our review paper,
+# due to its convenience of marking the largest region for the scatter markers.
 """
     linear_region(x, y; kwargs...) -> (region, slope)
 
