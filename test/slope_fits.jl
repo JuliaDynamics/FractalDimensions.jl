@@ -61,3 +61,9 @@ end
     region, tangent = linear_region(x, y)
     @test 0.9 < tangent < 1.1
 end
+
+@testset "all slopes distr" begin
+    x = 1:10
+    y = [0, 0, 0, 1, 2, 3, 4, 5, 5, 5]
+    @test_throws ErrorException slopefit(x, y, AllSlopesDistribution())
+end
