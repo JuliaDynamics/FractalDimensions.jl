@@ -44,20 +44,11 @@ end
 # Functions
 #####################################################################################
 """
-    LargestLinearRegion <: SlopeFit
-    LargestLinearRegion(; dxi::Int = 1, tol = 0.25)
+    linear_regions(x, y; dxi, tol) → lrs, tangents
 
-Identify regions where the curve `y(x)` is linear, by scanning the
-`x`-axis every `dxi` indices sequentially
-(e.g. at `x[1]` to `x[5]`, `x[5]` to `x[10]`, `x[10]` to `x[15]` and so on if `dxi=5`).
-
-If the slope (calculated via standard linear regression) of a region of width `dxi` is
-approximatelly equal to that of the previous region,
-within tolerance `tol`,
-then these two regions belong to the same linear region.
-
-Return the indices of `x` that correspond to the linear regions, `lrs`,
-and the correct `tangents` at each region
+Apply the algorithm described by [`LargestLinearRegion`](@ref), and return
+the indices of `x` that correspond to the linear regions, `lrs`,
+and the `tangents` at each region
 (obtained via a second linear regression at each accumulated region).
 `lrs` is hence a vector of `UnitRange`s.
 """
@@ -65,7 +56,9 @@ function linear_regions(
         x::AbstractVector, y::AbstractVector;
         method = :sequential, dxi::Int = method == :overlap ? 3 : 1, tol = 0.25,
     )
-    @assert length(x) == length(y)
+    keys(x) ≠ keys(y) && error("x and y must have same keys")
+    firstindex(x) ≠ 1 && error("This function assumes 1-based indexing")
+
     return if method == :overlap
         # TODO: Implement this...
         linear_regions_overlap(x, y, dxi, tol)
@@ -77,7 +70,7 @@ end
 function linear_regions_sequential(x, y, dxi, tol)
     maxit = length(x) ÷ dxi
     prevtang = slope(view(x, 1:max(dxi, 2)), view(y, 1:max(dxi, 2)))
-    lrs = Int[1] #start of first linear region is always 1
+    lrs = Int[1] # start of first linear region is always first index
     lastk = 1
 
     # Start loop over all partitions of `x` into `dxi` intervals:
