@@ -11,7 +11,7 @@ simply the corresponding quantiles of the distribution.
 
 Not implemented yet, the method is here as a placeholder.
 
-[Deshmukh2021]:
+[^Deshmukh2021]:
     Deshmukh et al., Toward automated extraction and characterization of scaling regions
     in dynamical systems, [Chaos 31, 123102 (2021)](https://doi.org/10.1063/5.0069365).
 """
