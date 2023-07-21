@@ -208,7 +208,6 @@ function extremal_index_sueveges(y::AbstractVector, p::Real,
         # These arguments are given for performance optim; not part of public API
         thresh::Real = quantile(y, p)
     )
-    # TODO: This is wrong for now
     p = 1 - p
     Li = findall(x -> x > thresh, y)
     Ti = diff(Li)
