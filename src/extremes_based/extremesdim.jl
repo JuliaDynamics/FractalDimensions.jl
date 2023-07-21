@@ -185,16 +185,14 @@ function estimate_gpd_parameters(X, estimator)
         # of the exceedances.
         return mean(X), zero(eltype(X))
     elseif estimator == :mm
-        # for whatever reason the authors don't use the corrected versions
         x̄ = mean(X)
-        s² = var(X; corrected = false, mean = x̄)
+        s² = var(X; corrected = true, mean = x̄)
         ξ = (1/2)*((x̄^2/s²) - 1)
         σ = (x̄/2)*((x̄^2/s²) + 1)
         return σ, ξ
     else
-        error("Unknown estimator for Pareto distribution")
+        error("Unknown estimator for Generalized Pareto distribution")
     end
-    return σ
 end
 
 """
