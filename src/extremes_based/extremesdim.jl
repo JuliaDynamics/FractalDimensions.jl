@@ -2,9 +2,11 @@ export extremevaltheory_dims_persistences, extremevaltheory_dims, extremevaltheo
 export extremevaltheory_local_dim_persistence
 export extremal_index_sueveges
 export estimate_gpd_parameters
+export extremevaltheory_gpdfit_pvalues
 using Distances: euclidean
 using Statistics: mean, quantile, var
 import ProgressMeter
+include("gpd.jl")
 
 """
     extremevaltheory_dim(X::StateSpaceSet, p::Real; kwargs...) → Δ
@@ -12,6 +14,8 @@ import ProgressMeter
 Convenience syntax that returns the mean of the local dimensions of
 [`extremevaltheory_dims_persistences`](@ref), which approximates
 a fractal dimension of `X` using extreme value theory and quantile probability `p`.
+
+See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
 """
 function extremevaltheory_dim(X, p; kw...)
     Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
@@ -29,7 +33,6 @@ function extremevaltheory_dims(X, p; kw...)
     return Δloc
 end
 
-
 """
     extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p::Real; kwargs)
 
@@ -37,6 +40,8 @@ Return the local dimensions `Δloc` and the persistences `θloc` for each point 
 given set for quantile probability `p`, according to the estimation done via extreme value
 theory [^Lucarini2016] [^Caby2018].
 The computation is parallelized to available threads (`Threads.nthreads()`).
+
+See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
 
 ## Keyword arguments
 
@@ -127,6 +132,19 @@ end
 function extremevaltheory_local_dim_persistence(
         logdist::AbstractVector{<:Real}, p::Real; compute_persistence = true, estimator = :mm
     )
+    σ = extremevaltheory_local_gpd_fit(logdist, p, estimator)[1]
+    # The local dimension is the reciprocal σ
+    Δ = 1/σ
+    # Lastly, obtain θ if asked for
+    if compute_persistence
+        θ = extremal_index_sueveges(logdist, p, thresh)
+    else
+        θ = NaN
+    end
+    return Δ, θ
+end
+
+function extremevaltheory_local_gpd_fit(logdist, p, estimator)
     # Here `logdist` is already the -log(euclidean) distance of one point
     # to all other points in the set.
     # Extract the threshold corresponding to the quantile defined
@@ -139,60 +157,8 @@ function extremevaltheory_local_dim_persistence(
     filter!(isfinite, PoTs)
     exceedances = PoTs .- thresh
     # Extract the GPD parameters.
-    σ = estimate_gpd_parameters(exceedances, estimator)[1]
-    # The local dimension is the reciprocal σ
-    Δ = 1/σ
-    # Lastly, obtain θ if asked for
-    if compute_persistence
-        θ = extremal_index_sueveges(logdist, p, thresh)
-    else
-        θ = NaN
-    end
-    return Δ, θ
-end
-
-
-################################################################################
-# Fitting Pareto
-################################################################################
-"""
-    estimate_gpd_parameters(X::AbstractVector{<:Real}, estimator::Symbol = :mm)
-
-Estimate and return the parameters `σ, ξ` of a Generalized Pareto Distribution
-fit to `X`, assuming that `minimum(X) == 0` and hence the parameter `μ` is 0
-(if not, simply shift `X` by its minimum), according to the methods provided
-in [^Flavio2023].
-
-Optionally choose the estimator, which can be:
-
-- `:exp`: Assume the distribution is exponential instead of GP and
-  get `σ` from mean of `X` and set `ξ = 0`.
-- `mm`: Standing for "method of moments", estimants are given by
-  ```math
-  \\xi = (\\bar{x}^2/s^2 - 1)/2, \\quad \\sigma = \\bar{x}(\\bar{x}^2/s^2 + 1)/2
-  ```
-  with ``\\bar{x}`` the sample mean and ``s^2`` the sample variance.
-  This estimator only exists if the true distribution `ξ` value is < 0.5.
-
-[^Flavio2023]:
-    Flavio et al., Stability of attractor local dimension estimates in
-    non-Axiom A dynamical systems, [preprint](https://hal.science/hal-04051659)
-"""
-function estimate_gpd_parameters(X, estimator)
-    if estimator == :exp
-        # Assuming that the distribution is exponential, the
-        # average of the PoTs is the unbiased estimator, which is just the mean
-        # of the exceedances.
-        return mean(X), zero(eltype(X))
-    elseif estimator == :mm
-        x̄ = mean(X)
-        s² = var(X; corrected = true, mean = x̄)
-        ξ = (1/2)*((x̄^2/s²) - 1)
-        σ = (x̄/2)*((x̄^2/s²) + 1)
-        return σ, ξ
-    else
-        error("Unknown estimator for Generalized Pareto distribution")
-    end
+    σ, ξ = estimate_gpd_parameters(exceedances, estimator)
+    return σ, ξ, exceedances
 end
 
 """
@@ -231,4 +197,46 @@ function extremevaltheory_local_dim_persistence(
     logdist = map(x -> -log(euclidean(x, ζ)), X)
     Δ, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
     return Δ, θ
+end
+
+
+# for confidence testing
+"""
+    extremevaltheory_gpdfit_pvalues(X, p, h::Type{<:HypothesisTest}; kw...) → pvalues
+
+Quantify significance of the results of [`extremevaltheory_dims_persistences`](@ref) by
+quantifying how well a Generalized Pareto Distribution (GPD) describes exceedences
+in the input data.
+
+The output `pvalues` is a vector of p-values. `pvalues[i]` corresponds to the p-value
+of the hypothesis: _"The exceedences around point `X[i]` are sampled from a GPD"_ versus
+the alternative hypothesis that they are not.
+To test this hypothesis we first extract exceedences `E`, then fit them
+with [`estimate_gpd_parameters`](@ref). We obtain a p-value
+of how well the fitted GPD describes the data.
+
+To do this, a one-sample test is done with the given type `h`, which could be any
+of the [one-sample non-parametric tests from HypothesisTests.jl](https://juliastats.org/HypothesisTests.jl/stable/nonparametric/#Nonparametric-tests)
+however typically it is either `OneSampleADTest` or `ApproximateOneSampleKSTest`.
+"""
+function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p, TestType;
+        estimator = :mm, show_progress = envprog()
+    )
+    N = length(X)
+    progress = ProgressMeter.Progress(
+        N; desc = "Extreme value theory p-values: ", enabled = show_progress
+    )
+    logdists = [zeros(eltype(X), N) for _ in 1:Threads.nthreads()]
+    pvalues = zeros(X)
+
+    Threads.@threads for j in eachindex(X)
+        logdist = logdists[Threads.threadid()]
+        @inbounds map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
+        σ, ξ, E = extremevaltheory_local_gpd_fit(logdist, p, estimator)
+        gpd = Distributions.GeneralizedPareto(0, σ, ξ)
+        test = TestType(E, gpd)
+        pvalues[j] = pvalue(test)
+        ProgressMeter.next!(progress)
+    end
+    return pvalues
 end
