@@ -201,8 +201,10 @@ end
 
 
 # for confidence testing
+using HypothesisTests: OneSampleADTest
+
 """
-    extremevaltheory_gpdfit_pvalues(X, p, h::Type{<:HypothesisTest}; kw...) → pvalues
+    extremevaltheory_gpdfit_pvalues(X, p; kw...) → pvalues
 
 Quantify significance of the results of [`extremevaltheory_dims_persistences`](@ref) by
 quantifying how well a Generalized Pareto Distribution (GPD) describes exceedences
@@ -214,13 +216,17 @@ the alternative hypothesis that they are not.
 To test this hypothesis we first extract exceedences `E`, then fit them
 with [`estimate_gpd_parameters`](@ref). We obtain a p-value
 of how well the fitted GPD describes the data.
+To do this, a one-sample hypothesis test is done via HypothesisTests.jl.
 
-To do this, a one-sample test is done with the given type `h`, which could be any
-of the [one-sample non-parametric tests from HypothesisTests.jl](https://juliastats.org/HypothesisTests.jl/stable/nonparametric/#Nonparametric-tests)
-however typically it is either `OneSampleADTest` or `ApproximateOneSampleKSTest`.
+## Keyword arguments
+
+- `show_progress, estimator` as in [`extremevaltheory_dims_persistences`](@ref)
+- `TestType = OneSampleADTest`: the test type to use. It can be any
+  of the [one-sample non-parametric tests from HypothesisTests.jl](https://juliastats.org/HypothesisTests.jl/stable/nonparametric/#Nonparametric-tests)
+  however typically it is either `OneSampleADTest` or `ApproximateOneSampleKSTest`.
 """
-function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p, TestType;
-        estimator = :mm, show_progress = envprog()
+function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
+        estimator = :mm, show_progress = envprog(), TestType = OneSampleADTest
     )
     N = length(X)
     progress = ProgressMeter.Progress(
