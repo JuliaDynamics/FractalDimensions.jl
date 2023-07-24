@@ -132,7 +132,7 @@ end
 function extremevaltheory_local_dim_persistence(
         logdist::AbstractVector{<:Real}, p::Real; compute_persistence = true, estimator = :mm
     )
-    σ = extremevaltheory_local_gpd_fit(logdist, p, estimator)[1]
+    σ, ξ, E, thresh = extremevaltheory_local_gpd_fit(logdist, p, estimator)
     # The local dimension is the reciprocal σ
     Δ = 1/σ
     # Lastly, obtain θ if asked for
@@ -156,9 +156,11 @@ function extremevaltheory_local_gpd_fit(logdist, p, estimator)
     # because one entry has 0 Euclidean distance in the set.
     filter!(isfinite, PoTs)
     exceedances = PoTs .- thresh
+    # TODO: Do we have to shift the exceedances by their minimum?
+    # exceedances .-= minimum(exceedances)
     # Extract the GPD parameters.
     σ, ξ = estimate_gpd_parameters(exceedances, estimator)
-    return σ, ξ, exceedances
+    return σ, ξ, exceedances, thresh
 end
 
 """
@@ -201,7 +203,8 @@ end
 
 
 # for confidence testing
-using HypothesisTests: OneSampleADTest
+using HypothesisTests: OneSampleADTest, ApproximateOneSampleKSTest, pvalue
+using Distributions: GeneralizedPareto
 
 """
     extremevaltheory_gpdfit_pvalues(X, p; kw...) → pvalues
@@ -225,6 +228,7 @@ To do this, a one-sample hypothesis test is done via HypothesisTests.jl.
   of the [one-sample non-parametric tests from HypothesisTests.jl](https://juliastats.org/HypothesisTests.jl/stable/nonparametric/#Nonparametric-tests)
   however typically it is either `OneSampleADTest` or `ApproximateOneSampleKSTest`.
 """
+
 function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
         estimator = :mm, show_progress = envprog(), TestType = OneSampleADTest
     )
@@ -233,16 +237,22 @@ function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
         N; desc = "Extreme value theory p-values: ", enabled = show_progress
     )
     logdists = [zeros(eltype(X), N) for _ in 1:Threads.nthreads()]
-    pvalues = zeros(X)
+    pvalues = zeros(N)
+    sigmas = zeros(N)
+    xis = zeros(N)
 
     Threads.@threads for j in eachindex(X)
         logdist = logdists[Threads.threadid()]
         @inbounds map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
         σ, ξ, E = extremevaltheory_local_gpd_fit(logdist, p, estimator)
-        gpd = Distributions.GeneralizedPareto(0, σ, ξ)
+        sigmas[j] = σ
+        xis[j] = ξ
+        # It nos not clear here whether we should use `0` or `minimum(E)`
+        # for the GPD
+        gpd = GeneralizedPareto(0, σ, ξ)
         test = TestType(E, gpd)
         pvalues[j] = pvalue(test)
         ProgressMeter.next!(progress)
     end
-    return pvalues
+    return sigmas, xis, pvalues
 end

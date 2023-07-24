@@ -1,29 +1,38 @@
 using Test, FractalDimensions
-using Statistics, DynamicalSystemsBase
+using Statistics
 using Random: Xoshiro
 ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 @testset "Circle" begin
     θ = collect(range(0, 2π; length = 1001))
+    θ .+= 1e-9randn(1001)
     pop!(θ)
     A = StateSpaceSet(cos.(θ), sin.(θ))
-    Δloc, θ = extremevaltheory_dims_persistences(A, 0.95;
-        compute_persistence = false,
-        show_progress = false,
-    )
-    avedim = mean(Δloc)
-    sigma = std(Δloc)
-    # Here are some totally arbitrary criteria for accuracy
-    # note that normally the dimensions of every single point
-    # should have been exactly the same. Not sure why they aren't...
-    @test 0.98 < avedim < 1.02
-    @test sigma < 0.01
+
+    @testset "validity" begin
+        Δloc, θ = extremevaltheory_dims_persistences(A, 0.95;
+            compute_persistence = false,
+            show_progress = false,
+        )
+        avedim = mean(Δloc)
+        sigma = std(Δloc)
+        # Here are some totally arbitrary criteria for accuracy
+        # note that normally the dimensions of every single point
+        # should have been exactly the same. Not sure why they aren't...
+        @test 0.98 < avedim < 1.02
+        @test sigma < 0.01
+    end
 
     @testset "Convenience API" begin
         D = extremevaltheory_dim(A, 0.95;
         show_progress = false,
         allocate_matrix = true)
         @test 0.9 < D < 1.1
+    end
+
+    @testset "pvalues" begin
+        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.99)
+        @test all(<(0.01), pvalues)
     end
 end
 
@@ -39,6 +48,11 @@ end
         avedim = mean(Δloc)
         @test 1.9 < avedim < 2.1
         @test any(>(2), Δloc)
+    end
+
+    @testset "pvalues" begin
+        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.99)
+        @test all(<(0.01), pvalues)
     end
 end
 
