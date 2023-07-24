@@ -212,7 +212,7 @@ using HypothesisTests: OneSampleADTest, ApproximateOneSampleKSTest, pvalue
 using Distributions: GeneralizedPareto
 
 """
-    extremevaltheory_gpdfit_pvalues(X, p; kw...) → pvalues
+    extremevaltheory_gpdfit_pvalues(X, p; kw...) → pvalues, sigmas, xis
 
 Quantify significance of the results of [`extremevaltheory_dims_persistences`](@ref) by
 quantifying how well a Generalized Pareto Distribution (GPD) describes exceedences
@@ -233,6 +233,9 @@ To test this hypothesis we first extract exceedences `E`, then fit them
 with [`estimate_gpd_parameters`](@ref). We obtain a p-value
 of how well the fitted GPD describes the data.
 To do this, a one-sample hypothesis test is done via HypothesisTests.jl.
+
+The other outputs `sigmas, xis` are just all fitted `σ, ξ` parameters
+for the GPD fit of exceedances in each point in `X`.
 
 ## Keyword arguments
 
@@ -265,5 +268,5 @@ function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
         pvalues[j] = pvalue(test)
         ProgressMeter.next!(progress)
     end
-    return sigmas, xis, pvalues
+    return pvalues, sigmas, xis
 end

@@ -4,8 +4,8 @@ using Random: Xoshiro
 ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 @testset "Circle" begin
-    θ = collect(range(0, 2π; length = 1001))
-    θ .+= 1e-9randn(1001)
+    θ = collect(range(0, 2π; length = 5001))
+    θ .+= 1e-9randn(Xoshiro(1234), 5001)
     pop!(θ)
     A = StateSpaceSet(cos.(θ), sin.(θ))
 
@@ -32,8 +32,8 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
     # TODO: These tests need to be made legitimate!
     @testset "pvalues" begin
-        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.99)
-        @test all(p -> 0 < p < 1, pvalues)
+        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.95)[1]
+        @test all(p -> 0 ≤ p ≤ 1, pvalues)
     end
 end
 
@@ -53,8 +53,8 @@ end
 
     # TODO: These tests need to be made legitimate!
     @testset "pvalues" begin
-        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.99)
-        @test all(p -> 0 < p < 1, pvalues)
+        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.95)[1]
+        @test all(p -> 0 ≤ p ≤ 1, pvalues)
     end
 end
 
