@@ -157,6 +157,7 @@ extremevaltheory_dims_persistences
 extremevaltheory_local_dim_persistence
 extremal_index_sueveges
 estimate_gpd_parameters
+extremevaltheory_gpdfit_pvalues
 ```
 
 ## Theiler window
