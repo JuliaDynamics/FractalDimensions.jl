@@ -1,7 +1,7 @@
 name = "FractalDimensions"
 uuid = "4665ce21-e117-4649-aed8-08bbe5ccbead"
 authors = ["George Datseris <datseris.george@gmail.com>"]
-version = "1.5.1"
+version = "1.6.0"
 
 [deps]
 ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"
