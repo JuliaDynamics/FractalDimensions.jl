@@ -155,9 +155,14 @@ function extremevaltheory_local_gpd_fit(logdist, p, estimator)
     # We need to filter, because one entry will have infinite value,
     # because one entry has 0 Euclidean distance in the set.
     filter!(isfinite, PoTs)
-    exceedances = PoTs .- thresh
-    # TODO: Do we have to shift the exceedances by their minimum?
-    # exceedances .-= minimum(exceedances)
+    # We re-use to PoTs vector do define the exceedances (save memory allocations)
+    exceedances = (PoTs .-= thresh)
+    # We need to ensure that the minimum of the exceedences is zero,
+    # and sometimes it can be very close, but not exactly, zero
+    minE = minimum(exceedances)
+    if minE > 0
+        exceedances .-= minE
+    end
     # Extract the GPD parameters.
     σ, ξ = estimate_gpd_parameters(exceedances, estimator)
     return σ, ξ, exceedances, thresh
@@ -213,6 +218,14 @@ Quantify significance of the results of [`extremevaltheory_dims_persistences`](@
 quantifying how well a Generalized Pareto Distribution (GPD) describes exceedences
 in the input data.
 
+!!! warning "Something is wrong!"
+    While testing this functionality, we realized that something is wrong when
+    doing hypothesis tests of whether some data `X` come from a Generalized Pareto
+    Distribution. At the moment, the results of this function seem reliable or arbitrary.
+    To learn more, see:
+    - https://discourse.julialang.org/t/testing-whether-data-come-from-a-generalized-pareto-distribution/102008
+    - https://github.com/JuliaStats/HypothesisTests.jl/issues/305
+
 The output `pvalues` is a vector of p-values. `pvalues[i]` corresponds to the p-value
 of the hypothesis: _"The exceedences around point `X[i]` are sampled from a GPD"_ versus
 the alternative hypothesis that they are not.
@@ -228,7 +241,6 @@ To do this, a one-sample hypothesis test is done via HypothesisTests.jl.
   of the [one-sample non-parametric tests from HypothesisTests.jl](https://juliastats.org/HypothesisTests.jl/stable/nonparametric/#Nonparametric-tests)
   however typically it is either `OneSampleADTest` or `ApproximateOneSampleKSTest`.
 """
-
 function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
         estimator = :mm, show_progress = envprog(), TestType = OneSampleADTest
     )
@@ -247,8 +259,7 @@ function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
         σ, ξ, E = extremevaltheory_local_gpd_fit(logdist, p, estimator)
         sigmas[j] = σ
         xis[j] = ξ
-        # It nos not clear here whether we should use `0` or `minimum(E)`
-        # for the GPD
+        # Note that exceedances are defined with 0 as their minimum
         gpd = GeneralizedPareto(0, σ, ξ)
         test = TestType(E, gpd)
         pvalues[j] = pvalue(test)

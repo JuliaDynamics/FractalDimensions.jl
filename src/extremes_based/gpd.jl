@@ -28,14 +28,25 @@ function estimate_gpd_parameters(X, estimator)
         # Assuming that the distribution is exponential, the
         # average of the PoTs is the unbiased estimator, which is just the mean
         # of the exceedances.
-        return mean(X), zero(eltype(X))
+        σ = mean(X)
+        ξ = zero(eltype(X))
     elseif estimator == :mm
         x̄ = mean(X)
         s² = var(X; corrected = true, mean = x̄)
         ξ = (1/2)*((x̄^2/s²) - 1)
         σ = (x̄/2)*((x̄^2/s²) + 1)
-        return σ, ξ
+    elseif estimator == :pwm
+        a0 = mean(X)
+        n = length(X)
+        xsorted = sort(X)
+        a1 = sum(i -> xsorted[i]*(1 - (i - 0.35)/n), 1:n)/n
+        ξ = 2 - a0/(a0 - 2a1)
+        σ = 2*a0*a1/(a0 - 2a1)
+        if -σ/ξ < xsorted[end]
+            ξ = -σ/xsorted[end]
+        end
     else
-        error("Unknown estimator for Generalized Pareto distribution")
+        error("Unknown estimator for Generalized Pareto distribution fit.")
     end
+    return σ, ξ
 end
