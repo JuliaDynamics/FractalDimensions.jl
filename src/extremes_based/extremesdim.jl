@@ -110,7 +110,7 @@ function _loop_over_matrix!(Δloc, θloc, progress, X, p; kw...)
     logdistances = -log.(pairwise(Euclidean(), vec(X)))
     Threads.@threads for j in axes(logdistances, 2)
         logdist = view(logdistances, :, j)
-        D, θ = extremevaltheory_local_dim_persistence(logdist, p)
+        D, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
         Δloc[j] = D
         θloc[j] = θ
         ProgressMeter.next!(progress)
@@ -122,7 +122,7 @@ function _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
     Threads.@threads for j in eachindex(X)
         logdist = logdists[Threads.threadid()]
         @inbounds map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
-        D, θ = extremevaltheory_local_dim_persistence(logdist, p)
+        D, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
         Δloc[j] = D
         θloc[j] = θ
         ProgressMeter.next!(progress)

@@ -46,7 +46,7 @@ function estimate_gpd_parameters(X, estimator)
             ξ = -σ/xsorted[end]
         end
     else
-        error("Unknown estimator for Generalized Pareto distribution fit.")
+        throw(ArgumentError("Unknown estimator $(estimator) for Generalized Pareto distribution fit."))
     end
     return σ, ξ
 end
