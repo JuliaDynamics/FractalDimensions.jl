@@ -37,7 +37,7 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
     end
 
     @testset "wrong estimator" begin
-        @test_throws ArgumentError extremevaltheory_dims_persistences(A, 0.95;
+        @test_throws "Unknown" extremevaltheory_dims_persistences(A, 0.95;
             estimator = :wrong,
         )
     end
