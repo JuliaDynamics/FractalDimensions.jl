@@ -1,6 +1,7 @@
 # 1.6
 
 - new function `extremevaltheory_gpdfit_pvalues` that currently does not seem to yield correct results, but in principle can help quantify the "goodness" of the results of the EVT dimension
+- new probability weighted moments estimator for GPD fit to data used in the EVT fractal dimensions
 
 # 1.5
 - added an interface based on the `slopefit` function, that allows estimating the "linear scaling region" using an extendable API. The methods methods subtype `SlopeFit` and extend `_slopefit(x, y, t::SlopeFit, ci::Real)`.
