@@ -35,20 +35,30 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
         pvalues = extremevaltheory_gpdfit_pvalues(A, 0.95)[1]
         @test all(p -> 0 ≤ p ≤ 1, pvalues)
     end
+
+    @testset "wrong estimator" begin
+        @test_throws ArgumentError extremevaltheory_dims_persistences(A, 0.95;
+            estimator = :wrong,
+        )
+    end
 end
 
 @testset "Random 2D" begin
     A = StateSpaceSet(rand(Xoshiro(1234), 10_000, 2))
     sizesA = estimate_boxsizes(A; z = -2)
     qs = [0.98, 0.995]
+    estimators = [:mm, :pwm, :exp]
 
     @testset "q=$(q)" for q in qs
-        Δloc, θ = extremevaltheory_dims_persistences(A, q;
-            compute_persistence = false, show_progress = false,
-        )
-        avedim = mean(Δloc)
-        @test 1.9 < avedim < 2.1
-        @test any(>(2), Δloc)
+        @testset "est=$(estimator)" for est in estimators
+            Δloc, θ = extremevaltheory_dims_persistences(A, q;
+                compute_persistence = false, show_progress = false,
+                estimator = est
+            )
+            avedim = mean(Δloc)
+            @test 1.9 < avedim < 2.1
+            @test any(>(2), Δloc)
+        end
     end
 
     # TODO: These tests need to be made legitimate!
