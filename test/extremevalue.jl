@@ -30,12 +30,6 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
         @test 0.9 < D < 1.1
     end
 
-    # TODO: These tests need to be made legitimate!
-    @testset "pvalues" begin
-        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.95)[1]
-        @test all(p -> 0 ≤ p ≤ 1, pvalues)
-    end
-
     @testset "wrong estimator" begin
         @test_throws "Unknown" extremevaltheory_dims_persistences(A, 0.95;
             estimator = :wrong,
@@ -65,10 +59,11 @@ end
         end
     end
 
-    # TODO: These tests need to be made legitimate!
     @testset "pvalues" begin
-        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.95)[1]
+        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.99)[1]
         @test all(p -> 0 ≤ p ≤ 1, pvalues)
+        badcount = count(<(0.05), pvalues)/length(pvalues)
+        @test badcount < 0.1
     end
 end
 
