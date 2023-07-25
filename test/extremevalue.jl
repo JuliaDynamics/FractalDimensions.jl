@@ -63,7 +63,7 @@ end
         pvalues = extremevaltheory_gpdfit_pvalues(A, 0.99)[1]
         @test all(p -> 0 ≤ p ≤ 1, pvalues)
         badcount = count(<(0.05), pvalues)/length(pvalues)
-        @testay badcount < 0.1
+        @test badcount < 0.1
     end
 end
 
