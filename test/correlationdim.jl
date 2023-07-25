@@ -76,7 +76,7 @@ sizesH = estimate_boxsizes(H; z = -2)
     # is also close in time;
     @testset "theiler" begin
         θ = 0:0.01:2π
-        C = StateSpaceSet(cos.(θ), sin.(θ))
+        local C = StateSpaceSet(cos.(θ), sin.(θ))
         @testset "q = $q" for q in [2, 2.5, 4.5]
             @test correlationsum(C, 0.1; q, show_progress = false) >
                 correlationsum(C, 0.1; q, w = 50, show_progress = false)
