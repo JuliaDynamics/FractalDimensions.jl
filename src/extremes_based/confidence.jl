@@ -3,33 +3,15 @@ export extremevaltheory_gpdfit_pvalues
 # for confidence testing
 using HypothesisTests: OneSampleADTest, ApproximateOneSampleKSTest, pvalue
 using Distributions: GeneralizedPareto
+using ComplexityMeasures
 
 """
-    extremevaltheory_gpdfit_pvalues(X, p; kw...) → pvalues, sigmas, xis
+    extremevaltheory_gpdfit_pvalues(X, p; kw...)
 
-Quantify significance of the results of
-[`extremevaltheory_dims_persistences`](@ref)`(X, p; kw...)` by
-quantifying how well a Generalized Pareto Distribution (GPD) describes exceedences
-in the input data using the approach described in [^Faranda2017].
-
-Return the p-values of the statistical test, and the fitted `σ, ξ` values to each
-of the GPD fits of the exceedances for each point in `X`.
-
-## Description
-
-The output `pvalues` is a vector of p-values. `pvalues[i]` corresponds to the p-value
-of the hypothesis: _"The exceedences around point `X[i]` are sampled from a GPD"_ versus
-the alternative hypothesis that they are not. Very small p-values then indicate
-that the hypothesis should be rejected and the data are not well described by a GPD.
-This can be a good indication that we do not have enough data, or that we choose
-too high of a quantile probability `p`.
-
-Alternatively, if the majority of `pvalues` are sufficiently high, e.g., higher
-than 0.05, then we have some confidence that the probability `p` and/or amount of
-data follow well the theory of FD from EVT.
-
-To extract the p-values, we perform a one-sample hypothesis via HypothesisTests.jl
-to the fitted GPD.
+Return various computed quantities that may quantify the significance of the results of
+[`extremevaltheory_dims_persistences`](@ref)`(X, p; kw...)`, terms of quantifying
+how well a Generalized Pareto Distribution (GPD) describes exceedences
+in the input data.
 
 ## Keyword arguments
 
@@ -38,6 +20,47 @@ to the fitted GPD.
   of the [one-sample non-parametric tests from HypothesisTests.jl](https://juliastats.org/HypothesisTests.jl/stable/nonparametric/#Nonparametric-tests)
   however we noticed that `OneSampleADTest` sometimes yielded nonsensical results:
   all p-values were equal and were very small ≈ 1e-6.
+- `nbins = round(Int, length(X)*(1-p)/20)`: number of bins to use when computing
+  the histogram of the exceedances. The default value will use equally spaced
+  bins that are equal to the length of the exceedances divided by 20.
+
+## Description
+
+The function computes the exceedances ``E_i`` for each point ``x_i \\in X`` as in
+[`extremevaltheory_dims_persistences`](@ref).
+It returns 5 quantities, all being vectors of length `length(X)`:
+
+- `Es`, all exceedences, as a vector of vectors.
+- `sigmas, xis` the fitted σ, ξ to the GPD fits for each exceedance
+- `nrmses` the normalized root mean square distance of the fitted GPD
+  to the histogram of the exceedances
+- `pvalues` the pvalues of a statistical test of the appropriateness of the GPD fit
+
+The output `nrmses` quantifies the distance between the fitted GPD and the empirical
+histogram of the exceedances. It is computed as
+```math
+NRMSE = \\sqrt{\\frac{\\sum{(P_j - G_j^2)}{\\sum{(P_j - U^2)}}
+```
+where ``P_j`` the empirical (observed) probability at bin ``j``, ``G_j`` the fitted GPD
+probability at the midpoint of bin ``j``, and ``U`` same as ``G_j`` but for the uniform
+distribution. The divisor of the equation normalizes the expression, so that the error
+of the empirical distribution is normalized to the error of the empirical distribution
+with fitting it with the uniform distribution. It is expected that NRMSE < 1.
+The smaller it is, the better the data are approximated by GPD versus uniform distribution.
+
+The output `pvalues` is a vector of p-values. `pvalues[i]` corresponds to the p-value
+of the hypothesis: _"The exceedences around point `X[i]` are sampled from a GPD"_ versus
+the alternative hypothesis that they are not.
+To extract the p-values, we perform a one-sample hypothesis via HypothesisTests.jl
+to the fitted GPD.
+Very small p-values then indicate
+that the hypothesis should be rejected and the data are not well described by a GPD.
+This can be an indication that we do not have enough data, or that we choose
+too high of a quantile probability `p`, or that the data are not suitable in general.
+This p-value based method for significance has been used in [^Faranda2017],
+but it is unclear precisely how it was used.
+
+For more details on how these quantities may quantify significance, see our review paper.
 
 [^Faranda2017]:
     Faranda et al. (2017), Dynamical proxies of North Atlantic predictability and extremes,
@@ -72,7 +95,7 @@ function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
         nrmses[j] = gpd_nrmse(E, gpd, nbins)
         ProgressMeter.next!(progress)
     end
-    return pvalues, sigmas, xis
+    return Es, nrmses, pvalues, sigmas, xis
 end
 
 function gpd_nrmse(E, gpd, nbins)
@@ -80,14 +103,14 @@ function gpd_nrmse(E, gpd, nbins)
     bins = range(0, nextfloat(maximum(E), 2); length = nbins)
     binning = FixedRectangularBinning(bins)
     allprobs = allprobabilities(ValueHistogram(binning), E)
-
     width = step(bins)
+
     # We will calcuate the GPD pdf at the midpoint of each bin
     midpoints = bins .+ width/2
     rmse = zero(eltype(E))
     mmse = zero(eltype(E))
-    # value of uniform density
-    meandens = mean(allprobs)/width
+    # value of uniform density (equal probability at each bin)
+    meandens = (1/length(allprobs))/width
 
     for (j, prob) in enumerate(allprobs)
         dens = prob / width # density value, to compare with pdf
