@@ -34,11 +34,11 @@ function extremevaltheory_dims(X, p; kw...)
 end
 
 """
-    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p::Real; kwargs)
+    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p::Real; kwargs...)
 
 Return the local dimensions `Δloc` and the persistences `θloc` for each point in the
 given set for quantile probability `p`, according to the estimation done via extreme value
-theory [^Lucarini2016] [^Caby2018].
+theory [^Lucarini2016].
 The computation is parallelized to available threads (`Threads.nthreads()`).
 
 See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
@@ -60,28 +60,29 @@ See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on t
 ## Description
 
 For each state space point ``\\mathbf{x}_i`` in `X` we compute
-``g_j = -\\log(||\\mathbf{x}_i - \\mathbf{x}_j|| ) \\; \\forall j = 1, \\ldots, N`` with
+``g_i = -\\log(||\\mathbf{x}_i - \\mathbf{x}_j|| ) \\; \\forall j = 1, \\ldots, N`` with
 ``||\\cdot||`` the Euclidean distance. Next, we choose an extreme quantile probability
-``p`` (e.g., 0.99) for the distribution of ``g_j``. We compute ``g_p`` as the ``p``-th
-quantile of ``g_j``. Then, we collect the exceedances of ``g_j``, defined as
-``E = \\{ g_j - g_p: g_j \\ge g_p \\}``, i.e., all values of ``g_j`` larger or equal to
-``g_p``, also shifted by ``g_p``. There are in total ``n = N(1-q)`` values in ``E``.
-According to extreme value theory, in the limit ``N \\to \\infty`` the values ``E``
+``p`` (e.g., 0.99) for the distribution of ``g_i``. We compute ``g_p`` as the ``p``-th
+quantile of ``g_i``. Then, we collect the exceedances of ``g_i``, defined as
+``E_i = \\{ g_i - g_p: g_i \\ge g_p \\}``, i.e., all values of ``g_i`` larger or equal to
+``g_p``, also shifted by ``g_p``. There are in total ``n = N(1-q)`` values in ``E_i``.
+According to extreme value theory, in the limit ``N \\to \\infty`` the values ``E_i``
 follow a two-parameter Generalized Pareto Distribution (GPD) with parameters
 ``\\sigma,\\xi`` (the third parameter ``\\mu`` of the GPD is zero due to the
 positive-definite construction of ``E``). Within this extreme value theory approach,
 the local dimension ``\\Delta^{(E)}_i`` assigned to state space point ``\\textbf{x}_i``
 is given by the inverse of the ``\\sigma`` parameter of the
-GPD fit to the data[^Faranda2011], ``\\Delta^{(E)}_i = 1/\\sigma``.
+GPD fit to the data[^Lucarini2012], ``\\Delta^{(E)}_i = 1/\\sigma``.
 ``\\sigma`` is estimated according to the `estimator` keyword.
 
 [^Lucarini2016]:
     Lucarini et al., [Extremes and Recurrence in Dynamical Systems
     ](https://www.wiley.com/en-gb/Extremes+and+Recurrence+in+Dynamical+Systems-p-9781118632192)
 
-[^Caby2018]:
-    Caby et al., [Physica D 400 132143
-    ](https://doi.org/10.1016/j.physd.2019.06.009)
+[^Lucarini2012]:
+    Lucarini et al., Universal Behaviour of Extreme Value Statistics for Selected
+    Observables of Dynamical Systems, [Journal of Statistical Physics, 147(1), 63–73.](
+    https://doi.org/10.1007/s10955-012-0468-z) et al., [Physica D 400 132143
 """
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
         show_progress = envprog(), allocate_matrix = false, kw...
