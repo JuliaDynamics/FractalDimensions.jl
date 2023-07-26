@@ -33,6 +33,7 @@ include("corrsum_based/correlationsum_fixedmass.jl")
 include("corrsum_based/takens_best_estimate.jl")
 
 include("extremes_based/extremesdim.jl")
+include("extremes_based/confidence.jl")
 
 include("timeseries_roughness/higuchi.jl")
 
