@@ -59,11 +59,15 @@ end
         end
     end
 
-    @testset "pvalues" begin
-        pvalues = extremevaltheory_gpdfit_pvalues(A, 0.99)[1]
+    @testset "significance" begin
+        Es, nrmses, pvalues, sigmas, xis = extremevaltheory_gpdfit_pvalues(A, 0.99)
         @test all(p -> 0 ≤ p ≤ 1, pvalues)
         badcount = count(<(0.05), pvalues)/length(pvalues)
         @test badcount < 0.1
+        @test all(p -> 0 ≤ p ≤ 1, nrmses)
+        @test mean(nrmses) < 0.5
+        @test all(E -> all(≥(0), E), Es)
+        @test all(≥(0), sigmas)
     end
 end
 

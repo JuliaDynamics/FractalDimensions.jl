@@ -2,7 +2,7 @@ export extremevaltheory_gpdfit_pvalues
 
 # for confidence testing
 using HypothesisTests: OneSampleADTest, ApproximateOneSampleKSTest, pvalue
-using Distributions: GeneralizedPareto
+using Distributions: GeneralizedPareto, pdf
 using ComplexityMeasures
 
 """
@@ -21,7 +21,8 @@ in the input data.
   however we noticed that `OneSampleADTest` sometimes yielded nonsensical results:
   all p-values were equal and were very small ≈ 1e-6.
 - `nbins = round(Int, length(X)*(1-p)/20)`: number of bins to use when computing
-  the histogram of the exceedances. The default value will use equally spaced
+  the histogram of the exceedances for computing the NRMSE.
+  The default value will use equally spaced
   bins that are equal to the length of the exceedances divided by 20.
 
 ## Description
