@@ -1,4 +1,5 @@
 export extremevaltheory_gpdfit_pvalues
+export CramerVonMises
 
 # for confidence testing
 using HypothesisTests: OneSampleADTest, ApproximateOneSampleKSTest, pvalue
@@ -16,9 +17,9 @@ in the input data.
 ## Keyword arguments
 
 - `show_progress, estimator` as in [`extremevaltheory_dims_persistences`](@ref)
-- `TestType = ApproximateOneSampleKSTest`: the test type to use. It can be any
-  of the [one-sample non-parametric tests from HypothesisTests.jl](https://juliastats.org/HypothesisTests.jl/stable/nonparametric/#Nonparametric-tests)
-  however we noticed that `OneSampleADTest` sometimes yielded nonsensical results:
+- `TestType = ApproximateOneSampleKSTest`: the test type to use. It can be
+  `ApproximateOneSampleKSTest, ExactOneSampleKSTest, CramerVonMises`.
+  We noticed that `OneSampleADTest` sometimes yielded nonsensical results:
   all p-values were equal and were very small ≈ 1e-6.
 - `nbins = round(Int, length(X)*(1-p)/20)`: number of bins to use when computing
   the histogram of the exceedances for computing the NRMSE.
@@ -40,7 +41,7 @@ It returns 5 quantities, all being vectors of length `length(X)`:
 The output `nrmses` quantifies the distance between the fitted GPD and the empirical
 histogram of the exceedances. It is computed as
 ```math
-NRMSE = \\sqrt{\\frac{\\sum{(P_j - G_j^2)}{\\sum{(P_j - U^2)}}
+NRMSE = \\sqrt{\\frac{\\sum{(P_j - G_j)^2}{\\sum{(P_j - U)^2}}
 ```
 where ``P_j`` the empirical (observed) probability at bin ``j``, ``G_j`` the fitted GPD
 probability at the midpoint of bin ``j``, and ``U`` same as ``G_j`` but for the uniform
@@ -69,7 +70,7 @@ For more details on how these quantities may quantify significance, see our revi
 """
 function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
         estimator = :mm, show_progress = envprog(), TestType = ApproximateOneSampleKSTest,
-        nbins = round(Int, length(X)*(1-p)/20),
+        nbins = max(round(Int, length(X)*(1-p)/20), 10),
     )
     N = length(X)
     progress = ProgressMeter.Progress(
@@ -120,5 +121,42 @@ function gpd_nrmse(E, gpd, nbins)
         mmse += (dens - meandens)^2
     end
     nrmse = sqrt(rmse/mmse)
+    if isinf(nrmse)
+        error("inf nrmse. Allprobs; $(allprobs). E; $(E)")
+    end
     return nrmse
+end
+
+"""
+    CramerVonMises(X, dist)
+
+A crude implementation of the Cramer Von Mises test that yields a `p` value
+for the hypothesis that the data in `X` are sampled from the distribution `dist`.
+"""
+struct CramerVonMises{E, D}
+    e::E
+    d::D
+end
+
+import HypothesisTests
+using Distributions: cdf, Normal
+
+# I got this test from:
+# https://www.youtube.com/watch?v=pCz8WlKCJq8
+
+function HypothesisTests.pvalue(test::CramerVonMises)
+    X = test.e
+    gpd = test.d
+    n = length(X)
+    xs = sort!(X)
+
+    T = 1/(12n) + sum(i -> (cdf(gpd, xs[i]) - (2i - 1)/2n)^2, 1:n)
+
+    # An approximation of the T statistic is normally distributed
+    # with std of approximately sqrt(1/45)
+    # From there the z statistic
+    zstat = T/sqrt(1/45)
+
+    p = 2*(1 - cdf(Normal(0,1), zstat))
+    return p
 end
