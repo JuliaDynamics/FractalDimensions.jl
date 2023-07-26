@@ -44,7 +44,8 @@ to the fitted GPD.
     [Scientific Reports, 7](https://doi.org/10.1038/srep41278)
 """
 function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
-        estimator = :mm, show_progress = envprog(), TestType = ApproximateOneSampleKSTest
+        estimator = :mm, show_progress = envprog(), TestType = ApproximateOneSampleKSTest,
+        nbins = round(Int, length(X)*(1-p)/20),
     )
     N = length(X)
     progress = ProgressMeter.Progress(
@@ -54,6 +55,8 @@ function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
     pvalues = zeros(N)
     sigmas = zeros(N)
     xis = zeros(N)
+    nrmses = zeros(N)
+    Es = [Float64[] for _ in 1:N]
 
     Threads.@threads for j in eachindex(X)
         logdist = logdists[Threads.threadid()]
@@ -61,11 +64,37 @@ function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
         σ, ξ, E = extremevaltheory_local_gpd_fit(logdist, p, estimator)
         sigmas[j] = σ
         xis[j] = ξ
+        Es[j] = E
         # Note that exceedances are defined with 0 as their minimum
         gpd = GeneralizedPareto(0, σ, ξ)
         test = TestType(E, gpd)
         pvalues[j] = pvalue(test)
+        nrmses[j] = gpd_nrmse(E, gpd, nbins)
         ProgressMeter.next!(progress)
     end
     return pvalues, sigmas, xis
+end
+
+function gpd_nrmse(E, gpd, nbins)
+    # Compute histogram of E
+    bins = range(0, nextfloat(maximum(E), 2); length = nbins)
+    binning = FixedRectangularBinning(bins)
+    allprobs = allprobabilities(ValueHistogram(binning), E)
+
+    width = step(bins)
+    # We will calcuate the GPD pdf at the midpoint of each bin
+    midpoints = bins .+ width/2
+    rmse = zero(eltype(E))
+    mmse = zero(eltype(E))
+    # value of uniform density
+    meandens = mean(allprobs)/width
+
+    for (j, prob) in enumerate(allprobs)
+        dens = prob / width # density value, to compare with pdf
+        dens_gpd = pdf(gpd, midpoints[j])
+        rmse += (dens - dens_gpd)^2
+        mmse += (dens - meandens)^2
+    end
+    nrmse = sqrt(rmse/mmse)
+    return nrmse
 end
