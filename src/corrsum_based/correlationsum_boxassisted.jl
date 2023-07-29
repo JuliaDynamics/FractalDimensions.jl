@@ -85,7 +85,7 @@ function boxed_correlationsum(
         X, εs, r0 = maximum(εs); q = 2, P = 2, kwargs...
     )
     P ≤ size(X, 2)   || error("Prism dimension has to be ≤ than `X` dimension.")
-    r0 ≥ maximum(εs) || error("Box size `r0` has to be ≥ than `maximum(εs)`.")
+    r0 > maximum(εs) || error("Box size `r0` has to be > than `maximum(εs)`.")
     issorted(εs)     || error("Sorted `εs` required for optimized version.")
     boxes, contents = data_boxing(X, r0, P)
     Cs = if q == 2
