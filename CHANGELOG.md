@@ -1,3 +1,10 @@
+# 1.7
+
+- Update `extremevaltheory_gpdfit_pvalues` to calculate further the NRMSE of the GPD fits.
+- Set default estimator to `:exp` for EVT.
+- Bugfixes in `extremevaltheory_gpdfit_pvalues`
+- Add Cramer Von Mises estimator for `extremevaltheory_gpdfit_pvalues`
+
 # 1.6
 
 - new function `extremevaltheory_gpdfit_pvalues` that can help quantify the "goodness" of the results of the EVT dimension
