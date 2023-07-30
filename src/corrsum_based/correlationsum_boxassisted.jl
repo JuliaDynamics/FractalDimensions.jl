@@ -282,7 +282,7 @@ function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), 
         ProgressMeter.next!(progress)
     end
     C = .+(Css...,)
-    return clamp.((C ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
+    return clamp.(C, 0, Inf) .^ (1 / (q-1))
 end
 
 function find_neighborboxes_q(index, boxes, contents)
@@ -303,9 +303,8 @@ function inner_correlationsum_q!(
     )
     N, Nε = length(data), length(εs)
     for i in idxs_box
-        # Check that this index is not within Theiler window of the boundary
-        # This step is neccessary for easy normalisation.
-        (i < w + 1 || i > N - w) && continue
+        # The normalisation is index dependent since the number of total points considered varies.
+        normalisation = (N * (max(N - w, i) - min(w + 1, i))^(q - 1))
         C_current .= 0
         x = data[i]
         for j in idxs_neigh
@@ -321,7 +320,7 @@ function inner_correlationsum_q!(
 		        end
 		    end
         end
-        Cs .+= C_current .^ (q-1)
+        Cs .+= C_current .^ (q-1) ./ normalisation
     end
     return Cs
 end
