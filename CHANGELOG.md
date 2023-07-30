@@ -1,3 +1,6 @@
+# 1.7.1
+- Change the indices of the outer sum of the correlationsum to i = 1 to N and adapt normalisations.
+
 # 1.7
 
 - Update `extremevaltheory_gpdfit_pvalues` to calculate further the NRMSE of the GPD fits.
