@@ -65,12 +65,12 @@ B(||X_i - X_j|| < \\epsilon)
 ```
 for as follows for `q≠2`
 ```math
-C_q(\\epsilon) = \\left[\\frac{1}{\\alpha} \\sum_{i=w+1}^{N-w}
+C_q(\\epsilon) = \\left[ \\sum_{i=1}^{N} \\alpha_i
 \\left[\\sum_{j:|i-j| > w} B(||X_i - X_j|| < \\epsilon)\\right]^{q-1}\\right]^{1/(q-1)}
 ```
 where
 ```math
-\\alpha = (N-2w)(N-2w-1)^{(q-1)}
+\\alpha_i = 1 / (N (\\max(N-w, i) - \\min(w + 1, i))^{(q-1)})
 ```
 with ``N`` the length of `X` and ``B`` gives 1 if its argument is
 `true`. `w` is the [Theiler window](@ref).
@@ -79,7 +79,8 @@ See the article of Grassberger for the general definition [^Grassberger2007] and
 the book "Nonlinear Time Series Analysis" [^Kantz2003], Ch. 6, for
 a discussion around choosing best values for `w`, and Ch. 11.3 for the
 explicit definition of the q-order correlationsum. Note that the formula in 11.3
-is incorrect, but corrected here, and also note that we immediatelly exponentiate
+is incorrect, but corrected here, indices are adapted to take advantage of all available 
+points and also note that we immediatelly exponentiate
 ``C_q`` to ``1/(q-1)``, so that it scales exponentially as
 ``C_q \\propto \\varepsilon ^\\Delta_q`` versus the size ``\\varepsilon``.
 
@@ -127,14 +128,15 @@ end
 
 function correlationsum_q(X, εs::AbstractVector{<:Real}, q, norm, w, show_progress)
     N, C = length(X), zero(eltype(X))
-    irange = 1+w:N-w
-    progress = ProgressMeter.Progress(length(irange);
+    irange = 1:N
+    progress = ProgressMeter.Progress(N;
         desc = "Correlation sum: ", enabled = show_progress
     )
     Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
     Css_dum = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
     @inbounds Threads.@threads for i in irange
         x = X[i]
+        normalisation = (max(N-w, i) - min(w+1, i))
         Cs = Css[Threads.threadid()]
         Cs_dum = Css_dum[Threads.threadid()]
         Cs_dum .= zero(eltype(X))
@@ -150,12 +152,12 @@ function correlationsum_q(X, εs::AbstractVector{<:Real}, q, norm, w, show_progr
             lastidx = searchsortedfirst(εs, dist)
             Cs_dum[lastidx:end] .+= 1
         end
-        @. Cs += Cs_dum^(q-1)
+        @. Cs += (Cs_dum / normalisation)^(q-1)
         ProgressMeter.next!(progress)
     end
-    normalisation = (N-2w)*(N-2w-1)^(q-1)
+
     C = sum(Css)
-    return @. (C / normalisation) ^ (1 / (q-1))
+    return @. (C / N) ^ (1 / (q-1))
 end
 
 #######################################################################################
