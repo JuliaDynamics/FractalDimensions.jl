@@ -14,7 +14,7 @@ to estimate the correlation dimension `Δ_C` of `X`.
 This function does something extremely simple:
 ```julia
 εs, Cs = boxed_correlationsum(X; kwargs...)
-return linear_region(log2.(Cs), log2.(εs))[2]
+slopefit(log2.(εs), log2.(Cs))[1]
 ```
 
 and hence see [`boxed_correlationsum`](@ref) for more information and available keywords.
@@ -26,7 +26,7 @@ and hence see [`boxed_correlationsum`](@ref) for more information and available 
 """
 function boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
     εs, Cs = boxed_correlationsum(X; kwargs...)
-    return linear_region(log2.(εs), log2.(Cs))[2]
+    return slopefit(log2.(εs), log2.(Cs))[1]
 end
 
 """
@@ -85,8 +85,12 @@ function boxed_correlationsum(
         X, εs, r0 = maximum(εs); q = 2, P = 2, kwargs...
     )
     P ≤ size(X, 2)   || error("Prism dimension has to be ≤ than `X` dimension.")
-    r0 ≥ maximum(εs) || error("Box size `r0` has to be ≥ than `maximum(εs)`.")
     issorted(εs)     || error("Sorted `εs` required for optimized version.")
+    if r0 < maximum(εs)
+        @warn("Box size `r0` has to be ≥ than `maximum(εs)`.")
+        r0 = maximum(εs)
+    end
+
     boxes, contents = data_boxing(X, r0, P)
     Cs = if q == 2
         boxed_correlationsum_2(boxes, contents, X, εs; kwargs...)
@@ -176,7 +180,7 @@ For a vector of `boxes` and the indices of their `contents` inside of `X`,
 calculate the classic correlationsum of a radius or multiple radii `εs`.
 `w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
 """
-function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w = 0, show_progress = false)
+function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w = 0, show_progress = envprog())
     Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     N = length(X)
     M = length(boxes)
@@ -259,7 +263,7 @@ end
 ################################################################################
 # As the code is very similar to the one above, no docstirngs here.
 
-function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), w = 0, show_progress = false)
+function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), w = 0, show_progress = envprog())
     q ≤ 1 && @warn "This function is currently not specialized for q ≤ 1" *
     " and may show unexpected behaviour for these values."
     Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
@@ -278,7 +282,7 @@ function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), 
         ProgressMeter.next!(progress)
     end
     C = .+(Css...,)
-    return clamp.((C ./ ((N - 2w) * (N - 2w - 1) ^ (q-1))), 0, Inf) .^ (1 / (q-1))
+    return clamp.(C, 0, Inf) .^ (1 / (q-1))
 end
 
 function find_neighborboxes_q(index, boxes, contents)
@@ -299,9 +303,8 @@ function inner_correlationsum_q!(
     )
     N, Nε = length(data), length(εs)
     for i in idxs_box
-        # Check that this index is not within Theiler window of the boundary
-        # This step is neccessary for easy normalisation.
-        (i < w + 1 || i > N - w) && continue
+        # The normalisation is index dependent since the number of total points considered varies.
+        normalisation = (N * (max(N - w, i) - min(w + 1, i))^(q - 1))
         C_current .= 0
         x = data[i]
         for j in idxs_neigh
@@ -317,7 +320,7 @@ function inner_correlationsum_q!(
 		        end
 		    end
         end
-        Cs .+= C_current .^ (q-1)
+        Cs .+= C_current .^ (q-1) ./ normalisation
     end
     return Cs
 end

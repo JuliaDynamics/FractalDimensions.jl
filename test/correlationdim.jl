@@ -4,6 +4,7 @@ using Random: Xoshiro
 using DynamicalSystemsBase
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
+ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 # Random with Δ ≈ 2
 A = StateSpaceSet(rand(Xoshiro(1234), 10_000, 2))
@@ -25,20 +26,22 @@ sizesH = estimate_boxsizes(H; z = -2)
 @testset "correlation sums analytic" begin
     X = StateSpaceSet([SVector(0.0, 0.0), SVector(0.5, 0.5)])
     εs = [0.1, 1.0]
-    Cs = correlationsum(X, εs)
-    Csb = boxed_correlationsum(X, εs, 1.0)
-    Csb2 = boxed_correlationsum(X, εs, 1.5)
-    @test Cs == Csb == Csb2 == [0, 1]
+    @testset "two-point q=$(q)" for q in [2, 3]
+        Cs = correlationsum(X, εs; q, show_progress = false)
+        Csb = boxed_correlationsum(X, εs, 1.0; q, show_progress = false)
+        Csb2 = boxed_correlationsum(X, εs, 1.5; q, show_progress = false)
+        @test Cs == Csb == Csb2 == [0, 1]
+    end
     # If max radious, all points are in
     # q shouldn't matter here; we're just checking the correlation sum formula
     X = SVector{2, Float64}.(vec(collect(Iterators.product(0:0.05:0.99, 0:0.05:0.99))))
     X = StateSpaceSet(X)
     @testset "norm, q = $q" for q in [2, 2.5, 4.5]
         @testset "vanilla" begin
-            @test correlationsum(X, 5; q) ≈ 1
+            @test correlationsum(X, [5]; q, show_progress = false)[1] ≈ 1
         end
         @testset "boxed" begin
-            @test boxed_correlationsum(X, 5; q) ≈ 1
+            @test boxed_correlationsum(X, [5]; q, show_progress = false)[1] ≈ 1
         end
     end
     # Okay, now let's use the `C` set where we can analytically compute correlation sums
@@ -50,8 +53,8 @@ sizesH = estimate_boxsizes(H; z = -2)
         N = length(C)
         normal2 = (N * (N - 1))
         normal3 = N*(N-1)^2
-        vanilla(C, r, q, w=0) = correlationsum(C, r; q, w)
-        boxed(C, r, q, w=0) = boxed_correlationsum(C, r; q, w)
+        vanilla(C, r, q, w=0) = correlationsum(C, r; q, w, show_progress = false)
+        boxed(C, r, q, w=0) = boxed_correlationsum(C, r; q, w, show_progress = false)
         @testset "version: $(f)" for f in (vanilla,  boxed)
             for (r, total2, total3) in zip((0.07, 0.13), (2N, 4N), (4N, 16N))
                 @test f(C, r, 2) ≈ total2 / normal2
@@ -63,8 +66,8 @@ sizesH = estimate_boxsizes(H; z = -2)
         # and unboxed version of the corrsums
         @testset "irrelevance from r0" begin
             for r0 in [0.2, 4.0, 5.0]
-                @test boxed_correlationsum(C, 0.07, r0) ≈ 2N / normal2
-                @test boxed_correlationsum(C, 0.13, r0) ≈ 4N / normal2
+                @test boxed_correlationsum(C, 0.07, r0; show_progress = false) ≈ 2N / normal2
+                @test boxed_correlationsum(C, 0.13, r0; show_progress = false) ≈ 4N / normal2
             end
         end
     end
@@ -73,16 +76,18 @@ sizesH = estimate_boxsizes(H; z = -2)
     # is also close in time;
     @testset "theiler" begin
         θ = 0:0.01:2π
-        C = StateSpaceSet(cos.(θ), sin.(θ))
+        local C = StateSpaceSet(cos.(θ), sin.(θ))
         @testset "q = $q" for q in [2, 2.5, 4.5]
-            @test correlationsum(C, 0.1; q) > correlationsum(C, 0.1; q, w = 50)
-            @test boxed_correlationsum(C, 0.1; q) > boxed_correlationsum(C, 0.1; q, w = 50)
+            @test correlationsum(C, 0.1; q, show_progress = false) >
+                correlationsum(C, 0.1; q, w = 50, show_progress = false)
+            @test boxed_correlationsum(C, 0.1; q, show_progress = false) >
+                boxed_correlationsum(C, 0.1; q, w = 50, show_progress = false)
         end
     end
     # Lastly, ensure things make sense also in high dimensional spaces
     F = StateSpaceSet(rand(Xoshiro(1234), SVector{4, Float64}, 10_000))
     @testset "4D, prism=$(P)" for P in [2, 4]
-        @test boxed_correlationsum(F, 5.1; P) ≈ 1
+        @test boxed_correlationsum(F, 5.1; P, show_progress = false) ≈ 1
     end
 
     @testset "Bueno-orovio r0" begin
@@ -134,9 +139,9 @@ end
     reg, tan = linear_region(rs[40:end], ys[40:end])
     test_value(tan, 1.9, 2.0)
     dB = fixedmass_correlation_dim(B)
-    test_value(dB, 0.9, 1.0)
+    test_value(dB, 0.8, 1.0)
     dH = fixedmass_correlation_dim(H)
-    test_value(dH, 1.11, 1.31)
+    test_value(dH, 1.01, 1.31)
 end
 
 @testset "Takens best est" begin
@@ -153,4 +158,16 @@ end
 
     D_C = takens_best_estimate_dim(H, 0.05)
     test_value(D_C, 1.2, 1.26)
+end
+
+@testset "pointwise dimension" begin
+
+    Dlocs = pointwise_dimensions(A, sizesA; show_progress = false)
+    Csums = pointwise_correlationsums(A, sizesA; show_progress = false)
+
+    filter!(!iszero, Dlocs)
+
+    @test all(d -> 0 < d < 4, Dlocs)
+    @test all(c -> c[end] > 0, Csums)
+
 end

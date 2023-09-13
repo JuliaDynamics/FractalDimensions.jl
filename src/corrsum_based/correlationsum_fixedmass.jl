@@ -13,12 +13,12 @@ the result to compute the correlation dimension `Δ_M` of `X`.
 This function does something extremely simple:
 ```julia
 rs, ys = fixedmass_correlationsum(X, args...; kwargs...)
-linear_region(rs, ys)[2]
+slopefit(rs, ys)[1]
 ```
 """
 function fixedmass_correlation_dim(X, args...; kwargs...)
     rs, ys = fixedmass_correlationsum(X, args...; kwargs...)
-    return linear_region(rs, ys)[2]
+    return slopefit(rs, ys)[1]
 end
 
 """
@@ -29,14 +29,14 @@ and subsequently a fractal dimension ``\\Delta``,
 with `max_j` the maximum number of neighbours that
 should be considered for the calculation.
 
-By default `max_j = clamp(N*(N-1)/2, 3, 64)` with `N` the data length.
+By default `max_j = clamp(N*(N-1)/2, 5, 32)` with `N` the data length.
 
 ## Keyword arguments
 
 - `M` defines the number of points considered for the averaging of distances,
   randomly subsampling them from `X`.
 - `metric = Euclidean()` is the distance metric.
-- `start_j = 4` computes the equation below starting from `j = 1 + skip_j`. Typically
+- `start_j = 4` computes the equation below starting from `j = start_j`. Typically
   the first `j` values have not converged to the correct scaling of the fractal dimension.
 
 ## Description
@@ -84,4 +84,4 @@ function fixedmass_correlationsum(X, max_j = _max_j_from_data(X);
     return rs .* change ./ M, ys .* change
 end
 
-_max_j_from_data(X) = (N = length(X); clamp(round(Int, sqrt(N*(N-1)/2)), 4, 64))
+_max_j_from_data(X) = (N = length(X); clamp(round(Int, sqrt(N*(N-1)/2)), 5, 32))

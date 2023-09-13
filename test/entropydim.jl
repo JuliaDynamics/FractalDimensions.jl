@@ -2,6 +2,7 @@ using FractalDimensions
 using Test
 using Random: Xoshiro
 using DynamicalSystemsBase
+ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
 
@@ -49,9 +50,9 @@ end
         dX = generalized_dim(X, sizesX; q = 0.0)
         dX1 = generalized_dim(X, sizesX; q = 2.0)
         dX3 = generalized_dim(X, sizesX; q = 4.0)
-        test_value(dX, 1.22, 1.26)
+        @test 1.23 < dX < 1.27
         @test dX > dX1 > dX3
-        test_value(dX1, 1.1, 1.2)
+        @test 1.1 < dX1 < 1.2
     end
 
     @testset "molteno_dim" begin
