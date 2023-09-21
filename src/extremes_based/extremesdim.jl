@@ -7,6 +7,7 @@ using Distances: euclidean
 using Statistics: mean, quantile, var
 import ProgressMeter
 include("gpd.jl")
+include("gev.jl")
 
 """
     extremevaltheory_dim(X::StateSpaceSet, p::Real; kwargs...) → Δ
@@ -206,3 +207,44 @@ function extremevaltheory_local_dim_persistence(
     Δ, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
     return Δ, θ
 end
+
+
+
+"""
+BMextremedimensions(x:: StateSpaceSet) -> D1, θ
+    Computation of the local dimensions D1 and the extremal index θ for each observation in the 
+    trajectory x. This function uses the block maxima approach: divides the data in blocks of 
+    length ⌊√(N-1)⌋, where N is the number of data and ⌊⋅⌋ is the floor function, and takes the maximum
+    of those bloks.
+    Note that this implies that the initial 2⌊√(N-1)⌋{√(N-1)} + {√(N-1)}^2 - 1 data are not used. 
+    To reduce the number of unused data chose the number of data close to a perfect square + 1. 
+    The extremal index can be interpreted as the inverse of the persistance of the extremes around
+    that point.
+    
+"""
+function BMextremedimensions(x:: StateSpaceSet)
+
+    println("Computing dynamical quantities")
+
+    N = length(x[:,1])
+    quanti = 1 - 1/sqrt(N) # Heuristic, probably not optimal 
+    blocksize = Int64(floor(sqrt(N - 1))) 
+    newN = blocksize^2 + 1
+    firstindex = N - newN + 1
+    D1 = zeros(newN);
+    θ = zeros(newN);
+    for (j, k) in enumerate(range(firstindex,N))
+        # Compute the observables
+        logdista = -log.([euclidean(x[k,:],x[i,:]) for i in range(firstindex,N)])
+        # Compute the extremal index, use the external function extremal_Sueveges
+        θ[j] = extremal_index_sueveges(logdista, quanti)
+        # Remove the inf data
+        deleteat!(logdista, j)
+        # Extract the maximum of each block
+        maxvector = maximum(reshape(logdista,(blocksize,blocksize)),dims= 1)
+        σ = estimate_gev_scale(maxvector)
+        D1[j] = 1 / σ
+    end
+    return [D1, θ]
+end
+export BMextremedimensions
