@@ -211,8 +211,8 @@ end
 
 
 """
-    BMextremedimensions(x:: StateSpaceSet) -> D1, θ
-    
+    BMextremedimensions(x::StateSpaceSet) -> D1, θ
+
 Computation of the local dimensions D1 and the extremal index θ for each observation in the 
 trajectory x. This function uses the block maxima approach: divides the data in blocks of 
 length ⌊√(N-1)⌋, where N is the number of data and ⌊⋅⌋ is the floor function, and takes the maximum
