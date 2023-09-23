@@ -226,7 +226,7 @@ function BMextremedimensions(x::StateSpaceSet)
 
     println("Computing dynamical quantities")
 
-    N = length(x[:,1])
+    N = length(x)
     quanti = 1 - 1/sqrt(N) # Heuristic, probably not optimal 
     blocksize = Int64(floor(sqrt(N - 1))) 
     newN = blocksize^2 + 1
