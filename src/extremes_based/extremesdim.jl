@@ -228,7 +228,7 @@ function BMextremedimensions(x::StateSpaceSet)
 
     N = length(x)
     quanti = 1 - 1/sqrt(N) # Heuristic, probably not optimal 
-    blocksize = Int64(floor(sqrt(N - 1))) 
+    blocksize = floor(Int, sqrt(N - 1))
     newN = blocksize^2 + 1
     firstindex = N - newN + 1
     D1 = zeros(newN);
