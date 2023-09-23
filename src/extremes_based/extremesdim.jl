@@ -226,8 +226,8 @@ perfect square + 1.
 """
 function BMextremedimensions(x:: StateSpaceSet)
 
-    N = length(x[:,1])
-    quanti = 1 - 1/sqrt(N) # Heuristic, probably not optimal 
+    N = length(x)
+    quantile = 1 - 1/sqrt(N) # Heuristic, probably not optimal 
     blocksize = Int64(floor(sqrt(N - 1))) 
     newN = blocksize^2 + 1
     firstindex = N - newN + 1
@@ -237,7 +237,7 @@ function BMextremedimensions(x:: StateSpaceSet)
         # Compute the observables
         logdista = -log.([euclidean(x[k,:],x[i,:]) for i in range(firstindex,N)])
         # Compute the extremal index, use the external function extremal_Sueveges
-        θ[j] = extremal_index_sueveges(logdista, quanti)
+        θ[j] = extremal_index_sueveges(logdista, quantile)
         # Remove the inf data
         deleteat!(logdista, j)
         # Extract the maximum of each block
