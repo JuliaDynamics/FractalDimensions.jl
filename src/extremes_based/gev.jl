@@ -11,7 +11,6 @@ The estimators through the method of moments are given by
     μ = ̄x - σ(log(θ) + γ)
 where γ is the constant of Euler-Mascheroni.
 """
-
 function estimate_gev_parameters(X, θ)
         γ = 0.57721 # Euler-Mascheroni constant
         moment1 = mean(X)
