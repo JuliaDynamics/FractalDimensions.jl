@@ -222,7 +222,7 @@ BMextremedimensions(x:: StateSpaceSet) -> D1, θ
     that point.
     
 """
-function BMextremedimensions(x:: StateSpaceSet)
+function BMextremedimensions(x::StateSpaceSet)
 
     println("Computing dynamical quantities")
 
