@@ -211,18 +211,17 @@ end
 
 
 """
-    BMextremedimensions(x::StateSpaceSet) -> Δ, θ
+    BMextremedimensions(x::StateSpaceSet,blocksize::Int) -> Δ, θ
 
-Computation of the local dimensions Δ and the extremal index θ for each observation in the 
-trajectory x. This function uses the block maxima approach: divides the data in blocks of 
-length floor(√(N-1)), where N is the number of data points, and takes the maximum value
-of those bloks. Then fits a Generalized Extreme Value distribution to the data to obtain 
-an estimation of the local dimensions through the scale parameter of the distribution.
-Note that because of the block construction some of the initial data is not used. 
-The extremal index can be interpreted as the inverse of the persistance of the extremes around
-that point.
-To reduce the number of unused data chose the number of data slightly greater of equal to a 
-perfect square + 1.    
+    This function computates the local dimensions Δ and the extremal index θ for each observation in the 
+        trajectory x. It uses the block maxima approach: divides the data in N/blocksize blocks of length blocksize, 
+        where N is the number of data, and takes the maximum of those bloks as samples of the maxima of the process.
+        In order for this method to work correctly, both the blocksize and the number of blocks must be high.
+        Note that there are data points that are not used by the algorithm. Since it is not always possible to 
+        express the number of input data poins as N = blocksize * nblocks + 1. To reduce the number of unused
+        data, chose an N equal or superior to blocksize * nblocks + 1. 
+        The extremal index can be interpreted as the inverse of the persistance of the extremes around
+        that point.
 """
 function BMextremedimensions(x::StateSpaceSet, blocksize::Int)
 
