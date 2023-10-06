@@ -34,7 +34,7 @@ local dimension and the location parameter are not necesary to estimate the dime
 function estimate_gev_scale(X)
     moment1 = mean(X)
     moment2 = mean(x -> x^2, x)
-    σ = √((moment2-moment1^2)/(π^2/6))
+    σ = √(abs(moment2-moment1^2)/(π^2/6))
     return σ
 end
 export estimate_gev_scale
