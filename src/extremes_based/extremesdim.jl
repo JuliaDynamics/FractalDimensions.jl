@@ -224,15 +224,18 @@ that point.
 To reduce the number of unused data chose the number of data slightly greater of equal to a 
 perfect square + 1.    
 """
-function BMextremedimensions(x:: StateSpaceSet)
+function BMextremedimensions(x:: StateSpaceSet; show_progress = envprog())
 
     N = length(x)
     p = 1 - 1/sqrt(N) # Heuristic, probably not optimal 
-    blocksize = Int64(floor(sqrt(N - 1))) 
+    blocksize = floor(Int, sqrt(N - 1))
     newN = blocksize^2 + 1
     firstindex = N - newN + 1
-    Δ = zeros(newN);
-    θ = zeros(newN);
+    Δ = zeros(newN)
+    θ = zeros(newN)
+    progress = ProgressMeter.Progress(
+        N - firstindex; desc = "Extreme value theory dim: ", enabled = show_progress
+    )
     for (j, k) in enumerate(range(firstindex,N))
         # Compute the observables
         logdista = -log.([euclidean(x[k,:],x[i,:]) for i in range(firstindex,N)])
