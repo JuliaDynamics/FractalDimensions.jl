@@ -9,6 +9,13 @@ import ProgressMeter
 include("gpd.jl")
 include("gev.jl")
 
+
+struct BlockMaximaMM
+    blocksize::Int
+    p::Real
+ end
+
+
 """
     extremevaltheory_dim(X::StateSpaceSet, p::Real; kwargs...) → Δ
 
@@ -223,10 +230,11 @@ end
         The extremal index can be interpreted as the inverse of the persistance of the extremes around
         that point.
 """
-function BMextremedimensions(x::StateSpaceSet, blocksize::Int)
+function extremevaltheory_dims_persistences(x::StateSpaceSet, estimator::BlockMaximaMM)
 
     N = length(x)
-    p = 1 - 1/sqrt(N) # Heuristic, probably not optimal
+    p = estimator.p
+    blocksize = estimator.blocksize
     nblocks = floor(Int, N/blocksize)
     newN = blocksize*nblocks + 1
     firstindex = N - newN + 1
@@ -245,7 +253,6 @@ function BMextremedimensions(x::StateSpaceSet, blocksize::Int)
         deleteat!(logdista, j)
         duplicatepoint = !isempty(findall(x -> x == Inf, logdista))
         if duplicatepoint
-            #error("Duplicated data point on the input")
             breaking = true
             break
         end
@@ -256,7 +263,7 @@ function BMextremedimensions(x::StateSpaceSet, blocksize::Int)
         next!(progress)
     end
     if breaking
-        return "Duplicated data point on the input"
+        error("Duplicated data point on the input")
     end
     return Δ, θ
 end
