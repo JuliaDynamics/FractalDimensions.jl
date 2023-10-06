@@ -224,7 +224,7 @@ that point.
 To reduce the number of unused data chose the number of data slightly greater of equal to a 
 perfect square + 1.    
 """
-function BMextremedimensions(x:: StateSpaceSet; show_progress = envprog())
+function BMextremedimensions(x:: StateSpaceSet)
 
     N = length(x)
     p = 1 - 1/sqrt(N) # Heuristic, probably not optimal 
@@ -247,6 +247,7 @@ function BMextremedimensions(x:: StateSpaceSet; show_progress = envprog())
         maxvector = maximum(reshape(logdista,(blocksize,blocksize)),dims= 1)
         σ = estimate_gev_scale(maxvector)
         Δ[j] = 1 / σ
+        next!(progress)
     end
     return Δ, θ
 end
