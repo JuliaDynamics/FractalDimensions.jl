@@ -224,18 +224,19 @@ that point.
 To reduce the number of unused data chose the number of data slightly greater of equal to a 
 perfect square + 1.    
 """
-function BMextremedimensions(x:: StateSpaceSet)
+function BMextremedimensions(x::StateSpaceSet, blocksize::Int)
 
     N = length(x)
-    p = 1 - 1/sqrt(N) # Heuristic, probably not optimal 
-    blocksize = floor(Int, sqrt(N - 1))
-    newN = blocksize^2 + 1
+    p = 1 - 1/sqrt(N) # Heuristic, probably not optimal
+    nblocks = floor(Int, N/blocksize)
+    newN = blocksize*nblocks + 1
     firstindex = N - newN + 1
     Δ = zeros(newN)
     θ = zeros(newN)
     progress = ProgressMeter.Progress(
-        N - firstindex; desc = "Extreme value theory dim: ", enabled = show_progress
+        N - firstindex; desc = "Extreme value theory dim: ", enabled = true
     )
+    breaking = false
     for (j, k) in enumerate(range(firstindex,N))
         # Compute the observables
         logdista = -log.([euclidean(x[k,:],x[i,:]) for i in range(firstindex,N)])
@@ -243,11 +244,20 @@ function BMextremedimensions(x:: StateSpaceSet)
         θ[j] = extremal_index_sueveges(logdista, p)
         # Remove the inf data
         deleteat!(logdista, j)
+        duplicatepoint = !isempty(findall(x -> x == Inf, logdista))
+        if duplicatepoint
+            #error("Duplicated data point on the input")
+            breaking = true
+            break
+        end
         # Extract the maximum of each block
-        maxvector = maximum(reshape(logdista,(blocksize,blocksize)),dims= 1)
+        maxvector = maximum(reshape(logdista,(blocksize,nblocks)),dims= 1)
         σ = estimate_gev_scale(maxvector)
         Δ[j] = 1 / σ
         next!(progress)
+    end
+    if breaking
+        return "Duplicated data point on the input"
     end
     return Δ, θ
 end
