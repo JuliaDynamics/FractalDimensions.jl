@@ -10,9 +10,14 @@ include("gpd.jl")
 include("gev.jl")
 
 
-struct BlockMaximaMM
+struct BlockMaxima
     blocksize::Int
     p::Real
+ end
+
+ struct ExceedancesMM
+    p::Real
+    string::Symbol
  end
 
 
@@ -92,9 +97,10 @@ GPD fit to the data[^Lucarini2012], ``\\Delta^{(E)}_i = 1/\\sigma``.
     Observables of Dynamical Systems, [Journal of Statistical Physics, 147(1), 63–73.](
     https://doi.org/10.1007/s10955-012-0468-z) et al., [Physica D 400 132143
 """
-function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
-        show_progress = envprog(), allocate_matrix = false, kw...
-    )
+
+function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
+    show_progress = envprog(), kw...
+)
     # The algorithm in the end of the day loops over points in `X`
     # and applies the local algorithm.
     # However, we write two different loop functions; one can
@@ -107,26 +113,6 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
     progress = ProgressMeter.Progress(
         N; desc = "Extreme value theory dim: ", enabled = show_progress
     )
-    if allocate_matrix
-        _loop_over_matrix!(Δloc, θloc, progress, X, p; kw...)
-    else
-        _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
-    end
-    return Δloc, θloc
-end
-
-function _loop_over_matrix!(Δloc, θloc, progress, X, p; kw...)
-    logdistances = -log.(pairwise(Euclidean(), vec(X)))
-    Threads.@threads for j in axes(logdistances, 2)
-        logdist = view(logdistances, :, j)
-        D, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
-        Δloc[j] = D
-        θloc[j] = θ
-        ProgressMeter.next!(progress)
-    end
-end
-
-function _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
     logdists = [copy(Δloc) for _ in 1:Threads.nthreads()]
     Threads.@threads for j in eachindex(X)
         logdist = logdists[Threads.threadid()]
@@ -136,7 +122,25 @@ function _loop_and_compute_logdist!(Δloc, θloc, progress, X, p; kw...)
         θloc[j] = θ
         ProgressMeter.next!(progress)
     end
+    return Δloc, θloc
 end
+
+
+
+function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
+    estimator = :exp, kw...
+)
+type = Exceedances(p, estimator)
+extremevaltheory_dims_persistences(X, type; kw...)
+end
+
+struct Exceedances{T<:Real}
+p::T
+estimator::Symbol
+end
+
+
+
 
 function extremevaltheory_local_dim_persistence(
         logdist::AbstractVector{<:Real}, p::Real; compute_persistence = true, estimator = :mm
@@ -216,25 +220,46 @@ function extremevaltheory_local_dim_persistence(
 end
 
 
+function extremevaltheory_local_dim_persistence(
+        logdist::AbstractVector{<:Real}, type::Exceedances; compute_persistence = true, estimator = :mm
+    )
+    p = type.p
+    estimator = type.estimator
+
+    σ, ξ, E, thresh = extremevaltheory_local_gpd_fit(logdist, p, estimator)
+    # The local dimension is the reciprocal σ
+    Δ = 1/σ
+    # Lastly, obtain θ if asked for
+    if compute_persistence
+        θ = extremal_index_sueveges(logdist, p, thresh)
+    else
+        θ = NaN
+    end
+    return Δ, θ
+end
+
 
 """
-    BMextremedimensions(x::StateSpaceSet,blocksize::Int) -> Δ, θ
+    extremevaltheory_local_dim_persistence(
+        logdist::AbstractVector{<:Real}, type::Blockmaxima; compute_persistence = true, estimator = :mm
+    )
 
-    This function computates the local dimensions Δ and the extremal index θ for each observation in the 
-        trajectory x. It uses the block maxima approach: divides the data in N/blocksize blocks of length blocksize, 
-        where N is the number of data, and takes the maximum of those bloks as samples of the maxima of the process.
-        In order for this method to work correctly, both the blocksize and the number of blocks must be high.
-        Note that there are data points that are not used by the algorithm. Since it is not always possible to 
-        express the number of input data poins as N = blocksize * nblocks + 1. To reduce the number of unused
-        data, chose an N equal or superior to blocksize * nblocks + 1. 
-        The extremal index can be interpreted as the inverse of the persistance of the extremes around
-        that point.
+This function computes the local dimensions Δ and the extremal index θ for each observation in the 
+trajectory x. It uses the block maxima approach: divides the data in N/blocksize blocks of length blocksize, 
+where N is the number of data, and takes the maximum of those bloks as samples of the maxima of the process.
+In order for this method to work correctly, both the blocksize and the number of blocks must be high.
+Note that there are data points that are not used by the algorithm. Since it is not always possible to 
+express the number of input data poins as N = blocksize * nblocks + 1. To reduce the number of unused
+data, chose an N equal or superior to blocksize * nblocks + 1. 
+The extremal index can be interpreted as the inverse of the persistance of the extremes around
+that point.
 """
-function extremevaltheory_dims_persistences(x::StateSpaceSet, estimator::BlockMaximaMM)
-
-    N = length(x)
-    p = estimator.p
-    blocksize = estimator.blocksize
+function extremevaltheory_local_dim_persistence(
+        logdist::AbstractVector{<:Real}, type::Blockmaxima; compute_persistence = true, estimator = :mm
+    )
+    p = type.p
+    N = length(logdist)
+    blocksize = type.blocksize
     nblocks = floor(Int, N/blocksize)
     newN = blocksize*nblocks + 1
     firstindex = N - newN + 1
@@ -243,18 +268,15 @@ function extremevaltheory_dims_persistences(x::StateSpaceSet, estimator::BlockMa
     progress = ProgressMeter.Progress(
         N - firstindex; desc = "Extreme value theory dim: ", enabled = true
     )
-    breaking = false
     for (j, k) in enumerate(range(firstindex,N))
-        # Compute the observables
-        logdista = -log.([euclidean(x[k,:],x[i,:]) for i in range(firstindex,N)])
-        # Compute the extremal index, use the external function extremal_Sueveges
-        θ[j] = extremal_index_sueveges(logdista, p)
-        # Remove the inf data
-        deleteat!(logdista, j)
         duplicatepoint = !isempty(findall(x -> x == Inf, logdista))
         if duplicatepoint
-            breaking = true
-            break
+            error("Duplicated data point on the input")
+        end
+        if compute_persistence
+            θ[j] = extremal_index_sueveges(logdista, p)
+        else
+            θ = NaN
         end
         # Extract the maximum of each block
         maxvector = maximum(reshape(logdista,(blocksize,nblocks)),dims= 1)
@@ -262,9 +284,5 @@ function extremevaltheory_dims_persistences(x::StateSpaceSet, estimator::BlockMa
         Δ[j] = 1 / σ
         next!(progress)
     end
-    if breaking
-        error("Duplicated data point on the input")
-    end
     return Δ, θ
 end
-export BMextremedimensions
