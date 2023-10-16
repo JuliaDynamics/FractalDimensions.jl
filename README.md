@@ -19,16 +19,18 @@ _Previously, this package was part of ChaosTools.jl._
 
 ## Citation
 
-If you use this package in a publication, please cite the paper below:
+If you use this package in a publication, please cite the paper below, that is an associated review paper on fractal dimensions:
 ```
-@ARTICLE{FractalDimensions.jl,
-  title     = "Estimating the fractal dimension: a comparative review and open
-               source implementations",
-  author    = "Datseris, George and Kottlarz, Inga and Braun, Anton P and
-               Parlitz, Ulrich",
-  publisher = "arXiv",
-  year      =  2021,
-  doi = {10.48550/ARXIV.2109.05937},
-  url = {https://arxiv.org/abs/2109.05937},
+@article{FractalDimensions.jl,
+  doi = {10.1063/5.0160394},
+  url = {https://doi.org/10.1063/5.0160394},
+  year = {2023},
+  month = oct,
+  publisher = {{AIP} Publishing},
+  volume = {33},
+  number = {10},
+  author = {George Datseris and Inga Kottlarz and Anton P. Braun and Ulrich Parlitz},
+  title = {Estimating fractal dimensions: A comparative review and open source implementations},
+  journal = {Chaos: An Interdisciplinary Journal of Nonlinear Science}
 }
 ```
