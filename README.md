@@ -17,9 +17,10 @@ All further information is provided in the documentation, which you can either f
 
 _Previously, this package was part of ChaosTools.jl._
 
-## Citation
+## Publication
 
-If you use this package in a publication, please cite the paper below, that is an associated review paper on fractal dimensions:
+FractalDimensions.jl is used in a review article comparing various estimators for fractal dimensions. The paper is likely a relevant read if you are interested in the package. And if you use the package, please cite the paper.
+
 ```
 @article{FractalDimensions.jl,
   doi = {10.1063/5.0160394},
