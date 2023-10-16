@@ -9,7 +9,7 @@ export higuchi_dim
 """
     higuchi_dim(x::AbstractVector [, ks])
 
-Estimate the Higuchi dimension[^Higuchi1988] of the graph of `x`.
+Estimate the Higuchi dimension [Higuchi1988](@cite) of the graph of `x`.
 
 ## Description
 
@@ -33,10 +33,6 @@ The algorithm chooses default `ks` to be exponentially spaced in base-2, up to a
 `2^8`. A user can provide their own `ks` as a second argument otherwise.
 
 Use `FractalDimensions.higuchi_length(x, ks)` to obtain ``L(k)`` directly.
-
-[^Higuchi1988]:
-    Higuchi, _Approach to an irregular time series on the basis of the fractal theory_,
-    [Physica D: Nonlinear Phenomena (1988)](www.doi.org/10.1016/0167-2789(88)90081-4)
 """
 function higuchi_dim(x::AbstractVector, ks = higuchi_default_ks(x))
     L = higuchi_length(x, ks)

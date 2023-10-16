@@ -3,10 +3,11 @@ export kaplanyorke_dim
 """
     kaplanyorke_dim(λs::AbstractVector)
 
-Calculate the Kaplan-Yorke dimension, a.k.a. Lyapunov dimension[^Kaplan1970]
+Calculate the Kaplan-Yorke dimension, a.k.a. Lyapunov dimension [Kaplan1979](@cite)
 from the given Lyapunov exponents `λs`.
 
 ## Description
+
 The Kaplan-Yorke dimension is simply the point where
 `cumsum(λs)` becomes zero (interpolated):
 ```math
@@ -17,10 +18,6 @@ If the sum of the exponents never becomes negative the function
 will return the length of the input vector.
 
 Useful in combination with `lyapunovspectrum` from ChaosTools.jl.
-
-[^Kaplan1970]:
-    J. Kaplan & J. Yorke, *Chaotic behavior of multidimensional difference equations*,
-    Lecture Notes in Mathematics vol. **730**, Springer (1979)
 """
 function kaplanyorke_dim(λs::AbstractVector{<:Real})
     λs = sort(λs; rev = true)
