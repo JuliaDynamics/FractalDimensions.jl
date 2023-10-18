@@ -46,7 +46,7 @@ within a radius, one instead tries to find the max radius containing `j` points.
 A correlation sum is obtained with this constrain, and equivalently the mean radius
 containing `k` points.
 Based on this, one can calculate ``\\Delta`` approximating the information dimension.
-The implementation here is due to to [^Grassberger1988], which defines
+The implementation here is due to to [Grassberger1988](@cite), which defines
 ```math
 Ψ(j) - \\log N \\sim \\Delta \\times \\overline{\\log \\left( r_{(j)}\\right)}
 ```
@@ -58,10 +58,6 @@ The amount of neighbors found ``j`` range from 2 to `max_j`.
 The numbers are also converted to base ``2`` from base ``e``.
 
 ``\\Delta`` can be computed by using `linear_region(rs, ys)`.
-
-[^Grassberger1988]:
-    Peter Grassberger (1988) [Finite sample Corrections to Entropy and Dimension Estimates,
-    Physics Letters A 128(6-7)](https://doi.org/10.1016/0375-9601(88)90193-4)
 """
 function fixedmass_correlationsum(X, max_j = _max_j_from_data(X);
     start_j = 4, metric = Euclidean(), M = length(X), w = 0)

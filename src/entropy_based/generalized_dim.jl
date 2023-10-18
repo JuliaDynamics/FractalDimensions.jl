@@ -42,6 +42,9 @@ Calling this function performs a lot of automated steps:
 By doing these steps one by one yourself, you can adjust the keyword arguments
 given to each of these function calls, refining the accuracy of the result.
 The source code of this function is only 3 lines of code.
+
+This approach to estimating the fractal dimension has been used
+(to our knowledge) for the first time in [Russell1980](@cite).
 """
 function generalized_dim(X::AbstractStateSpaceSet, sizes = estimate_boxsizes(X);
         base = 2, q = 1.0, show_progress = envprog(),

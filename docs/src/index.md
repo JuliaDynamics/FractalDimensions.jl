@@ -173,3 +173,8 @@ For more details, see Chapter 5 of [Nonlinear Dynamics](https://link.springer.co
 StateSpaceSet
 standardize
 ```
+
+## References
+
+```@bibliography
+```

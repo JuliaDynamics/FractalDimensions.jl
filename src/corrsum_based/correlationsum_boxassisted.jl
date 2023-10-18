@@ -8,7 +8,7 @@ export estimate_r0_buenoorovio, prismdim_theiler, estimate_r0_theiler
 """
     boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
 
-Use the box-assisted optimizations of [^Bueno2007]
+Use the box-assisted optimizations of [BuenoOrovio2007](@cite)
 to estimate the correlation dimension `Δ_C` of `X`.
 
 This function does something extremely simple:
@@ -18,11 +18,6 @@ slopefit(log2.(εs), log2.(Cs))[1]
 ```
 
 and hence see [`boxed_correlationsum`](@ref) for more information and available keywords.
-
-[^Bueno2007]:
-    Bueno-Orovio and Pérez-García, [Enhanced box and prism assisted algorithms for
-    computing the correlation dimension. Chaos Solitons & Fractrals, 34(5)
-    ](https://doi.org/10.1016/j.chaos.2006.03.043)
 """
 function boxassisted_correlation_dim(X::AbstractStateSpaceSet; kwargs...)
     εs, Cs = boxed_correlationsum(X; kwargs...)
@@ -57,7 +52,7 @@ of `X` are used to estimate suitable `εs` for the calculation, which are also r
 
 `C_q(ε)` is calculated for every `ε ∈ εs` and each of the boxes to then be
 summed up afterwards. The method of splitting the data into boxes was
-implemented according to Theiler[^Theiler1987]. `w` is the [Theiler window](@ref).
+implemented according to [Theiler1987](@cite). `w` is the [Theiler window](@ref).
 `P` is the prism dimension. If `P` is unequal to the dimension of the data, only the
 first `P` dimensions are considered for the box distribution (this is called the
 prism-assisted version). By default `P` is 2, which is the version
@@ -66,10 +61,6 @@ Note that only when `P = dimension(X)` the boxed version is guaranteed to be
 exact to the original [`correlationsum`](@ref). For any other `P`, some
 point pairs that should have been included may be skipped due to having smaller
 distance in the remaining dimensions, but larger distance in the first `P` dimensions.
-
-[^Theiler1987]:
-    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
-    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
 """
 function boxed_correlationsum(X; P = 2, kwargs...)
     P = min(P, dimension(X))
@@ -124,8 +115,8 @@ end
 
 Distribute `X` into boxes of size `r0`. Return box positions (in cartesian coordinates)
 and the contents of each box as two separate vectors. Implemented according to
-the paper by Theiler[^Theiler1987] improving the algorithm by Grassberger and
-Procaccia[^Grassberger1983]. If `P` is smaller than the dimension of the data,
+the paper by [Theiler1987](@cite) improving the algorithm by Grassberger and
+Procaccia [Grassberger1983](@cite). If `P` is smaller than the dimension of the data,
 only the first `P` dimensions are considered for the distribution into boxes.
 If `P` is not given, all data dimensions are used.
 
@@ -133,14 +124,6 @@ The returned values are sorted (and this is crucial for optimal implementation
 of the boxed correlation sum).
 
 See also: [`boxed_correlationsum`](@ref).
-
-[^Theiler1987]:
-    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
-    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
-
-[^Grassberger1983]:
-    Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
-    ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
 function data_boxing(X, r0, P)
     Xreduced = P == dimension(X) ? X : X[:, SVector{P, Int}(1:P)]
@@ -332,24 +315,16 @@ using Statistics: mean
 """
     estimate_r0_theiler(X::AbstractStateSpaceSet) → r0, ε0
 Estimate a reasonable size for boxing the data `X` before calculating the
-[`boxed_correlationsum`](@ref) proposed by Theiler[^Theiler1987].
+[`boxed_correlationsum`](@ref) proposed by [Theiler1987](@cite).
 Return the boxing size `r0` and minimum inter-point distance in `X`, `ε0`.
 
 To do so the dimension is estimated by running the algorithm by Grassberger and
-Procaccia[^Grassberger1983] with `√N` points where `N` is the number of total
+Procaccia [Grassberger1983](@cite) with `√N` points where `N` is the number of total
 data points. Then the optimal boxsize ``r_0`` computes as
 ```math
 r_0 = R (2/N)^{1/\\nu}
 ```
 where ``R`` is the size of the chaotic attractor and ``\\nu`` is the estimated dimension.
-
-[^Theiler1987]:
-    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
-    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
-
-[^Grassberger1983]:
-    Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
-    ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
 function estimate_r0_theiler(data)
     N = length(data)
@@ -382,14 +357,14 @@ using Random: shuffle!
     estimate_r0_buenoorovio(X::AbstractStateSpaceSet, P = 2) → r0, ε0
 
 Estimate a reasonable size for boxing `X`, proposed by
-Bueno-Orovio and Pérez-García[^Bueno2007], before calculating the correlation
-dimension as presented by Theiler[^Theiler1983].
+Bueno-Orovio and Pérez-García [BuenoOrovio2007](@cite), before calculating the correlation
+dimension as presented by [Theiler1983](@cite).
 Return the size `r0` and the minimum interpoint distance `ε0` in the data.
 
 If instead of boxes, prisms
 are chosen everything stays the same but `P` is the dimension of the prism.
 To do so the dimension `ν` is estimated by running the algorithm by Grassberger
-and Procaccia[^Grassberger1983] with `√N` points where `N` is the number of
+and Procaccia [Grassberger1983](@cite) with `√N` points where `N` is the number of
 total data points.
 An effective size `ℓ` of the attractor is calculated by boxing a small subset
 of size `N/10` into boxes of sidelength `r_ℓ` and counting the number of filled
@@ -409,19 +384,6 @@ Then the optimal boxsize ``r_0`` computes as
 ```math
 r_0 = \\ell / \\eta_\\textrm{opt}^{1/\\nu}.
 ```
-
-[^Bueno2007]:
-    Bueno-Orovio and Pérez-García, [Enhanced box and prism assisted algorithms for
-    computing the correlation dimension. Chaos Solitons & Fractrals, 34(5)
-    ](https://doi.org/10.1016/j.chaos.2006.03.043)
-
-[^Theiler1987]:
-    Theiler, [Efficient algorithm for estimating the correlation dimension from a set
-    of discrete points. Physical Review A, 36](https://doi.org/10.1103/PhysRevA.36.4456)
-
-[^Grassberger1983]:
-    Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
-    ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
 """
 function estimate_r0_buenoorovio(X, P = 2)
     mini, maxi = minmaxima(X)

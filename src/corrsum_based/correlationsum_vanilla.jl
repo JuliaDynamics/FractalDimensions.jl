@@ -9,8 +9,8 @@ export pointwise_dimensions, pointwise_correlationsums
 """
     grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(data); kwargs...)
 
-Use the method of Grassberger and Proccacia[^Grassberger1983], and the correction by
-Theiler[^Theiler1986], to estimate the correlation dimension `Δ_C` of  `X`.
+Use the method of Grassberger and Proccacia [Grassberger1983](@cite), and the correction by
+[Theiler1986](@cite), to estimate the correlation dimension `Δ_C` of  `X`.
 
 This function does something extremely simple:
 ```julia
@@ -22,13 +22,6 @@ a linear region in the plot of the log of the correlation sum versus log(ε).
 
 See [`correlationsum`](@ref) for the available keywords.
 See also [`takens_best_estimate`](@ref), [`boxassisted_correlation_dim`](@ref).
-
-[^Grassberger1983]:
-    Grassberger and Proccacia, [Characterization of strange attractors, PRL 50 (1983)
-    ](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.50.346)
-[^Theiler1986]:
-    Theiler, [Spurious dimension from correlation algorithms applied to limited time-series
-    data. Physical Review A, 34](https://doi.org/10.1103/PhysRevA.34.2427)
 """
 function grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(X); kwargs...)
     cm = correlationsum(X, εs; kwargs...)
@@ -38,6 +31,7 @@ end
 
 """
     correlationsum(X, ε::Real; w = 0, norm = Euclidean(), q = 2) → C_q(ε)
+
 Calculate the `q`-order correlation sum of `X` (`StateSpaceSet` or timeseries)
 for a given radius `ε` and `norm`. They keyword `show_progress = true` can be used
 to display a progress bar for large `X`.
@@ -75,22 +69,14 @@ where
 with ``N`` the length of `X` and ``B`` gives 1 if its argument is
 `true`. `w` is the [Theiler window](@ref).
 
-See the article of Grassberger for the general definition [^Grassberger2007] and
-the book "Nonlinear Time Series Analysis" [^Kantz2003], Ch. 6, for
+See the article of Grassberger for the general definition [Grassberger2007](@cite) and
+the book "Nonlinear Time Series Analysis" [Kantz2003](@cite), Ch. 6, for
 a discussion around choosing best values for `w`, and Ch. 11.3 for the
 explicit definition of the q-order correlationsum. Note that the formula in 11.3
-is incorrect, but corrected here, indices are adapted to take advantage of all available 
+is incorrect, but corrected here, indices are adapted to take advantage of all available
 points and also note that we immediatelly exponentiate
 ``C_q`` to ``1/(q-1)``, so that it scales exponentially as
 ``C_q \\propto \\varepsilon ^\\Delta_q`` versus the size ``\\varepsilon``.
-
-[^Grassberger2007]:
-    Peter Grassberger (2007) [Grassberger-Procaccia algorithm. Scholarpedia,
-    2(5):3043.](http://dx.doi.org/10.4249/scholarpedia.3043)
-
-[^Kantz2003]:
-    Kantz, H., & Schreiber, T. (2003). [Nonlinear Time Series Analysis,
-    Cambridge University Press.](https://doi.org/10.1017/CBO9780511755798)
 """
 correlationsum(X, ε::Real; kw...) = correlationsum(X, [ε]; kw...)[1]
 
