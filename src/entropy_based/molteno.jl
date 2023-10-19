@@ -4,7 +4,7 @@ export molteno_boxing, molteno_dim
     molteno_dim(X::AbstractStateSpaceSet; k0::Int = 10, q = 1.0, base = 2)
 
 Return an estimate of the [`generalized_dim`](@ref) of `X` using the
-algorithm by [^Molteno1993]. This function is a simple utilization of the
+algorithm by [Molteno1993](@cite). This function is a simple utilization of the
 probabilities estimated by [`molteno_boxing`](@ref) so see that function for more details.
 Here the entropy of the probabilities is computed at each size, and a line is fitted
 in the entropy vs log(size) graph, just like in [`generalized_dim`](@ref).
@@ -19,7 +19,7 @@ end
     molteno_boxing(X::AbstractStateSpaceSet; k0::Int = 10) → (probs, εs)
 
 Distribute `X` into boxes whose size is halved in each step, according to the
-algorithm by [^Molteno1993]. Division stops if the
+algorithm by [Molteno1993](@cite). Division stops if the
 average number of points per filled box falls below the threshold `k0`.
 
 Return `probs`, a vector of [`Probabilities`](@ref) of finding points in boxes for
@@ -42,10 +42,6 @@ but it is only suited for low dimensional data since it divides each
 box into `2^D` new boxes if `D` is the dimension. For large `D` this leads to low numbers of
 box divisions before the threshold is passed and the divison stops. This results
 to a low number of data points to fit the dimension to and thereby a poor estimate.
-
-[^Molteno1993]:
-    Molteno, T. C. A., [Fast O(N) box-counting algorithm for estimating dimensions.
-    Phys. Rev. E 48, R3263(R) (1993)](https://doi.org/10.1103/PhysRevE.48.R3263)
 """
 function molteno_boxing(X::AbstractStateSpaceSet; k0 = 10)
     integers, ε0 = real_to_uint64(X)
@@ -56,6 +52,7 @@ end
 
 """
     real_to_uint64(data::StateSpaceSet{D,T}) where {D, T}
+
 Calculate maximum and minimum value of `data` to then project the values onto
 ``[0, M - ε(M)]`` where ``\\epsilon`` is the
 precision of the used Type and ``M`` is the maximum value of the UInt64 type.
@@ -107,9 +104,10 @@ end
 
 """
     molteno_subboxes(box, data, iteration)
+
 Divide a `box` containing indices into `data` to `2^D` smaller boxes and sort
 the points contained in the former box into the new boxes. Implemented according to
-Molteno[^Molteno]. Sorts the elements of the former box into the smaller boxes
+[Molteno1993](@cite). Sorts the elements of the former box into the smaller boxes
 using cheap bit shifting and `&` operations on the value of `data` at each box
 element. `iteration` determines which bit of the array should be shifted to the
 last position.

@@ -2,7 +2,7 @@ import Statistics
 using Distributions: TDist
 
 """
-    LinearRegression <: SLopeFit
+    LinearRegression <: SlopeFit
     LinearRegression()
 
 Standard linear regression fit to all available data.

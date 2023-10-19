@@ -51,7 +51,7 @@ end
 
 Return the local dimensions `Δloc` and the persistences `θloc` for each point in the
 given set for quantile probability `p`, according to the estimation done via extreme value
-theory [^Lucarini2016].
+theory [Lucarini2016](@cite).
 The computation is parallelized to available threads (`Threads.nthreads()`).
 
 See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
@@ -88,14 +88,7 @@ is given by the inverse of the ``\\sigma`` parameter of the
 GPD fit to the data[^Lucarini2012], ``\\Delta^{(E)}_i = 1/\\sigma``.
 ``\\sigma`` is estimated according to the `estimator` keyword.
 
-[^Lucarini2016]:
-    Lucarini et al., [Extremes and Recurrence in Dynamical Systems
-    ](https://www.wiley.com/en-gb/Extremes+and+Recurrence+in+Dynamical+Systems-p-9781118632192)
-
-[^Lucarini2012]:
-    Lucarini et al., Universal Behaviour of Extreme Value Statistics for Selected
-    Observables of Dynamical Systems, [Journal of Statistical Physics, 147(1), 63–73.](
-    https://doi.org/10.1007/s10955-012-0468-z) et al., [Physica D 400 132143
+A more precise description of this process is given in the review paper [Datseris2023](@cite).
 """
 
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
@@ -184,11 +177,8 @@ end
 """
     extremal_index_sueveges(y::AbstractVector, p)
 
-Compute the extremal index θ of `y` through the Süveges formula for quantile probability `p`.
-
-[^Süveges2007]:
-    Süveges. 2007. Likelihood estimation of the extremal index.
-    Extremes, 10.1-2, 41-55, doi: 10.1007/s10687-007-0034-2
+Compute the extremal index θ of `y` through the Süveges formula for quantile probability `p`,
+using the algorithm of [Sveges2007](@cite).
 """
 function extremal_index_sueveges(y::AbstractVector, p::Real,
         # These arguments are given for performance optim; not part of public API
