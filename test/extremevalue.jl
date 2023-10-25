@@ -10,7 +10,8 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
     A = StateSpaceSet(cos.(θ), sin.(θ))
 
     @testset "validity" begin
-        Δloc, θ = extremevaltheory_dims_persistences(A, 0.95;
+        estimator_evt = Exceedances(0.95, :exp)
+        Δloc, θ = extremevaltheory_dims_persistences(A, estimator_evt;
             compute_persistence = false,
             show_progress = false,
         )
@@ -24,39 +25,41 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
     end
 
     @testset "Convenience API" begin
-        D = extremevaltheory_dim(A, 0.95;
-        show_progress = false,
-        allocate_matrix = true)
+        estimator_evt = Exceedances(0.95, :exp)
+        D = extremevaltheory_dim(A, estimator_evt;
+        show_progress = false)
         @test 0.9 < D < 1.1
     end
 
-    @testset "wrong estimator" begin
-        @test_throws "Unknown" extremevaltheory_dims_persistences(A, 0.95;
-            estimator = :wrong,
-        )
-    end
 end
 
 @testset "Random 2D" begin
     A = StateSpaceSet(rand(Xoshiro(1234), 10_000, 2))
     sizesA = estimate_boxsizes(A; z = -2)
     qs = [0.98, 0.995]
-    estimators = [:mm, :pwm, :exp]
+    estimators = [:mm, :exp]
 
     @testset "q=$(q)" for q in qs
         @testset "est=$(est)" for est in estimators
-            Δloc, θ = extremevaltheory_dims_persistences(A, q;
+            evt_estimator = Exceedances(q, est)
+            Δloc, θ = extremevaltheory_dims_persistences(A, evt_estimator;
                 compute_persistence = false, show_progress = false,
-                estimator = est
-            )
+                )
             avedim = mean(Δloc)
-            if est == :pwm
-                @test 1.9 < avedim < 2.2
-            else
-                @test 1.9 < avedim < 2.1
-                @test any(>(2), Δloc)
-            end
+            @test 1.9 < avedim < 2.1
+            @test any(>(2), Δloc)            
         end
+
+        @testset "block maxima" begin    
+            evt_estimator = BlockMaxima(100, q)
+            Δloc, θ = extremevaltheory_dims_persistences(A, evt_estimator;
+                compute_persistence = false, show_progress = false,
+                )
+            avedim = mean(Δloc)
+            @test 1.9 < avedim < 2.1
+            @test any(>(2), Δloc)            
+        end
+
     end
 
     @testset "significance" begin

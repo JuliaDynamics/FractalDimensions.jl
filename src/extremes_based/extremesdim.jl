@@ -3,6 +3,8 @@ export extremevaltheory_local_dim_persistence
 export extremal_index_sueveges
 export estimate_gpd_parameters
 export extremevaltheory_gpdfit_pvalues
+export BlockMaxima
+export Exceedances
 using Distances: euclidean
 using Statistics: mean, quantile, var
 import ProgressMeter
@@ -13,12 +15,12 @@ include("gev.jl")
 struct BlockMaxima
     blocksize::Int
     p::Real
- end
+end
 
- struct ExceedancesMM
+struct Exceedances
     p::Real
-    string::Symbol
- end
+    estimator::Symbol
+end
 
 
 """
@@ -103,6 +105,7 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
     N = length(X)
     Δloc = zeros(eltype(X), N)
     θloc = copy(Δloc)
+    p = type.p
     progress = ProgressMeter.Progress(
         N; desc = "Extreme value theory dim: ", enabled = show_progress
     )
@@ -126,12 +129,6 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
 type = Exceedances(p, estimator)
 extremevaltheory_dims_persistences(X, type; kw...)
 end
-
-struct Exceedances{T<:Real}
-p::T
-estimator::Symbol
-end
-
 
 
 
@@ -245,7 +242,7 @@ The extremal index can be interpreted as the inverse of the persistance of the e
 that point.
 """
 function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::Blockmaxima; compute_persistence = true, estimator = :mm
+        logdist::AbstractVector{<:Real}, type::BlockMaxima; compute_persistence = true, estimator = :mm
     )
     p = type.p
     N = length(logdist)
