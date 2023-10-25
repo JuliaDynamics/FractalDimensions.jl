@@ -34,7 +34,8 @@ of the local dimensions through the peaks over threshold method of extreme
 value theory. This method sets a threshold and fits the exceedances to
 Generalized Pareto Distribution. The parameter `p` is a number between
 0 and 1 that determines the p-quantile for the threshold and computation
- of the extremal index. 
+of the extremal index. The argument `estimator` is a symbol that can take
+the values `:exp, :pwm, :mm`, as in [`estimate_gpd_parameters`](@ref).
 """
 struct Exceedances
     p::Real
@@ -73,8 +74,9 @@ end
     extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p::type; kwargs...)
 
 Return the local dimensions `Δloc` and the persistences `θloc` for each point in the
-given set for quantile probability `p`, according to the estimation done via extreme value
-theory [Lucarini2016](@cite).
+given set. The type `p` tells the function which approach to use when computing the
+dimension, see `BlockMaxima` and `Exceedances`. The exceedances approach follows the
+estimation done via extreme value theory [Lucarini2016](@cite).
 The computation is parallelized to available threads (`Threads.nthreads()`).
 
 See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
@@ -82,16 +84,8 @@ See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on t
 ## Keyword arguments
 
 - `show_progress = true`: displays a progress bar.
-- `estimator = :mm`: how to estimate the `σ` parameter of the
-  Generalized Pareto Distribution. The local fractal dimension is `1/σ`.
-  The possible values are: `:exp, :pwm, :mm`, as in [`estimate_gpd_parameters`](@ref).
 - `compute_persistence = true:` whether to aso compute local persistences
   `θloc` (also called extremal index). If `false`, `θloc` are `NaN`s.
-- `allocate_matrix = false`: If `true`, the code calls a method that
-  attempts to allocate an `N×N` matrix (`N = length(X)`) that stores the
-  pairwise Euclidean distances. This method is faster due to optimizations of
-  `Distances.pairwise` but will error if the computer does not have enough available
-  memory for the matrix allocation.
 
 ## Description
 
@@ -142,6 +136,15 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
 end
 
 
+"""
+    extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
+    estimator = :exp, kw...
+)
+
+This function works without structs. Since a method is not specified, it
+defaults to computing the local dimension through the exceedances method
+with the :exp estimator, see [`estimate_gpd_parameters`](@ref).
+"""
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
     estimator = :exp, kw...
 )
@@ -248,16 +251,18 @@ end
 
 """
     extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::Blockmaxima; compute_persistence = true, estimator = :mm
+        logdist::AbstractVector{<:Real}, type::Blockmaxima; compute_persistence = true,
+        estimator = :mm
     )
 
-This function computes the local dimensions Δ and the extremal index θ for each observation in the 
-trajectory x. It uses the block maxima approach: divides the data in N/blocksize blocks of length blocksize, 
-where N is the number of data, and takes the maximum of those bloks as samples of the maxima of the process.
-In order for this method to work correctly, both the blocksize and the number of blocks must be high.
-Note that there are data points that are not used by the algorithm. Since it is not always possible to 
-express the number of input data poins as N = blocksize * nblocks + 1. To reduce the number of unused
-data, chose an N equal or superior to blocksize * nblocks + 1. 
+This function computes the local dimensions Δ and the extremal index θ for each observation
+in the trajectory x. It uses the block maxima approach: divides the data in N/blocksize blocks
+of length blocksize, where N is the number of data, and takes the maximum of those bloks as
+samples of the maxima of the process. In order for this method to work correctly, both the
+blocksize and the number of blocks must be high. Note that there are data points that are not
+used by the algorithm. Since it is not always possible to express the number of input data
+poins as N = blocksize * nblocks + 1. To reduce the number of unused data, chose an N equal or
+ superior to blocksize * nblocks + 1. 
 The extremal index can be interpreted as the inverse of the persistance of the extremes around
 that point.
 """
