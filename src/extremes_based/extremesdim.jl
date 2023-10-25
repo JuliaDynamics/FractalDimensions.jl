@@ -11,12 +11,31 @@ import ProgressMeter
 include("gpd.jl")
 include("gev.jl")
 
+"""
+    BlockMaxima(blocksize::Int, p::Real)
 
+This struct contains the parameters needed to perform an estimation
+of the local dimensions through the block maxima method of extreme
+value theory. This method divides the input data into blocks of length
+`blocksize` and fits the maxima of each block to a Generalized Extreme
+Value distribution. The parameter `p` is a number between 0 and 1 that
+determines the p-quantile for the computation of the extremal index. 
+"""
 struct BlockMaxima
     blocksize::Int
     p::Real
 end
 
+"""
+    Exceedances(p::Real, estimator::Symbol)
+
+This struct contains the parameters needed to perform an estimation
+of the local dimensions through the peaks over threshold method of extreme
+value theory. This method sets a threshold and fits the exceedances to
+Generalized Pareto Distribution. The parameter `p` is a number between
+0 and 1 that determines the p-quantile for the threshold and computation
+ of the extremal index. 
+"""
 struct Exceedances
     p::Real
     estimator::Symbol
@@ -24,11 +43,13 @@ end
 
 
 """
-    extremevaltheory_dim(X::StateSpaceSet, p::Real; kwargs...) → Δ
+    extremevaltheory_dim(X::StateSpaceSet, p::type; kwargs...) → Δ
 
 Convenience syntax that returns the mean of the local dimensions of
 [`extremevaltheory_dims_persistences`](@ref), which approximates
-a fractal dimension of `X` using extreme value theory and quantile probability `p`.
+a fractal dimension of `X` using extreme value theory. The type `p`
+tells the function which approach to use when Computing the dimension, see 
+`BlockMaxima` and `Exceedances`.
 
 See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
 """
@@ -38,7 +59,7 @@ function extremevaltheory_dim(X, p; kw...)
 end
 
 """
-    extremevaltheory_dims(X::StateSpaceSet, p::Real; kwargs...) → Δloc
+    extremevaltheory_dims(X::StateSpaceSet, p::type; kwargs...) → Δloc
 
 Convenience syntax that returns the local dimensions of
 [`extremevaltheory_dims_persistences`](@ref).
@@ -49,7 +70,7 @@ function extremevaltheory_dims(X, p; kw...)
 end
 
 """
-    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p::Real; kwargs...)
+    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p::type; kwargs...)
 
 Return the local dimensions `Δloc` and the persistences `θloc` for each point in the
 given set for quantile probability `p`, according to the estimation done via extreme value
@@ -63,7 +84,7 @@ See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on t
 - `show_progress = true`: displays a progress bar.
 - `estimator = :mm`: how to estimate the `σ` parameter of the
   Generalized Pareto Distribution. The local fractal dimension is `1/σ`.
-  The possible values are: `:exp, :mm`, as in [`estimate_gpd_parameters`](@ref).
+  The possible values are: `:exp, :pwm, :mm`, as in [`estimate_gpd_parameters`](@ref).
 - `compute_persistence = true:` whether to aso compute local persistences
   `θloc` (also called extremal index). If `false`, `θloc` are `NaN`s.
 - `allocate_matrix = false`: If `true`, the code calls a method that
@@ -105,7 +126,6 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
     N = length(X)
     Δloc = zeros(eltype(X), N)
     θloc = copy(Δloc)
-    p = type.p
     progress = ProgressMeter.Progress(
         N; desc = "Extreme value theory dim: ", enabled = show_progress
     )
@@ -113,7 +133,7 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
     Threads.@threads for j in eachindex(X)
         logdist = logdists[Threads.threadid()]
         @inbounds map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
-        D, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
+        D, θ = extremevaltheory_local_dim_persistence(logdist, type; kw...)
         Δloc[j] = D
         θloc[j] = θ
         ProgressMeter.next!(progress)
@@ -121,8 +141,8 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
     return Δloc, θloc
 end
 
-
-
+###################    ⬇
+############ If called without type, defects to Exceedances, :exp; but if another estimator is used, is this function called?
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
     estimator = :exp, kw...
 )
@@ -133,8 +153,10 @@ end
 
 
 function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, p::Real; compute_persistence = true, estimator = :mm
+        logdist::AbstractVector{<:Real}, type; compute_persistence = true, estimator = :mm
     )
+    estimator = type.estimator
+    p = type.p
     σ, ξ, E, thresh = extremevaltheory_local_gpd_fit(logdist, p, estimator)
     # The local dimension is the reciprocal σ
     Δ = 1/σ
@@ -146,6 +168,7 @@ function extremevaltheory_local_dim_persistence(
     end
     return Δ, θ
 end
+
 
 function extremevaltheory_local_gpd_fit(logdist, p, estimator)
     # Here `logdist` is already the -log(euclidean) distance of one point
@@ -190,6 +213,7 @@ function extremal_index_sueveges(y::AbstractVector, p::Real,
     θ = (sum(p.*Si)+N+Nc - sqrt( (sum(p.*Si) +N+Nc).^2 - 8*Nc*sum(p.*Si)) )./(2*sum(p.*Si))
     return θ
 end
+##################      ⬆
 
 # convenience function
 """
@@ -206,10 +230,9 @@ function extremevaltheory_local_dim_persistence(
     return Δ, θ
 end
 
-
+#################################################################################
 function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::Exceedances; compute_persistence = true, estimator = :mm
-    )
+        logdist::AbstractVector{<:Real}, type::Exceedances; compute_persistence = true)
     p = type.p
     estimator = type.estimator
 
