@@ -141,8 +141,7 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
     return Δloc, θloc
 end
 
-###################    ⬇
-############ If called without type, defects to Exceedances, :exp; but if another estimator is used, is this function called?
+
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
     estimator = :exp, kw...
 )
@@ -213,7 +212,6 @@ function extremal_index_sueveges(y::AbstractVector, p::Real,
     θ = (sum(p.*Si)+N+Nc - sqrt( (sum(p.*Si) +N+Nc).^2 - 8*Nc*sum(p.*Si)) )./(2*sum(p.*Si))
     return θ
 end
-##################      ⬆
 
 # convenience function
 """
@@ -230,7 +228,6 @@ function extremevaltheory_local_dim_persistence(
     return Δ, θ
 end
 
-#################################################################################
 function extremevaltheory_local_dim_persistence(
         logdist::AbstractVector{<:Real}, type::Exceedances; compute_persistence = true)
     p = type.p
