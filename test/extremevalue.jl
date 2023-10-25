@@ -37,7 +37,7 @@ end
     A = StateSpaceSet(rand(Xoshiro(1234), 10_000, 2))
     sizesA = estimate_boxsizes(A; z = -2)
     qs = [0.98, 0.995]
-    estimators = [:mm, :exp]
+    estimators = [:mm, :pwm, :exp]
 
     @testset "q=$(q)" for q in qs
         @testset "est=$(est)" for est in estimators
@@ -46,8 +46,12 @@ end
                 compute_persistence = false, show_progress = false,
                 )
             avedim = mean(Δloc)
-            @test 1.9 < avedim < 2.1
-            @test any(>(2), Δloc)            
+            if est == :pwm
+                @test 1.9 < avedim < 2.2
+            else
+                @test 1.9 < avedim < 2.1
+                @test any(>(2), Δloc)
+            end          
         end
 
         @testset "block maxima" begin    
