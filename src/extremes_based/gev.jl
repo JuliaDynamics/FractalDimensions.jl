@@ -14,7 +14,7 @@ where γ is the constant of Euler-Mascheroni.
 function estimate_gev_parameters(X, θ)
         γ = 0.57721 # Euler-Mascheroni constant
         moment1 = mean(X)
-        moment2 = mean(x -> x^2, x)
+        moment2 = mean(x -> x^2, X)
         σ = √((moment2-moment1^2)/(π^2/6))
         μ = moment1 - σ*(log(θ) + γ)
     return σ, μ
@@ -33,7 +33,7 @@ local dimension and the location parameter are not necesary to estimate the dime
 """
 function estimate_gev_scale(X)
     moment1 = mean(X)
-    moment2 = mean(x -> x^2, x)
+    moment2 = mean(x -> x^2, X)
     σ = √(abs(moment2-moment1^2)/(π^2/6))
     return σ
 end

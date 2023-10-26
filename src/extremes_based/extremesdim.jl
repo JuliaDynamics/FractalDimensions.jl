@@ -113,10 +113,6 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
 )
     # The algorithm in the end of the day loops over points in `X`
     # and applies the local algorithm.
-    # However, we write two different loop functions; one can
-    # compute the distance matrix directly from the get go.
-    # However, this is likely to not fit in memory even for a moderately high
-    # amount of points in `X`. So, we make an alternative that goes row by row.
     N = length(X)
     Δloc = zeros(eltype(X), N)
     θloc = copy(Δloc)
@@ -126,7 +122,8 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
     logdists = [copy(Δloc) for _ in 1:Threads.nthreads()]
     Threads.@threads for j in eachindex(X)
         logdist = logdists[Threads.threadid()]
-        @inbounds map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
+        logdist = map(x -> -log(euclidean(x, X[j])), vec(X))
+        deleteat!(logdist, j)
         D, θ = extremevaltheory_local_dim_persistence(logdist, type; kw...)
         Δloc[j] = D
         θloc[j] = θ
@@ -155,7 +152,7 @@ end
 
 
 function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type; compute_persistence = true, estimator = :mm
+        logdist::AbstractVector{<:Real}, type::Exceedances; compute_persistence = true, estimator = :mm
     )
     estimator = type.estimator
     p = type.p
@@ -273,28 +270,26 @@ function extremevaltheory_local_dim_persistence(
     N = length(logdist)
     blocksize = type.blocksize
     nblocks = floor(Int, N/blocksize)
-    newN = blocksize*nblocks + 1
+    newN = blocksize*nblocks
     firstindex = N - newN + 1
     Δ = zeros(newN)
     θ = zeros(newN)
     progress = ProgressMeter.Progress(
         N - firstindex; desc = "Extreme value theory dim: ", enabled = true
     )
-    for (j, k) in enumerate(range(firstindex,N))
-        duplicatepoint = !isempty(findall(x -> x == Inf, logdista))
-        if duplicatepoint
-            error("Duplicated data point on the input")
-        end
-        if compute_persistence
-            θ[j] = extremal_index_sueveges(logdista, p)
-        else
-            θ = NaN
-        end
-        # Extract the maximum of each block
-        maxvector = maximum(reshape(logdista,(blocksize,nblocks)),dims= 1)
-        σ = estimate_gev_scale(maxvector)
-        Δ[j] = 1 / σ
-        next!(progress)
+
+    duplicatepoint = !isempty(findall(x -> x == Inf, logdist))
+    if duplicatepoint
+        error("Duplicated data point on the input")
     end
+    if compute_persistence
+        θ = extremal_index_sueveges(logdist, p)
+    else
+        θ = NaN
+    end
+    # Extract the maximum of each block
+    maxvector = maximum(reshape(logdist[firstindex:N],(blocksize,nblocks)),dims= 1)
+    σ = estimate_gev_scale(maxvector)
+    Δ = 1 / σ
     return Δ, θ
 end
