@@ -72,11 +72,12 @@ function extremevaltheory_dims(X, p; kw...)
 end
 
 """
-    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p::type; kwargs...)
+    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p; kwargs...)
 
 Return the local dimensions `Δloc` and the persistences `θloc` for each point in the
-given set. The type `p` tells the function which approach to use when computing the
-dimension, see `BlockMaxima` and `Exceedances`. The exceedances approach follows the
+given set. The type of `p` tells the function which approach to use when computing the
+dimension, see [`BlockMaxima`](@ref) and [`Exceedances`](@ref). Providing p::Real
+defaults to using the exceedances approach. The exceedances approach follows the
 estimation done via extreme value theory [Lucarini2016](@cite).
 The computation is parallelized to available threads (`Threads.nthreads()`).
 
