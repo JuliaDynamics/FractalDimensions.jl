@@ -153,23 +153,6 @@ end
 
 
 
-function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::Exceedances; compute_persistence = true, estimator = :mm
-    )
-    estimator = type.estimator
-    p = type.p
-    σ, ξ, E, thresh = extremevaltheory_local_gpd_fit(logdist, p, estimator)
-    # The local dimension is the reciprocal σ
-    Δ = 1/σ
-    # Lastly, obtain θ if asked for
-    if compute_persistence
-        θ = extremal_index_sueveges(logdist, p, thresh)
-    else
-        θ = NaN
-    end
-    return Δ, θ
-end
-
 
 function extremevaltheory_local_gpd_fit(logdist, p, estimator)
     # Here `logdist` is already the -log(euclidean) distance of one point
@@ -246,6 +229,7 @@ function extremevaltheory_local_dim_persistence(
     end
     return Δ, θ
 end
+
 
 
 """
