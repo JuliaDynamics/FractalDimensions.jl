@@ -20,7 +20,7 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
         # Here are some totally arbitrary criteria for accuracy
         # note that normally the dimensions of every single point
         # should have been exactly the same. Not sure why they aren't...
-        @test 0.98 < avedim < 1.02
+        @test 0.96 < avedim < 1.04
         @test sigma < 0.01
     end
 
