@@ -44,13 +44,14 @@ end
 
 
 """
-    extremevaltheory_dim(X::StateSpaceSet, p::type; kwargs...) → Δ
+    extremevaltheory_dim(X::StateSpaceSet, p; kwargs...) → Δ
 
 Convenience syntax that returns the mean of the local dimensions of
 [`extremevaltheory_dims_persistences`](@ref), which approximates
-a fractal dimension of `X` using extreme value theory. The type `p`
+a fractal dimension of `X` using extreme value theory. The type of `p`
 tells the function which approach to use when Computing the dimension, see 
-`BlockMaxima` and `Exceedances`.
+[`BlockMaxima`](@ref) and [`Exceedances`](@ref). Providing p::Real
+defaults to using the exceedances method.
 
 See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
 """
