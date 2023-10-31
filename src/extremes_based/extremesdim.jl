@@ -245,7 +245,8 @@ samples of the maxima of the process. In order for this method to work correctly
 blocksize and the number of blocks must be high. Note that there are data points that are not
 used by the algorithm. Since it is not always possible to express the number of input data
 poins as N = blocksize * nblocks + 1. To reduce the number of unused data, chose an N equal or
- superior to blocksize * nblocks + 1. 
+ superior to blocksize * nblocks + 1. This method and several variants of it has been studied
+in [faranda2011numerical]@cite.
 The extremal index can be interpreted as the inverse of the persistance of the extremes around
 that point.
 """
