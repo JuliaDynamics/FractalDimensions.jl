@@ -151,10 +151,18 @@ higuchi_dim
 
 ## Extreme value value theory dimension
 
+### Central functions
 ```@docs
 extremevaltheory_dim
 extremevaltheory_dims_persistences
 extremevaltheory_local_dim_persistence
+Exceedances
+BlockMaxima
+```
+
+### Auxilary functions
+
+```@docs
 extremal_index_sueveges
 estimate_gpd_parameters
 extremevaltheory_gpdfit_pvalues
