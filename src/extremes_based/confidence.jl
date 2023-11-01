@@ -16,7 +16,7 @@ in the input data.
 
 ## Keyword arguments
 
-- `show_progress, estimator` as in [`extremevaltheory_dims_persistences`](@ref)
+- `show_progress = true`: display a progress bar.
 - `TestType = ApproximateOneSampleKSTest`: the test type to use. It can be
   `ApproximateOneSampleKSTest, ExactOneSampleKSTest, CramerVonMises`.
   We noticed that `OneSampleADTest` sometimes yielded nonsensical results:
@@ -68,10 +68,19 @@ For more details on how these quantities may quantify significance, see our revi
     Faranda et al. (2017), Dynamical proxies of North Atlantic predictability and extremes,
     [Scientific Reports, 7](https://doi.org/10.1038/srep41278)
 """
-function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p;
-        estimator = :mm, show_progress = envprog(), TestType = ApproximateOneSampleKSTest,
-        nbins = max(round(Int, length(X)*(1-p)/20), 10),
+function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, p::Real;
+        estimator = :mm, kw...
     )
+    @warn "Using `p::Real` is deprecated. Explicitly create `Exceedances(p, estimator)`."
+    type = Exceedances(p, estimator)
+    return extremevaltheory_gpdfit_pvalues(X, type; kw...)
+end
+
+function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, type::Exceedances;
+        show_progress = envprog(), TestType = ApproximateOneSampleKSTest,
+        nbins = max(round(Int, length(X)*(1-type.p)/20), 10),
+    )
+    (; p, estimator) = type
     N = length(X)
     progress = ProgressMeter.Progress(
         N; desc = "Extreme value theory p-values: ", enabled = show_progress

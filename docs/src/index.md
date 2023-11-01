@@ -149,15 +149,30 @@ kaplanyorke_dim
 higuchi_dim
 ```
 
-## Extreme value value theory dimension
+## Extreme value value theory dimensions
 
+The central function for this is [`extremevaltheory_dims_persistences`](@ref) which utilizes either [`Exceedances`](@ref) or [`BlockMaxima`](@ref).
+
+### Main functions
 ```@docs
-extremevaltheory_dim
 extremevaltheory_dims_persistences
+extremevaltheory_dim
+extremevaltheory_dims
 extremevaltheory_local_dim_persistence
 extremal_index_sueveges
+```
+
+### Exceedances estimator
+
+```@docs
+Exceedances
 estimate_gpd_parameters
 extremevaltheory_gpdfit_pvalues
+```
+
+### Block-maxima estimator
+```@docs
+BlockMaxima
 ```
 
 ## Theiler window

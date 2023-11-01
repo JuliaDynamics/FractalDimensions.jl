@@ -1,3 +1,8 @@
+# 1.8
+
+- New way to estimate extreme value theory dimensions based on block maxima.
+- Giving `p::Real` to `extremevaltheory_...` functions is deprecated. Now the types `Exceedances` or `BlockMaxima` need to be instantiated and used instead.
+
 # 1.7.1
 - Change the indices of the outer sum of the correlationsum to i = 1 to N and adapt normalisations.
 

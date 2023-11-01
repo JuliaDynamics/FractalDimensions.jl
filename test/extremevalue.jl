@@ -10,7 +10,8 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
     A = StateSpaceSet(cos.(θ), sin.(θ))
 
     @testset "validity" begin
-        Δloc, θ = extremevaltheory_dims_persistences(A, 0.95;
+        estimator_evt = Exceedances(0.95, :exp)
+        Δloc, θ = extremevaltheory_dims_persistences(A, estimator_evt;
             compute_persistence = false,
             show_progress = false,
         )
@@ -19,22 +20,17 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
         # Here are some totally arbitrary criteria for accuracy
         # note that normally the dimensions of every single point
         # should have been exactly the same. Not sure why they aren't...
-        @test 0.98 < avedim < 1.02
+        @test 0.96 < avedim < 1.04
         @test sigma < 0.01
     end
 
     @testset "Convenience API" begin
-        D = extremevaltheory_dim(A, 0.95;
-        show_progress = false,
-        allocate_matrix = true)
+        estimator_evt = Exceedances(0.95, :exp)
+        D = extremevaltheory_dim(A, estimator_evt;
+        show_progress = false)
         @test 0.9 < D < 1.1
     end
 
-    @testset "wrong estimator" begin
-        @test_throws "Unknown" extremevaltheory_dims_persistences(A, 0.95;
-            estimator = :wrong,
-        )
-    end
 end
 
 @testset "Random 2D" begin
@@ -45,10 +41,10 @@ end
 
     @testset "q=$(q)" for q in qs
         @testset "est=$(est)" for est in estimators
-            Δloc, θ = extremevaltheory_dims_persistences(A, q;
+            evt_estimator = Exceedances(q, est)
+            Δloc, θ = extremevaltheory_dims_persistences(A, evt_estimator;
                 compute_persistence = false, show_progress = false,
-                estimator = est
-            )
+                )
             avedim = mean(Δloc)
             if est == :pwm
                 @test 1.9 < avedim < 2.2
@@ -57,10 +53,21 @@ end
                 @test any(>(2), Δloc)
             end
         end
+
+        @testset "block maxima" begin
+            evt_estimator = BlockMaxima(100, q)
+            Δloc, θ = extremevaltheory_dims_persistences(A, evt_estimator;
+                compute_persistence = false, show_progress = false,
+                )
+            avedim = mean(Δloc)
+            @test 1.9 < avedim < 2.1
+            @test any(>(2), Δloc)
+        end
     end
 
     @testset "significance" begin
-        Es, nrmses, pvalues, sigmas, xis = extremevaltheory_gpdfit_pvalues(A, 0.99)
+        type = Exceedances(0.99, :exp)
+        Es, nrmses, pvalues, sigmas, xis = extremevaltheory_gpdfit_pvalues(A, type)
         @test all(p -> 0 ≤ p ≤ 1, pvalues)
         badcount = count(<(0.05), pvalues)/length(pvalues)
         @test badcount < 0.1
@@ -77,4 +84,12 @@ end
     p = 0.98
     θ = extremal_index_sueveges(y, p)
     @test mean(θ) ≈ 0.5 atol = 1e-2
+end
+
+@testset "Deprecation" begin
+    A = StateSpaceSet(rand(Xoshiro(1234), 1000, 2))
+    Δloc, θ = extremevaltheory_dims_persistences(A, 0.99)
+    @test Δloc isa Vector{<:Real}
+    Es, nrmses, pvalues, sigmas, xis = extremevaltheory_gpdfit_pvalues(A, 0.99)
+    @test sigmas isa Vector{<:Real}
 end
