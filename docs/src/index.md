@@ -149,15 +149,20 @@ kaplanyorke_dim
 higuchi_dim
 ```
 
-## Extreme value value theory dimension
+## Extreme value value theory dimensions
 
 ### Central functions
 ```@docs
-extremevaltheory_dim
 extremevaltheory_dims_persistences
-extremevaltheory_local_dim_persistence
 Exceedances
 BlockMaxima
+```
+
+### Convenience syntax
+```@docs
+extremevaltheory_dim
+extremevaltheory_dims
+extremevaltheory_local_dim_persistence
 ```
 
 ### Auxilary functions
