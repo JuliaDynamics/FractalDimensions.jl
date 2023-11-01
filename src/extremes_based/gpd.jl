@@ -62,3 +62,28 @@ function estimate_gpd_parameters(X, estimator)
     end
     return σ, ξ
 end
+
+
+function extremevaltheory_local_gpd_fit(logdist, p, estimator)
+    # Here `logdist` is already the -log(euclidean) distance of one point
+    # to all other points in the set.
+    # Extract the threshold corresponding to the quantile defined
+    thresh = quantile(logdist, p)
+    # Filter to obtain Peaks Over Threshold (PoTs)
+    # PoTs = logdist[findall(≥(thresh), logdist)]
+    PoTs = filter(≥(thresh), logdist)
+    # We need to filter, because one entry will have infinite value,
+    # because one entry has 0 Euclidean distance in the set.
+    filter!(isfinite, PoTs)
+    # We re-use to PoTs vector do define the exceedances (save memory allocations)
+    exceedances = (PoTs .-= thresh)
+    # We need to ensure that the minimum of the exceedences is zero,
+    # and sometimes it can be very close, but not exactly, zero
+    minE = minimum(exceedances)
+    if minE > 0
+        exceedances .-= minE
+    end
+    # Extract the GPD parameters.
+    σ, ξ = estimate_gpd_parameters(exceedances, estimator)
+    return σ, ξ, exceedances, thresh
+end

@@ -6,37 +6,18 @@ using Statistics: mean, quantile, var
 import ProgressMeter
 
 # These files define the core types for block maxima or exceedances
+# as well as extend the central low-level computational method
+# `extremevaltheory_local_dim_persistence(logdist::Vector, p::ExtremesExtractionType)`
 include("gpd.jl")
 include("gev.jl")
 
-"""
-    extremevaltheory_dim(X::StateSpaceSet, p; kwargs...) → Δ
-
-Convenience syntax that returns the mean of the local dimensions of
-[`extremevaltheory_dims_persistences`](@ref) with `X, p`.
-"""
-function extremevaltheory_dim(X, p; kw...)
-    Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
-    return mean(Δloc)
-end
-
-"""
-    extremevaltheory_dims(X::StateSpaceSet, p; kwargs...) → Δloc
-
-Convenience syntax that returns the local dimensions of
-[`extremevaltheory_dims_persistences`](@ref) with `X, p`.
-"""
-function extremevaltheory_dims(X, p; kw...)
-    Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
-    return Δloc
-end
-
+# Central function
 """
     extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p; kwargs...)
 
 Return the local dimensions `Δloc` and the persistences `θloc` for each point in the
 given set. The type of `p` tells the function which approach to use when computing the
-dimension, see [`BlockMaxima`](@ref) and [`Exceedances`](@ref). Providing p::Real
+dimension, see [`BlockMaxima`](@ref) and [`Exceedances`](@ref). Providing `p::Real`
 defaults to using the exceedances approach. The exceedances approach follows the
 estimation done via extreme value theory [Lucarini2016](@cite).
 The computation is parallelized to available threads (`Threads.nthreads()`).
@@ -69,10 +50,9 @@ GPD fit to the data[^Lucarini2012], ``\\Delta^{(E)}_i = 1/\\sigma``.
 
 A more precise description of this process is given in the review paper [Datseris2023](@cite).
 """
-
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
-    show_progress = envprog(), kw...
-)
+        show_progress = envprog(), kw...
+    )
     # The algorithm in the end of the day loops over points in `X`
     # and applies the local algorithm.
     N = length(X)
@@ -96,6 +76,28 @@ end
 
 
 """
+    extremevaltheory_dim(X::StateSpaceSet, p; kwargs...) → Δ
+
+Convenience syntax that returns the mean of the local dimensions of
+[`extremevaltheory_dims_persistences`](@ref) with `X, p`.
+"""
+function extremevaltheory_dim(X, p; kw...)
+    Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
+    return mean(Δloc)
+end
+
+"""
+    extremevaltheory_dims(X::StateSpaceSet, p; kwargs...) → Δloc
+
+Convenience syntax that returns the local dimensions of
+[`extremevaltheory_dims_persistences`](@ref) with `X, p`.
+"""
+function extremevaltheory_dims(X, p; kw...)
+    Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
+    return Δloc
+end
+
+"""
     extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
     estimator = :exp, kw...
 )
@@ -109,33 +111,6 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
 )
 type = Exceedances(p, estimator)
 extremevaltheory_dims_persistences(X, type; kw...)
-end
-
-
-
-
-function extremevaltheory_local_gpd_fit(logdist, p, estimator)
-    # Here `logdist` is already the -log(euclidean) distance of one point
-    # to all other points in the set.
-    # Extract the threshold corresponding to the quantile defined
-    thresh = quantile(logdist, p)
-    # Filter to obtain Peaks Over Threshold (PoTs)
-    # PoTs = logdist[findall(≥(thresh), logdist)]
-    PoTs = filter(≥(thresh), logdist)
-    # We need to filter, because one entry will have infinite value,
-    # because one entry has 0 Euclidean distance in the set.
-    filter!(isfinite, PoTs)
-    # We re-use to PoTs vector do define the exceedances (save memory allocations)
-    exceedances = (PoTs .-= thresh)
-    # We need to ensure that the minimum of the exceedences is zero,
-    # and sometimes it can be very close, but not exactly, zero
-    minE = minimum(exceedances)
-    if minE > 0
-        exceedances .-= minE
-    end
-    # Extract the GPD parameters.
-    σ, ξ = estimate_gpd_parameters(exceedances, estimator)
-    return σ, ξ, exceedances, thresh
 end
 
 """
