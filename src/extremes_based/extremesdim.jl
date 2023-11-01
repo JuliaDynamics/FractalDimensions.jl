@@ -97,7 +97,7 @@ end
 
 # This is the core function that estimators need to extend
 # The current function is just the deprecation for `p::Real`
-function extremevaltheory_local_dim_persistence(X::AbstractStateSpaceSet, p::Real;
+function extremevaltheory_local_dim_persistence(X::Union{AbstractStateSpaceSet, AbstractVector}, p::Real;
         estimator = :exp, kw...
     )
     @warn "Using `p::Real` is deprecated. Explicitly create `Exceedances(p, estimator)`."

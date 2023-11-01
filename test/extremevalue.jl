@@ -51,23 +51,23 @@ end
             else
                 @test 1.9 < avedim < 2.1
                 @test any(>(2), Δloc)
-            end          
+            end
         end
 
-        @testset "block maxima" begin    
+        @testset "block maxima" begin
             evt_estimator = BlockMaxima(100, q)
             Δloc, θ = extremevaltheory_dims_persistences(A, evt_estimator;
                 compute_persistence = false, show_progress = false,
                 )
             avedim = mean(Δloc)
             @test 1.9 < avedim < 2.1
-            @test any(>(2), Δloc)            
+            @test any(>(2), Δloc)
         end
-
     end
 
     @testset "significance" begin
-        Es, nrmses, pvalues, sigmas, xis = extremevaltheory_gpdfit_pvalues(A, 0.99)
+        type = Exceedances(0.99, :exp)
+        Es, nrmses, pvalues, sigmas, xis = extremevaltheory_gpdfit_pvalues(A, type)
         @test all(p -> 0 ≤ p ≤ 1, pvalues)
         badcount = count(<(0.05), pvalues)/length(pvalues)
         @test badcount < 0.1
@@ -84,4 +84,12 @@ end
     p = 0.98
     θ = extremal_index_sueveges(y, p)
     @test mean(θ) ≈ 0.5 atol = 1e-2
+end
+
+@testset "Deprecation" begin
+    A = StateSpaceSet(rand(Xoshiro(1234), 1000, 2))
+    Δloc, θ = extremevaltheory_dims_persistences(A, 0.99)
+    @test Δloc isa Vector{<:Real}
+    Es, nrmses, pvalues, sigmas, xis = extremevaltheory_gpdfit_pvalues(A, 0.99)
+    @test sigmas isa Vector{<:Real}
 end
