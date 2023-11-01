@@ -15,6 +15,57 @@ struct BlockMaxima
     p::Real
 end
 
+
+"""
+    extremevaltheory_local_dim_persistence(
+        logdist::AbstractVector{<:Real}, type::Blockmaxima; compute_persistence = true,
+        estimator = :mm
+    )
+
+This function computes the local dimensions Δ and the extremal index θ for each observation
+in the trajectory x. It uses the block maxima approach: divides the data in N/blocksize blocks
+of length blocksize, where N is the number of data, and takes the maximum of those bloks as
+samples of the maxima of the process. In order for this method to work correctly, both the
+blocksize and the number of blocks must be high. Note that there are data points that are not
+used by the algorithm. Since it is not always possible to express the number of input data
+poins as N = blocksize * nblocks + 1. To reduce the number of unused data, chose an N equal or
+ superior to blocksize * nblocks + 1. This method and several variants of it has been studied
+in [faranda2011numerical]@cite.
+The extremal index can be interpreted as the inverse of the persistance of the extremes around
+that point.
+"""
+function extremevaltheory_local_dim_persistence(
+        logdist::AbstractVector{<:Real}, type::BlockMaxima; compute_persistence = true, estimator = :mm
+    )
+    p = type.p
+    N = length(logdist)
+    blocksize = type.blocksize
+    nblocks = floor(Int, N/blocksize)
+    newN = blocksize*nblocks
+    firstindex = N - newN + 1
+    Δ = zeros(newN)
+    θ = zeros(newN)
+    progress = ProgressMeter.Progress(
+        N - firstindex; desc = "Extreme value theory dim: ", enabled = true
+    )
+
+    duplicatepoint = !isempty(findall(x -> x == Inf, logdist))
+    if duplicatepoint
+        error("Duplicated data point on the input")
+    end
+    if compute_persistence
+        θ = extremal_index_sueveges(logdist, p)
+    else
+        θ = NaN
+    end
+    # Extract the maximum of each block
+    maxvector = maximum(reshape(logdist[firstindex:N],(blocksize,nblocks)),dims= 1)
+    σ = estimate_gev_scale(maxvector)
+    Δ = 1 / σ
+    return Δ, θ
+end
+
+
 """
     estimate_gev_parameters(X::AbstractVector{<:Real}, θ::Real)
 
@@ -35,7 +86,6 @@ function estimate_gev_parameters(X, θ)
         μ = moment1 - σ*(log(θ) + γ)
     return σ, μ
 end
-export estimate_gev_parameters
 
 """
     estimate_gev_scale(X::AbstractVector{<:Real})

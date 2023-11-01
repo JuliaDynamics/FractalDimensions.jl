@@ -16,6 +16,26 @@ struct Exceedances
     estimator::Symbol
 end
 
+# Extension of core function
+function extremevaltheory_local_dim_persistence(
+        logdist::AbstractVector{<:Real}, type::Exceedances; compute_persistence = true
+    )
+    p = type.p
+    estimator = type.estimator
+
+    σ, ξ, E, thresh = extremevaltheory_local_gpd_fit(logdist, p, estimator)
+    # The local dimension is the reciprocal σ
+    Δ = 1/σ
+    # Lastly, obtain θ if asked for
+    if compute_persistence
+        θ = extremal_index_sueveges(logdist, p, thresh)
+    else
+        θ = NaN
+    end
+    return Δ, θ
+end
+
+
 """
     estimate_gpd_parameters(X::AbstractVector{<:Real}, estimator::Symbol)
 

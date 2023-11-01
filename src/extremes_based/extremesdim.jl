@@ -97,22 +97,33 @@ function extremevaltheory_dims(X, p; kw...)
     return Δloc
 end
 
+# convenience function
 """
-    extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
-    estimator = :exp, kw...
-)
+    extremevaltheory_local_dim_persistence(X::StateSpaceSet, ζ, p; kw...)
 
-This function works without structs. Since a method is not specified, it
-defaults to computing the local dimension through the exceedances method
-with the :exp estimator, see [`estimate_gpd_parameters`](@ref).
+Return the local values `Δ, θ` of the fractal dimension and persistence of `X` around a
+state space point `ζ`. `p` and `kw` are as in [`extremevaltheory_dims_persistences`](@ref).
 """
-function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, p::Real;
-    estimator = :exp, kw...
-)
-type = Exceedances(p, estimator)
-extremevaltheory_dims_persistences(X, type; kw...)
+function extremevaltheory_local_dim_persistence(
+        X::AbstractStateSpaceSet, ζ::AbstractVector, p; kw...
+    )
+    logdist = map(x -> -log(euclidean(x, ζ)), X)
+    Δ, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
+    return Δ, θ
 end
 
+# This is the core function that estimators need to extend
+# The current function is just the deprecation for `p::Real`
+function extremevaltheory_local_dim_persistence(X::AbstractStateSpaceSet, p::Real;
+        estimator = :exp, kw...
+    )
+    @warn "Using `p::Real` is deprecated. Explicitly create `Exceedances(p, estimator)`."
+    type = Exceedances(p, estimator)
+    extremevaltheory_local_dim_persistence(X, type; kw...)
+end
+
+
+# Generic function for extremal index; it doesn't depend on estimator
 """
     extremal_index_sueveges(y::AbstractVector, p)
 
@@ -131,87 +142,4 @@ function extremal_index_sueveges(y::AbstractVector, p::Real,
     N = length(Ti)
     θ = (sum(p.*Si)+N+Nc - sqrt( (sum(p.*Si) +N+Nc).^2 - 8*Nc*sum(p.*Si)) )./(2*sum(p.*Si))
     return θ
-end
-
-# convenience function
-"""
-    extremevaltheory_local_dim_persistence(X::StateSpaceSet, ζ, p; kw...)
-
-Return the local values `Δ, θ` of the fractal dimension and persistence of `X` around a
-state space point `ζ`. `p` and `kw` are as in [`extremevaltheory_dims_persistences`](@ref).
-"""
-function extremevaltheory_local_dim_persistence(
-        X::AbstractStateSpaceSet, ζ::AbstractVector, p; kw...
-    )
-    logdist = map(x -> -log(euclidean(x, ζ)), X)
-    Δ, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
-    return Δ, θ
-end
-
-function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::Exceedances; compute_persistence = true)
-    p = type.p
-    estimator = type.estimator
-
-    σ, ξ, E, thresh = extremevaltheory_local_gpd_fit(logdist, p, estimator)
-    # The local dimension is the reciprocal σ
-    Δ = 1/σ
-    # Lastly, obtain θ if asked for
-    if compute_persistence
-        θ = extremal_index_sueveges(logdist, p, thresh)
-    else
-        θ = NaN
-    end
-    return Δ, θ
-end
-
-
-
-"""
-    extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::Blockmaxima; compute_persistence = true,
-        estimator = :mm
-    )
-
-This function computes the local dimensions Δ and the extremal index θ for each observation
-in the trajectory x. It uses the block maxima approach: divides the data in N/blocksize blocks
-of length blocksize, where N is the number of data, and takes the maximum of those bloks as
-samples of the maxima of the process. In order for this method to work correctly, both the
-blocksize and the number of blocks must be high. Note that there are data points that are not
-used by the algorithm. Since it is not always possible to express the number of input data
-poins as N = blocksize * nblocks + 1. To reduce the number of unused data, chose an N equal or
- superior to blocksize * nblocks + 1. This method and several variants of it has been studied
-in [faranda2011numerical]@cite.
-The extremal index can be interpreted as the inverse of the persistance of the extremes around
-that point.
-"""
-function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::BlockMaxima; compute_persistence = true, estimator = :mm
-    )
-    p = type.p
-    N = length(logdist)
-    blocksize = type.blocksize
-    nblocks = floor(Int, N/blocksize)
-    newN = blocksize*nblocks
-    firstindex = N - newN + 1
-    Δ = zeros(newN)
-    θ = zeros(newN)
-    progress = ProgressMeter.Progress(
-        N - firstindex; desc = "Extreme value theory dim: ", enabled = true
-    )
-
-    duplicatepoint = !isempty(findall(x -> x == Inf, logdist))
-    if duplicatepoint
-        error("Duplicated data point on the input")
-    end
-    if compute_persistence
-        θ = extremal_index_sueveges(logdist, p)
-    else
-        θ = NaN
-    end
-    # Extract the maximum of each block
-    maxvector = maximum(reshape(logdist[firstindex:N],(blocksize,nblocks)),dims= 1)
-    σ = estimate_gev_scale(maxvector)
-    Δ = 1 / σ
-    return Δ, θ
 end
