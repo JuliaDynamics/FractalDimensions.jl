@@ -1,4 +1,20 @@
-export estimate_gpd_parameters
+export Exceedances, estimate_gpd_parameters
+
+"""
+    Exceedances(p::Real, estimator::Symbol)
+
+This struct contains the parameters needed to perform an estimation
+of the local dimensions through the peaks over threshold method of extreme
+value theory. This method sets a threshold and fits the exceedances to
+Generalized Pareto Distribution. The parameter `p` is a number between
+0 and 1 that determines the p-quantile for the threshold and computation
+of the extremal index. The argument `estimator` is a symbol that can take
+the values `:exp, :pwm, :mm`, as in [`estimate_gpd_parameters`](@ref).
+"""
+struct Exceedances
+    p::Real
+    estimator::Symbol
+end
 
 """
     estimate_gpd_parameters(X::AbstractVector{<:Real}, estimator::Symbol)

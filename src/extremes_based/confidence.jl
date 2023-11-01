@@ -16,7 +16,7 @@ in the input data.
 
 ## Keyword arguments
 
-- `show_progress, estimator` as in [`extremevaltheory_dims_persistences`](@ref)
+- `show_progress = true`: display a progress bar.
 - `TestType = ApproximateOneSampleKSTest`: the test type to use. It can be
   `ApproximateOneSampleKSTest, ExactOneSampleKSTest, CramerVonMises`.
   We noticed that `OneSampleADTest` sometimes yielded nonsensical results:

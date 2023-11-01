@@ -1,47 +1,13 @@
 export extremevaltheory_dims_persistences, extremevaltheory_dims, extremevaltheory_dim
 export extremevaltheory_local_dim_persistence
 export extremal_index_sueveges
-export estimate_gpd_parameters
-export extremevaltheory_gpdfit_pvalues
-export BlockMaxima
-export Exceedances
 using Distances: euclidean
 using Statistics: mean, quantile, var
 import ProgressMeter
+
+# These files define the core types for block maxima or exceedances
 include("gpd.jl")
 include("gev.jl")
-
-"""
-    BlockMaxima(blocksize::Int, p::Real)
-
-This struct contains the parameters needed to perform an estimation
-of the local dimensions through the block maxima method of extreme
-value theory. This method divides the input data into blocks of length
-`blocksize` and fits the maxima of each block to a Generalized Extreme
-Value distribution. The parameter `p` is a number between 0 and 1 that
-determines the p-quantile for the computation of the extremal index.
-"""
-struct BlockMaxima
-    blocksize::Int
-    p::Real
-end
-
-"""
-    Exceedances(p::Real, estimator::Symbol)
-
-This struct contains the parameters needed to perform an estimation
-of the local dimensions through the peaks over threshold method of extreme
-value theory. This method sets a threshold and fits the exceedances to
-Generalized Pareto Distribution. The parameter `p` is a number between
-0 and 1 that determines the p-quantile for the threshold and computation
-of the extremal index. The argument `estimator` is a symbol that can take
-the values `:exp, :pwm, :mm`, as in [`estimate_gpd_parameters`](@ref).
-"""
-struct Exceedances
-    p::Real
-    estimator::Symbol
-end
-
 
 """
     extremevaltheory_dim(X::StateSpaceSet, p; kwargs...) → Δ
