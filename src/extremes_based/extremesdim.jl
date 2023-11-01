@@ -13,13 +13,16 @@ include("gev.jl")
 
 # Central function
 """
-    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, p; kwargs...)
+    extremevaltheory_dims_persistences(x::AbstractStateSpaceSet, est; kwargs...)
 
 Return the local dimensions `Δloc` and the persistences `θloc` for each point in the
-given set. The type of `p` tells the function which approach to use when computing the
-dimension, see [`BlockMaxima`](@ref) and [`Exceedances`](@ref). Providing `p::Real`
-defaults to using the exceedances approach. The exceedances approach follows the
-estimation done via extreme value theory [Lucarini2016](@cite).
+given set according to extreme value theory [Lucarini2016](@cite).
+The type of `est` decides which approach to use when computing the
+dimension. The possible estimators are:
+
+- [`BlockMaxima`](@ref)
+- [`Exceedances`](@ref)
+
 The computation is parallelized to available threads (`Threads.nthreads()`).
 
 See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
@@ -28,27 +31,7 @@ See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on t
 
 - `show_progress = true`: displays a progress bar.
 - `compute_persistence = true:` whether to aso compute local persistences
-  `θloc` (also called extremal index). If `false`, `θloc` are `NaN`s.
-
-## Description
-
-For each state space point ``\\mathbf{x}_i`` in `X` we compute
-``g_i = -\\log(||\\mathbf{x}_i - \\mathbf{x}_j|| ) \\; \\forall j = 1, \\ldots, N`` with
-``||\\cdot||`` the Euclidean distance. Next, we choose an extreme quantile probability
-``p`` (e.g., 0.99) for the distribution of ``g_i``. We compute ``g_p`` as the ``p``-th
-quantile of ``g_i``. Then, we collect the exceedances of ``g_i``, defined as
-``E_i = \\{ g_i - g_p: g_i \\ge g_p \\}``, i.e., all values of ``g_i`` larger or equal to
-``g_p``, also shifted by ``g_p``. There are in total ``n = N(1-q)`` values in ``E_i``.
-According to extreme value theory, in the limit ``N \\to \\infty`` the values ``E_i``
-follow a two-parameter Generalized Pareto Distribution (GPD) with parameters
-``\\sigma,\\xi`` (the third parameter ``\\mu`` of the GPD is zero due to the
-positive-definite construction of ``E``). Within this extreme value theory approach,
-the local dimension ``\\Delta^{(E)}_i`` assigned to state space point ``\\textbf{x}_i``
-is given by the inverse of the ``\\sigma`` parameter of the
-GPD fit to the data[^Lucarini2012], ``\\Delta^{(E)}_i = 1/\\sigma``.
-``\\sigma`` is estimated according to the `estimator` keyword.
-
-A more precise description of this process is given in the review paper [Datseris2023](@cite).
+  `θloc` (also called extremal indices). If `false`, `θloc` are `NaN`s.
 """
 function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
         show_progress = envprog(), kw...

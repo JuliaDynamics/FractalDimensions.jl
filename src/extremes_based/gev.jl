@@ -3,12 +3,22 @@ export BlockMaxima, estimate_gev_parameters
 """
     BlockMaxima(blocksize::Int, p::Real)
 
-This struct contains the parameters needed to perform an estimation
-of the local dimensions through the block maxima method of extreme
-value theory. This method divides the input data into blocks of length
+Instructions type for [`extremevaltheory_dims_persistences`](@ref) and related functions.
+This method divides the input data into blocks of length
 `blocksize` and fits the maxima of each block to a Generalized Extreme
-Value distribution. The parameter `p` is a number between 0 and 1 that
-determines the p-quantile for the computation of the extremal index.
+Value distribution. In order for this method to work correctly, both the
+`blocksize` and the number of blocks must be high. Note that there are data points that are not
+used by the algorithm. Since it is not always possible to express the number of input data
+poins as `N = blocksize * nblocks + 1`. To reduce the number of unused data, chose an `N` equal or
+superior to `blocksize * nblocks + 1`. This method and several variants of it has been studied
+in [faranda2011numerical](@cite)
+
+The parameter `p` is a number between 0 and 1 that
+determines the p-quantile for the computation of the extremal index
+and hence is irrelevant if `compute_persistences = false` in
+[`extremevaltheory_dims_persistences`](@ref).
+
+See also [`estimate_gev_parameters`](@ref).
 """
 struct BlockMaxima
     blocksize::Int
@@ -16,26 +26,8 @@ struct BlockMaxima
 end
 
 
-"""
-    extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::Blockmaxima; compute_persistence = true,
-        estimator = :mm
-    )
-
-This function computes the local dimensions Δ and the extremal index θ for each observation
-in the trajectory x. It uses the block maxima approach: divides the data in N/blocksize blocks
-of length blocksize, where N is the number of data, and takes the maximum of those bloks as
-samples of the maxima of the process. In order for this method to work correctly, both the
-blocksize and the number of blocks must be high. Note that there are data points that are not
-used by the algorithm. Since it is not always possible to express the number of input data
-poins as N = blocksize * nblocks + 1. To reduce the number of unused data, chose an N equal or
- superior to blocksize * nblocks + 1. This method and several variants of it has been studied
-in [faranda2011numerical]@cite.
-The extremal index can be interpreted as the inverse of the persistance of the extremes around
-that point.
-"""
 function extremevaltheory_local_dim_persistence(
-        logdist::AbstractVector{<:Real}, type::BlockMaxima; compute_persistence = true, estimator = :mm
+        logdist::AbstractVector{<:Real}, type::BlockMaxima; compute_persistence = true
     )
     p = type.p
     N = length(logdist)
@@ -70,9 +62,10 @@ end
     estimate_gev_parameters(X::AbstractVector{<:Real}, θ::Real)
 
 Estimate and return the parameters `σ, μ` of a Generalized Extreme Value distribution
-fit to `X`, assuming that the parameter `ξ` is 0, and that the extremal index θ
+fit to `X` (which typically is the collected block maxima of the log distances of a state space set),
+assuming that the parameter `ξ` is 0, and that the extremal index θ
 is a known constant, and can be estimated through the function
-extremal_index_sueveges(...).
+`extremal_index_sueveges`.
 The estimators through the method of moments are given by
     σ = √((̄x²-̄x^2)/(π^2/6))
     μ = ̄x - σ(log(θ) + γ)
