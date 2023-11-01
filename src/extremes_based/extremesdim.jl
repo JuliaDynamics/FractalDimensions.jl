@@ -19,7 +19,7 @@ of the local dimensions through the block maxima method of extreme
 value theory. This method divides the input data into blocks of length
 `blocksize` and fits the maxima of each block to a Generalized Extreme
 Value distribution. The parameter `p` is a number between 0 and 1 that
-determines the p-quantile for the computation of the extremal index. 
+determines the p-quantile for the computation of the extremal index.
 """
 struct BlockMaxima
     blocksize::Int
@@ -47,13 +47,7 @@ end
     extremevaltheory_dim(X::StateSpaceSet, p; kwargs...) → Δ
 
 Convenience syntax that returns the mean of the local dimensions of
-[`extremevaltheory_dims_persistences`](@ref), which approximates
-a fractal dimension of `X` using extreme value theory. The type of `p`
-tells the function which approach to use when Computing the dimension, see 
-[`BlockMaxima`](@ref) and [`Exceedances`](@ref). Providing p::Real
-defaults to using the exceedances method.
-
-See also [`extremevaltheory_gpdfit_pvalues`](@ref) for obtaining confidence on the results.
+[`extremevaltheory_dims_persistences`](@ref) with `X, p`.
 """
 function extremevaltheory_dim(X, p; kw...)
     Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
@@ -64,7 +58,7 @@ end
     extremevaltheory_dims(X::StateSpaceSet, p; kwargs...) → Δloc
 
 Convenience syntax that returns the local dimensions of
-[`extremevaltheory_dims_persistences`](@ref).
+[`extremevaltheory_dims_persistences`](@ref) with `X, p`.
 """
 function extremevaltheory_dims(X, p; kw...)
     Δloc, θloc = extremevaltheory_dims_persistences(X, p; compute_persistence = false, kw...)
@@ -200,13 +194,13 @@ end
 
 # convenience function
 """
-    extremevaltheory_local_dim_persistence(X::StateSpaceSet, ζ, p::Real; kw...)
+    extremevaltheory_local_dim_persistence(X::StateSpaceSet, ζ, p; kw...)
 
 Return the local values `Δ, θ` of the fractal dimension and persistence of `X` around a
 state space point `ζ`. `p` and `kw` are as in [`extremevaltheory_dims_persistences`](@ref).
 """
 function extremevaltheory_local_dim_persistence(
-        X::AbstractStateSpaceSet, ζ::AbstractVector, p::Real; kw...
+        X::AbstractStateSpaceSet, ζ::AbstractVector, p; kw...
     )
     logdist = map(x -> -log(euclidean(x, ζ)), X)
     Δ, θ = extremevaltheory_local_dim_persistence(logdist, p; kw...)
