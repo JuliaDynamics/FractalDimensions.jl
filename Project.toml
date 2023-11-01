@@ -1,6 +1,6 @@
 name = "FractalDimensions"
 uuid = "4665ce21-e117-4649-aed8-08bbe5ccbead"
-authors = ["George Datseris <datseris.george@gmail.com>"]
+authors = ["George Datseris <datseris.george@gmail.com>", "Ignacio Del Amo <@PythagoreanCult>", "Anton P Braun"]
 version = "1.8.0"
 
 [deps]
