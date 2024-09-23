@@ -91,8 +91,16 @@ The whole above pipeline we went through is bundled in [`grassberger_proccacia_d
 ```@docs
 slopefit
 LinearRegression
+linreg
+```
+
+```@docs
 LargestLinearRegion
 linear_regions
+linear_region
+```
+
+```@docs
 AllSlopesDistribution
 estimate_boxsizes
 minimum_pairwise_distance
@@ -173,6 +181,7 @@ extremevaltheory_gpdfit_pvalues
 ### Block-maxima estimator
 ```@docs
 BlockMaxima
+estimate_gev_parameters
 ```
 
 ## Theiler window

@@ -4,7 +4,7 @@ export estimate_boxsizes
     estimate_boxsizes(X::AbstractStateSpaceSet; kwargs...) → εs
 
 Return `k` exponentially spaced values: `εs = base .^ range(lower + w, upper + z; length = k)`,
-that are a good estimate for sizes ε that are used in calculating a [Fractal Dimension](@ref).
+that are a good estimate for sizes ε that are used in calculating a fractal Dimension.
 It is strongly recommended to [`standardize`](@ref) input dataset before using this
 function.
 

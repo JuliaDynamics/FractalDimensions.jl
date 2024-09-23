@@ -21,7 +21,7 @@ i.e. it calculates [`correlationsum`](@ref) for various radii and then tries to 
 a linear region in the plot of the log of the correlation sum versus log(ε).
 
 See [`correlationsum`](@ref) for the available keywords.
-See also [`takens_best_estimate`](@ref), [`boxassisted_correlation_dim`](@ref).
+See also [`takens_best_estimate_dim`](@ref), [`boxassisted_correlation_dim`](@ref).
 """
 function grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(X); kwargs...)
     cm = correlationsum(X, εs; kwargs...)
