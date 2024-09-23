@@ -100,7 +100,7 @@ minimum_pairwise_distance
 
 ## Generalized (entropy) dimension
 
-Based on the definition of the Generalized entropy ([`genentropy`](@ref)), one can calculate an appropriate dimension, called *generalized dimension*:
+Based on the definition of the generalized (Renyi) entropy, one can calculate an appropriate dimension, called *generalized dimension*:
 ```@docs
 generalized_dim
 molteno_dim

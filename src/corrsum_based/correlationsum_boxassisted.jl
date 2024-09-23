@@ -358,7 +358,7 @@ using Random: shuffle!
 
 Estimate a reasonable size for boxing `X`, proposed by
 Bueno-Orovio and Pérez-García [BuenoOrovio2007](@cite), before calculating the correlation
-dimension as presented by [Theiler1983](@cite).
+dimension as presented by [Theiler1987](@cite).
 Return the size `r0` and the minimum interpoint distance `ε0` in the data.
 
 If instead of boxes, prisms
