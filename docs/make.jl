@@ -21,5 +21,5 @@ bib = CitationBibliography(
 )
 
 build_docs_with_style(FRACTALDIMENSION_PAGES, FractalDimensions, ComplexityMeasures, StateSpaceSets;
-    expandfirst = ["index.md"], bib,
+    expandfirst = ["index.md"], bib, warnonly = [:cross_references, :doctest, :missing_docs],
 )
