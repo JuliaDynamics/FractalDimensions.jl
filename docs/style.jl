@@ -1,4 +1,4 @@
-# %% Color theme definitions
+# Color theme definitions
 struct CyclicContainer <: AbstractVector{String}
     c::Vector{String}
     n::Int
@@ -17,23 +17,22 @@ end
 Base.iterate(c::CyclicContainer, i = 1) = iterate(c.c, i)
 
 COLORSCHEME = [
-    "#6D44D0",
-    "#2CB3BF",
-    "#1B1B1B",
-    "#DA5210",
-    "#03502A",
-    "#866373",
+    "#7143E0",
+    "#191E44",
+    "#0A9A84",
+    "#AF9327",
+    "#791457",
+    "#6C768C",
 ]
 
 COLORS = CyclicContainer(COLORSCHEME)
 LINESTYLES = CyclicContainer(["-", ":", "--", "-."])
 
-# %% Makie styling
 # other styling elements for Makie
 set_theme!(;
     palette = (color = COLORSCHEME,),
     fontsize = 22,
-    figure_padding = 4,
-    resolution = (1000, 500),
+    figure_padding = 8,
+    size = (800, 400),
     linewidth = 3.0,
 )

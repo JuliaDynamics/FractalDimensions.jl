@@ -62,7 +62,7 @@ exact to the original [`correlationsum`](@ref). For any other `P`, some
 point pairs that should have been included may be skipped due to having smaller
 distance in the remaining dimensions, but larger distance in the first `P` dimensions.
 """
-function boxed_correlationsum(X; P = 2, kwargs...)
+function boxed_correlationsum(X::AbstractStateSpaceSet; P = 2, kwargs...)
     P = min(P, dimension(X))
     r0, ε0 = estimate_r0_buenoorovio(X, P)
     εs = 2.0 .^ range(log2(ε0), log2(r0); length = 16)
@@ -75,7 +75,7 @@ boxed_correlationsum(X, e::Real, r0 = e; kwargs...) = boxed_correlationsum(X, [e
 function boxed_correlationsum(
         X, εs, r0 = maximum(εs); q = 2, P = 2, kwargs...
     )
-    P ≤ size(X, 2)   || error("Prism dimension has to be ≤ than `X` dimension.")
+    P ≤ dimension(X)   || error("Prism dimension has to be ≤ than `X` dimension.")
     issorted(εs)     || error("Sorted `εs` required for optimized version.")
     if r0 < maximum(εs)
         @warn("Box size `r0` has to be ≥ than `maximum(εs)`.")
@@ -358,7 +358,7 @@ using Random: shuffle!
 
 Estimate a reasonable size for boxing `X`, proposed by
 Bueno-Orovio and Pérez-García [BuenoOrovio2007](@cite), before calculating the correlation
-dimension as presented by [Theiler1983](@cite).
+dimension as presented by [Theiler1987](@cite).
 Return the size `r0` and the minimum interpoint distance `ε0` in the data.
 
 If instead of boxes, prisms

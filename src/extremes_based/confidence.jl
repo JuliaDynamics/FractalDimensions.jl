@@ -113,7 +113,7 @@ function gpd_nrmse(E, gpd, nbins)
     # Compute histogram of E
     bins = range(0, nextfloat(maximum(E), 2); length = nbins)
     binning = FixedRectangularBinning(bins)
-    allprobs = allprobabilities(ValueHistogram(binning), E)
+    allprobs = allprobabilities_and_outcomes(ValueHistogram(binning), E)[1]
     width = step(bins)
 
     # We will calcuate the GPD pdf at the midpoint of each bin

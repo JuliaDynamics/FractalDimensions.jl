@@ -91,8 +91,16 @@ The whole above pipeline we went through is bundled in [`grassberger_proccacia_d
 ```@docs
 slopefit
 LinearRegression
+linreg
+```
+
+```@docs
 LargestLinearRegion
 linear_regions
+linear_region
+```
+
+```@docs
 AllSlopesDistribution
 estimate_boxsizes
 minimum_pairwise_distance
@@ -100,7 +108,7 @@ minimum_pairwise_distance
 
 ## Generalized (entropy) dimension
 
-Based on the definition of the Generalized entropy ([`genentropy`](@ref)), one can calculate an appropriate dimension, called *generalized dimension*:
+Based on the definition of the generalized (Renyi) entropy, one can calculate an appropriate dimension, called *generalized dimension*:
 ```@docs
 generalized_dim
 molteno_dim
@@ -173,6 +181,7 @@ extremevaltheory_gpdfit_pvalues
 ### Block-maxima estimator
 ```@docs
 BlockMaxima
+estimate_gev_parameters
 ```
 
 ## Theiler window
