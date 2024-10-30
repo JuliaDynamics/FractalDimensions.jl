@@ -86,6 +86,12 @@ The whole above pipeline we went through is bundled in [`grassberger_proccacia_d
     They are more like convenient bundles with on-average good defaults, rather than precise functions. You should be careful
     when considering the validity of the returned number!
 
+
+## Index (contents)
+
+```@index
+```
+
 ## Linear scaling regions
 
 ```@docs
