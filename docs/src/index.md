@@ -151,6 +151,14 @@ fixedmass_correlationsum
 takens_best_estimate_dim
 ```
 
+## Pointwise (local) correlation dimensions
+
+```@docs
+pointwise_dimensions
+pointwise_correlationsums
+```
+
+
 ## Kaplan-Yorke dimension
 
 ```@docs
