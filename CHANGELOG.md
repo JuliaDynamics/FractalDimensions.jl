@@ -1,3 +1,9 @@
+# 1.9
+
+- New function `local_correlation_dimension`.
+- Functions that were already exported as public are now also in the documentation:
+  `pointwise_dimensions, pointwise_correlationsums`
+
 # 1.8
 
 - New way to estimate extreme value theory dimensions based on block maxima.

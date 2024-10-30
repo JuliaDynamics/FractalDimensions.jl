@@ -4,7 +4,7 @@ using Distances: evaluate, Euclidean, pairwise, Metric
 
 export correlationsum, boxed_correlationsum
 export grassberger_proccacia_dim
-export pointwise_dimensions, pointwise_correlationsums
+export pointwise_dimensions, pointwise_correlationsums, local_correlation_dimension
 
 """
     grassberger_proccacia_dim(X::AbstractStateSpaceSet, εs = estimate_boxsizes(data); kwargs...)
@@ -219,3 +219,47 @@ end
     end
     return out
 end
+
+"""
+    local_correlation_dimension(X, ζ [, εs]; kw...) → Δ_ζ
+
+Return the local dimension `Δ_ζ` around state space point `ζ` given a set of state space
+points `X` which is assumed to surround (or be sufficiently near to) `ζ`.
+The local dimension is the exponential scaling of the correlation sum for point `ζ` versus
+some radii `εs`. `εs` can be a vector of reals, or it can be an integer,
+in which space that many points are equi-spaced logarithmically between the minimum and
+maximum distance of `X` to `ζ`.
+
+## Keyword arguments
+
+- `q = 2, norm = Euclidean()`: same as in [`correlationsum`](@ref).
+- `fit = LinearRegression()`: given to [`slopefit`](@ref) to estimate the dimension.
+  This default assumes that the set `X` is already sufficiently close to `ζ`.
+"""
+function local_correlation_dimension(args...; fit = LinearRegression(), kw...)
+    C, es = local_correlation_sum(args...; kw...)
+    ΔGP = slopefit(log2.(es), log2.(C), fit)[1]
+    return ΔGP
+end
+
+function local_correlation_sum(X, ζ, k = 8; norm = Eucliean(), q = 2)
+    # First estimate distances
+    dists = map(x -> norm(x, ζ), X)
+    εs = _generate_boxsizes(k, dists)
+    # Then convert to correlation sum
+    for i in eachindex(εs)
+        C[i] = count(<(εs[i]), dists)^(q-1)
+    end
+    return C/length(dists), es
+end
+
+function _generate_boxsizes(k::Int, dists)
+    dmax = maximum(dists)
+    dmin = partialsort!(dists, 2) # second smallest
+    base = MathConstants.e
+    lower = log(base, dmin)
+    upper = log(base, dmax)
+    return float(base) .^ range(lower, upper; length = k)
+end
+
+_generate_boxisizes(es::AbstractVector, dists) = es
