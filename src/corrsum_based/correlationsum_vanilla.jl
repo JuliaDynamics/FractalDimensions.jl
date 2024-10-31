@@ -242,15 +242,16 @@ function local_correlation_dimension(args...; fit = LinearRegression(), kw...)
     return ΔGP
 end
 
-function local_correlation_sum(X, ζ, k = 8; norm = Eucliean(), q = 2)
+function local_correlation_sum(X, ζ, k = 8; norm = Euclidean(), q = 2)
     # First estimate distances
     dists = map(x -> norm(x, ζ), X)
     εs = _generate_boxsizes(k, dists)
+    C = zeros(Int, length(εs))
     # Then convert to correlation sum
     for i in eachindex(εs)
         C[i] = count(<(εs[i]), dists)^(q-1)
     end
-    return C/length(dists), es
+    return C/length(dists), εs
 end
 
 function _generate_boxsizes(k::Int, dists)

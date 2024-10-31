@@ -171,3 +171,11 @@ end
     @test all(c -> c[end] > 0, Csums)
 
 end
+
+@testset "local corrsum dimension" begin
+    rng = Xoshiro(1234)
+    F = [0.5rand(rng, 2) .+ [0.25, 0.25] for _ in 1:10_000]
+    z = SVector(0.5, 0.5)
+    d = local_correlation_dimension(F, z)
+    test_value(d, 1.9, 2.1)
+end
