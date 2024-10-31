@@ -155,7 +155,6 @@ takens_best_estimate_dim
 
 ```@docs
 pointwise_dimensions
-pointwise_correlationsums
 local_correlation_dimension
 ```
 

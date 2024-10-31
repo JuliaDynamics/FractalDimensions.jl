@@ -163,7 +163,7 @@ versus ``\\epsilon``. `Δloc[i]` is the exponential scaling (deduced by a call t
 
 Keywords are the same as in [`correlationsum`](@ref).
 To obtain the inner correlation sums without doing the exponential scaling fit
-use `pointwise_correlationsums`.
+use `FractalDimensions.pointwise_correlationsums` with same inputs.
 """
 function pointwise_dimensions(X, εs::AbstractVector = estimate_boxsizes(X); kw...)
     Cs = pointwise_correlationsums(X, εs; kw...)
