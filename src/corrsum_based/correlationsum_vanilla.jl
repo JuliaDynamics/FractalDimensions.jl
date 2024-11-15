@@ -1,7 +1,7 @@
 import ProgressMeter
 
 using Distances: evaluate, Euclidean, pairwise, Metric
-using Statistics:quantile
+using Statistics: quantile
 
 export correlationsum, boxed_correlationsum
 export grassberger_proccacia_dim
