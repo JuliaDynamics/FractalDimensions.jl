@@ -1,6 +1,7 @@
 import ProgressMeter
 
 using Distances: evaluate, Euclidean, pairwise, Metric
+using Statistics: quantile
 
 export correlationsum, boxed_correlationsum
 export grassberger_proccacia_dim
@@ -255,8 +256,7 @@ function local_correlation_sum(X, ζ, k = 8; norm = Euclidean(), q = 2)
 end
 
 function _generate_boxsizes(k::Int, dists)
-    dmax = maximum(dists)
-    dmin = partialsort!(dists, 2) # second smallest
+    dmin, dmax = quantile(dists, [0.1, 0.9])
     base = MathConstants.e
     lower = log(base, dmin)
     upper = log(base, dmax)
