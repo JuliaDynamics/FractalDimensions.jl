@@ -21,7 +21,7 @@ The method estimates how the length of the graph increases as a function of
 the indices difference (which, in this context, is equivalent with differences in `t`).
 Specifically, we calculate the average length versus `k` as
 ```math
-L_m(k) = \\frac{N-1}{\\lfloor \\frac{N-m}{k} \rfloor k^2}
+L_m(k) = \\frac{N-1}{\\lfloor \\frac{N-m}{k} \\rfloor k^2}
 \\sum_{i=1}^{\\lfloor \\frac{N-m}{k} \\rfloor} |X_N(m+ik)-X_N(m+(i-1)k)| \\\\
 
 L(k) = \\frac{1}{k} \\sum_{m=1}^k L_m(k)
