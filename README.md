@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/JuliaDynamics/FractalDimensions.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaDynamics/FractalDimensions.jl)
 [![Package Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/FractalDimensions)](https://pkgs.genieframework.com?packages=FractalDimensions)
 
-A Julia package that estimates various definitions of fractal dimension from data.
+A Julia package that estimates various definitions of fractal dimension from data, including so-called "local dimensions and extremal indices" via extreme value theory.
 It can be used as a standalone package, or as part of
 [DynamicalSystems.jl](https://juliadynamics.github.io/DynamicalSystems.jl/dev/).
 
