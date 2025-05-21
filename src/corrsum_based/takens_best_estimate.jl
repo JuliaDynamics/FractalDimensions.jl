@@ -53,7 +53,7 @@ the values of `Δ_C` where the function has fallen by 2 from its maximum, see e.
 takens_best_estimate_dim(args...) = takens_best_estimate(args...)[1]
 
 function takens_best_estimate(X, εmax, metric = Chebyshev(); εmin=0)
-    n, η, N = 0, zero(eltype(X)), length(X)
+    n, η, N = 0, zero(eltype(eltype(X))), length(X)
     @inbounds for i in 1:N
         for j in i+1:N
             d = evaluate(metric, X[i], X[j])
