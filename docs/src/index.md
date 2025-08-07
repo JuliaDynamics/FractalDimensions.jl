@@ -40,7 +40,7 @@ instead of simulating the set `X` we could load it from disk, e.g., if there was
 ```julia
 using DelimitedFiles
 file = "path/to/file.csv"
-M = readdlm(file)    # here `M` is a metrix with two columns
+M = readdlm(file)    # here `M` is a matrix with two columns
 X = StateSpaceSet(M) # important to convert to a state space set
 ```
 
