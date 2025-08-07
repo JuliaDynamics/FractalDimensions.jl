@@ -54,11 +54,11 @@ function generalized_dim(X::AbstractStateSpaceSet, sizes = estimate_boxsizes(X);
     return slopefit(x, H)[1]
 end
 
-function _threaded_entropies(X, sizes, q, base, show_progress)
+function _threaded_entropies(X::AbstractStateSpaceSet, sizes, q, base, show_progress)
     progress = ProgressMeter.Progress(length(sizes);
         desc = "Entropy calculation: ", enabled = show_progress
     )
-    H = zeros(eltype(X), length(sizes))
+    H = zeros(eltype(eltype(X)), length(sizes))
     Threads.@threads for i in eachindex(sizes)
         ε = sizes[i]
         H[i] = entropy(Renyi(; q, base), ValueHistogram(ε), X)
