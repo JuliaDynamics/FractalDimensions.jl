@@ -5,7 +5,7 @@ export generalized_dim, entropy, Renyi, ValueHistogram
     generalized_dim(X::StateSpaceSet [, sizes]; q = 1, base = 2) -> Δ_q
 
 Return the `q` order generalized dimension of `X`,
-by calculating  its histogram-based Rényi entropy for each `ε ∈ sizes`.
+by calculating its histogram-based Rényi entropy for each `ε ∈ sizes`.
 
 The case of `q = 0` is often called "capacity" or "box-counting" dimension, while
 `q = 1` is the "information" dimension.
