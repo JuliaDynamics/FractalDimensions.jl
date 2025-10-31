@@ -85,7 +85,7 @@ end
 
 function _mpd_kdtree(X::AbstractStateSpaceSet, metric = Euclidean())
     tree = Neighborhood.KDTree(X, metric)
-    min_d = eltype(X[1])(Inf)
+    min_d = eltype(eltype(X))(Inf)
     min_pair = (0, 0)
     theiler = Neighborhood.Theiler(0)
     for i in eachindex(X)
@@ -100,7 +100,7 @@ function _mpd_kdtree(X::AbstractStateSpaceSet, metric = Euclidean())
 end
 
 function _mpd_brute(X::AbstractStateSpaceSet, metric = Euclidean())
-    min_d = eltype(X)(Inf)
+    min_d = eltype(eltype(X))(Inf)
     min_pair = (0, 0)
     @inbounds for i in eachindex(X)
         for j in (i+1):length(X)

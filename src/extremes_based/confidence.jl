@@ -85,26 +85,28 @@ function extremevaltheory_gpdfit_pvalues(X::AbstractStateSpaceSet, type::Exceeda
     progress = ProgressMeter.Progress(
         N; desc = "Extreme value theory p-values: ", enabled = show_progress
     )
-    logdists = [zeros(eltype(X), N) for _ in 1:Threads.nthreads()]
+    logdists = [zeros(eltype(eltype(X)), N) for _ in 1:Threads.nthreads()]
     pvalues = zeros(N)
     sigmas = zeros(N)
     xis = zeros(N)
     nrmses = zeros(N)
     Es = [Float64[] for _ in 1:N]
 
-    Threads.@threads for j in eachindex(X)
-        logdist = logdists[Threads.threadid()]
-        @inbounds map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
-        σ, ξ, E = extremevaltheory_local_gpd_fit(logdist, p, estimator)
-        sigmas[j] = σ
-        xis[j] = ξ
-        Es[j] = E
-        # Note that exceedances are defined with 0 as their minimum
-        gpd = GeneralizedPareto(0, σ, ξ)
-        test = TestType(E, gpd)
-        pvalues[j] = pvalue(test)
-        nrmses[j] = gpd_nrmse(E, gpd, nbins)
-        ProgressMeter.next!(progress)
+    Threads.@threads for (threadid, chunk) in enumerate(chunks(eachindex(X); n = Threads.nthreads()))
+        local logdist = logdists[threadid]
+        for j in chunk
+            @inbounds map!(x -> -log(euclidean(x, X[j])), logdist, vec(X))
+            σ, ξ, E = extremevaltheory_local_gpd_fit(logdist, p, estimator)
+            sigmas[j] = σ
+            xis[j] = ξ
+            Es[j] = E
+            # Note that exceedances are defined with 0 as their minimum
+            gpd = GeneralizedPareto(0, σ, ξ)
+            test = TestType(E, gpd)
+            pvalues[j] = pvalue(test)
+            nrmses[j] = gpd_nrmse(E, gpd, nbins)
+            ProgressMeter.next!(progress)
+        end
     end
     return Es, nrmses, pvalues, sigmas, xis
 end

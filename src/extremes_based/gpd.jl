@@ -82,7 +82,7 @@ function estimate_gpd_parameters(X, estimator)
         # average of the PoTs is the unbiased estimator, which is just the mean
         # of the exceedances.
         σ = mean(X)
-        ξ = zero(eltype(X))
+        ξ = zero(eltype(eltype(X)))
     elseif estimator == :mm
         x̄ = mean(X)
         s² = var(X; corrected = true, mean = x̄)

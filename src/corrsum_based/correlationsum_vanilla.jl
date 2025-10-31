@@ -87,7 +87,7 @@ function correlationsum(X, εs; q = 2, norm = Euclidean(), w = 0, show_progress 
     if q == 2
         correlationsum_2(X, εs, norm, w, show_progress)
     else
-        correlationsum_q(X, εs, eltype(X)(q), norm, w, show_progress)
+        correlationsum_q(X, εs, eltype(eltype(X))(q), norm, w, show_progress)
     end
 end
 
@@ -95,17 +95,22 @@ end
 # correlation sum. At the end, we went full circle and returned to the simplest
 # possible implementation, which becomes the fastest once multithreading is enabled.
 
+using ChunkSplitters: chunks
+
 function correlationsum_2(X, εs::AbstractVector{<:Real}, norm, w, show_progress)
     N = length(X)
     progress = ProgressMeter.Progress(N; desc="Correlation sum: ", enabled=show_progress)
     Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
-    @inbounds Threads.@threads for i in Base.OneTo(N)
-        x = X[i]
-        Cs = Css[Threads.threadid()]
-        for j in i+1+w:N
-            dist = norm(x, X[j])
-            lastidx = searchsortedfirst(εs, dist)
-            Cs[lastidx:end] .+= 1
+    # chunks-based parallelism
+    Threads.@threads for (threadid, chunk) in enumerate(chunks(Base.OneTo(N); n = Threads.nthreads()))
+        local Cs = Css[threadid]
+        for i in chunk
+            x = X[i]
+            for j in i+1+w:N
+                dist = norm(x, X[j])
+                lastidx = searchsortedfirst(εs, dist)
+                Cs[lastidx:end] .+= 1
+            end
         end
         ProgressMeter.next!(progress)
     end
@@ -114,33 +119,35 @@ function correlationsum_2(X, εs::AbstractVector{<:Real}, norm, w, show_progress
 end
 
 function correlationsum_q(X, εs::AbstractVector{<:Real}, q, norm, w, show_progress)
-    N, C = length(X), zero(eltype(X))
-    irange = 1:N
+    N = length(X)
     progress = ProgressMeter.Progress(N;
         desc = "Correlation sum: ", enabled = show_progress
     )
-    Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
-    Css_dum = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
-    @inbounds Threads.@threads for i in irange
-        x = X[i]
-        normalisation = (max(N-w, i) - min(w+1, i))
-        Cs = Css[Threads.threadid()]
-        Cs_dum = Css_dum[Threads.threadid()]
-        Cs_dum .= zero(eltype(X))
-        # computes all distances from 0 up to i-w
-        for j in 1:i-w-1
-            dist = norm(x, X[j])
-            lastidx = searchsortedfirst(εs, dist)
-            Cs_dum[lastidx:end] .+= 1
+
+    Css = [zeros(eltype(eltype(X)), length(εs)) for _ in 1:Threads.nthreads()]
+    Css_dum = [zeros(eltype(eltype(X)), length(εs)) for _ in 1:Threads.nthreads()]
+    Threads.@threads for (threadid, chunk) in enumerate(chunks(Base.OneTo(N); n = Threads.nthreads()))
+        local Cs = Css[threadid]
+        local Cs_dum = Css_dum[threadid]
+        for i in chunk
+            x = X[i]
+            fill!(Cs_dum, zero(eltype(eltype(X))))
+            normalisation = (max(N-w, i) - min(w+1, i))
+            # computes all distances from 0 up to i-w
+            for j in 1:i-w-1
+                dist = norm(x, X[j])
+                lastidx = searchsortedfirst(εs, dist)
+                Cs_dum[lastidx:end] .+= 1
+            end
+            # computes all distances after i+w till the end
+            for j in i+w+1:N
+                dist = norm(x, X[j])
+                lastidx = searchsortedfirst(εs, dist)
+                Cs_dum[lastidx:end] .+= 1
+            end
+            @. Cs += (Cs_dum / normalisation)^(q-1)
+            ProgressMeter.next!(progress)
         end
-        # computes all distances after i+w till the end
-        for j in i+w+1:N
-            dist = norm(x, X[j])
-            lastidx = searchsortedfirst(εs, dist)
-            Cs_dum[lastidx:end] .+= 1
-        end
-        @. Cs += (Cs_dum / normalisation)^(q-1)
-        ProgressMeter.next!(progress)
     end
 
     C = sum(Css)
@@ -184,13 +191,14 @@ end
 function pointwise_correlationsums(X, εs::AbstractVector;
         norm = Euclidean(), w = 0, q = 2, show_progress = true
     )
-    E, T = length(εs), eltype(X)
+    E, T = length(εs), eltype(eltype(X))
     Cs = [zeros(T, E) for _ in eachindex(X)]
     progress = ProgressMeter.Progress(length(X);
         desc="Pointwise corrsum: ", dt=1, enabled=show_progress
     )
 
-    Threads.@threads for i in eachindex(X)
+    # TODO: threading via chunksplitting here
+    for i in eachindex(X)
         C = Cs[i]
         # distances of points in the range of indices around `i`
         distances = pointwise_distances_fast(X, i, w, norm)
@@ -209,7 +217,7 @@ end
     lr1 = length(r1)
     r2 = i+w+1:length(X)
     v = X[i]
-    out = zeros(eltype(X), lr1+length(r2))
+    out = zeros(eltype(eltype(X)), lr1+length(r2))
     for j in eachindex(r1)
         ξ = r1[j]
         out[j] = norm(v, X[ξ])
