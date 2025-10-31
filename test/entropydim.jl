@@ -6,11 +6,6 @@ ENV["FRACTALDIMENSIONS_PROGRESS"] = false
 
 test_value = (val, vmin, vmax) -> @test vmin <= val <= vmax
 
-# Convenience syntax going back to the old `quickentropy`
-function quickentropy(x, e; q = 1)
-    return entropy(Renyi(;q), ValueHistogram(e), x)
-end
-
 @testset "analytic sets" begin
     A = StateSpaceSet(rand(Xoshiro(1234), 100_000, 2))
     θ = rand(Xoshiro(1234), 100_000).*2π
