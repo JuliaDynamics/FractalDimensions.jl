@@ -119,33 +119,35 @@ function correlationsum_2(X, εs::AbstractVector{<:Real}, norm, w, show_progress
 end
 
 function correlationsum_q(X, εs::AbstractVector{<:Real}, q, norm, w, show_progress)
-    N, C = length(X), zero(eltype(X))
-    irange = 1:N
+    N = length(X)
     progress = ProgressMeter.Progress(N;
         desc = "Correlation sum: ", enabled = show_progress
     )
-    Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
-    Css_dum = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
-    @inbounds Threads.@threads for i in irange
-        x = X[i]
-        normalisation = (max(N-w, i) - min(w+1, i))
-        Cs = Css[Threads.threadid()]
-        Cs_dum = Css_dum[Threads.threadid()]
-        Cs_dum .= zero(eltype(X))
-        # computes all distances from 0 up to i-w
-        for j in 1:i-w-1
-            dist = norm(x, X[j])
-            lastidx = searchsortedfirst(εs, dist)
-            Cs_dum[lastidx:end] .+= 1
+
+    Css = [zeros(eltype(eltype(X)), length(εs)) for _ in 1:Threads.nthreads()]
+    Css_dum = [zeros(eltype(eltype(X)), length(εs)) for _ in 1:Threads.nthreads()]
+    Threads.@threads for (threadid, chunk) in enumerate(chunks(Base.OneTo(N); n = Threads.nthreads()))
+        local Cs = Css[threadid]
+        local Cs_dum = Css_dum[threadid]
+        for i in chunk
+            x = X[i]
+            fill!(Cs_dum, zero(eltype(eltype(X))))
+            normalisation = (max(N-w, i) - min(w+1, i))
+            # computes all distances from 0 up to i-w
+            for j in 1:i-w-1
+                dist = norm(x, X[j])
+                lastidx = searchsortedfirst(εs, dist)
+                Cs_dum[lastidx:end] .+= 1
+            end
+            # computes all distances after i+w till the end
+            for j in i+w+1:N
+                dist = norm(x, X[j])
+                lastidx = searchsortedfirst(εs, dist)
+                Cs_dum[lastidx:end] .+= 1
+            end
+            @. Cs += (Cs_dum / normalisation)^(q-1)
+            ProgressMeter.next!(progress)
         end
-        # computes all distances after i+w till the end
-        for j in i+w+1:N
-            dist = norm(x, X[j])
-            lastidx = searchsortedfirst(εs, dist)
-            Cs_dum[lastidx:end] .+= 1
-        end
-        @. Cs += (Cs_dum / normalisation)^(q-1)
-        ProgressMeter.next!(progress)
     end
 
     C = sum(Css)
@@ -195,7 +197,8 @@ function pointwise_correlationsums(X, εs::AbstractVector;
         desc="Pointwise corrsum: ", dt=1, enabled=show_progress
     )
 
-    Threads.@threads for i in eachindex(X)
+    # TODO: threading via chunksplitting here
+    for i in eachindex(X)
         C = Cs[i]
         # distances of points in the range of indices around `i`
         distances = pointwise_distances_fast(X, i, w, norm)
