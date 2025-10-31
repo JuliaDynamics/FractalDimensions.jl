@@ -1,7 +1,6 @@
 import ProgressMeter
 export boxed_correlationsum, boxassisted_correlation_dim
 export estimate_r0_buenoorovio, prismdim_theiler, estimate_r0_theiler
-using OhMyThreads: @tasks, @locals
 
 ################################################################################
 # Boxed correlation sum docstrings
