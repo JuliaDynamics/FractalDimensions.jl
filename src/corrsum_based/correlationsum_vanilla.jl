@@ -87,7 +87,7 @@ function correlationsum(X, εs; q = 2, norm = Euclidean(), w = 0, show_progress 
     if q == 2
         correlationsum_2(X, εs, norm, w, show_progress)
     else
-        correlationsum_q(X, εs, eltype(X)(q), norm, w, show_progress)
+        correlationsum_q(X, εs, eltype(eltype(X))(q), norm, w, show_progress)
     end
 end
 
@@ -95,17 +95,22 @@ end
 # correlation sum. At the end, we went full circle and returned to the simplest
 # possible implementation, which becomes the fastest once multithreading is enabled.
 
+using ChunkSplitters: chunks
+
 function correlationsum_2(X, εs::AbstractVector{<:Real}, norm, w, show_progress)
     N = length(X)
     progress = ProgressMeter.Progress(N; desc="Correlation sum: ", enabled=show_progress)
     Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
-    @inbounds Threads.@threads for i in Base.OneTo(N)
-        x = X[i]
-        Cs = Css[Threads.threadid()]
-        for j in i+1+w:N
-            dist = norm(x, X[j])
-            lastidx = searchsortedfirst(εs, dist)
-            Cs[lastidx:end] .+= 1
+    # chunks-based parallelism
+    Threads.@threads for (threadid, chunk) in enumerate(chunks(Base.OneTo(N); n = Threads.nthreads()))
+        local Cs = Css[threadid]
+        for i in chunk
+            x = X[i]
+            for j in i+1+w:N
+                dist = norm(x, X[j])
+                lastidx = searchsortedfirst(εs, dist)
+                Cs[lastidx:end] .+= 1
+            end
         end
         ProgressMeter.next!(progress)
     end
