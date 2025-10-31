@@ -39,7 +39,7 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
     # The algorithm in the end of the day loops over points in `X`
     # and applies the local algorithm.
     N = length(X)
-    Δloc = zeros(eltype(X), N)
+    Δloc = zeros(eltype(eltype(X)), N)
     θloc = copy(Δloc)
     progress = ProgressMeter.Progress(
         N; desc = "Extreme value theory dim: ", enabled = show_progress

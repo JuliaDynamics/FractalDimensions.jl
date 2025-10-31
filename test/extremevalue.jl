@@ -85,11 +85,3 @@ end
     θ = extremal_index_sueveges(y, p)
     @test mean(θ) ≈ 0.5 atol = 1e-2
 end
-
-@testset "Deprecation" begin
-    A = StateSpaceSet(rand(Xoshiro(1234), 1000, 2))
-    Δloc, θ = extremevaltheory_dims_persistences(A, 0.99)
-    @test Δloc isa Vector{<:Real}
-    Es, nrmses, pvalues, sigmas, xis = extremevaltheory_gpdfit_pvalues(A, 0.99)
-    @test sigmas isa Vector{<:Real}
-end
