@@ -256,7 +256,7 @@ end
 function boxed_correlationsum_q(boxes, contents, X, εs, q; norm = Euclidean(), w = 0, show_progress = envprog())
     q ≤ 1 && @warn "This function is currently not specialized for q ≤ 1" *
     " and may show unexpected behaviour for these values."
-    Css = [zeros(eltype(X), length(εs)) for _ in 1:Threads.nthreads()]
+    Css = [zeros(eltype(eltype(X)), length(εs)) for _ in 1:Threads.nthreads()]
     C_currents = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     M = length(boxes)
     progress = ProgressMeter.Progress(M;

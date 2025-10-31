@@ -191,7 +191,7 @@ end
 function pointwise_correlationsums(X, εs::AbstractVector;
         norm = Euclidean(), w = 0, q = 2, show_progress = true
     )
-    E, T = length(εs), eltype(X)
+    E, T = length(εs), eltype(eltype(X))
     Cs = [zeros(T, E) for _ in eachindex(X)]
     progress = ProgressMeter.Progress(length(X);
         desc="Pointwise corrsum: ", dt=1, enabled=show_progress
@@ -217,7 +217,7 @@ end
     lr1 = length(r1)
     r2 = i+w+1:length(X)
     v = X[i]
-    out = zeros(eltype(X), lr1+length(r2))
+    out = zeros(eltype(eltype(X)), lr1+length(r2))
     for j in eachindex(r1)
         ξ = r1[j]
         out[j] = norm(v, X[ξ])
