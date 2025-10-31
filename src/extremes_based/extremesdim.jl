@@ -44,9 +44,7 @@ function extremevaltheory_dims_persistences(X::AbstractStateSpaceSet, type;
     progress = ProgressMeter.Progress(
         N; desc = "Extreme value theory dim: ", enabled = show_progress
     )
-    logdists = [copy(Δloc) for _ in 1:Threads.nthreads()]
     Threads.@threads for j in eachindex(X)
-        logdist = logdists[Threads.threadid()]
         logdist = map(x -> -log(euclidean(x, X[j])), vec(X))
         deleteat!(logdist, j)
         D, θ = extremevaltheory_local_dim_persistence(logdist, type; kw...)
