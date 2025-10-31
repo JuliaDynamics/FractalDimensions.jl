@@ -1,6 +1,7 @@
 import ProgressMeter
 export boxed_correlationsum, boxassisted_correlation_dim
 export estimate_r0_buenoorovio, prismdim_theiler, estimate_r0_theiler
+using OhMyThreads: @tasks, @locals
 
 ################################################################################
 # Boxed correlation sum docstrings
@@ -156,6 +157,8 @@ end
 ################################################################################
 # Concrete implementation, q = 2
 ################################################################################
+using ChunkSplitters: chunks
+
 """
     boxed_correlationsum_2(boxes, contents, X, εs; w = 0)
 
@@ -164,19 +167,45 @@ calculate the classic correlationsum of a radius or multiple radii `εs`.
 `w` is the Theiler window, for explanation see [`boxed_correlationsum`](@ref).
 """
 function boxed_correlationsum_2(boxes, contents, X, εs; norm = Euclidean(), w = 0, show_progress = envprog())
-    Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
     N = length(X)
     M = length(boxes)
     progress = ProgressMeter.Progress(M;
         desc = "Boxed correlation sum: ", enabled = show_progress
     )
-    Threads.@threads for index in 1:M
-        Cs = Css[Threads.threadid()]
-        indices_neighbors = find_neighborboxes_2(index, boxes, contents)
-        indices_box = contents[index]
-        inner_correlationsum_2!(Cs, indices_box, indices_neighbors, X, εs; w, norm)
-        ProgressMeter.next!(progress)
+
+    # parallelized via chunksplitting
+    Css = [zeros(Int, length(εs)) for _ in 1:Threads.nthreads()]
+
+    Threads.@threads for (threadid, chunk) in enumerate(chunks(1:M; n = Threads.nthreads()))
+        local Cs = Css[threadid]
+        for index in chunk
+            indices_neighbors = find_neighborboxes_2(index, boxes, contents)
+            indices_box = contents[index]
+            inner_correlationsum_2!(Cs, indices_box, indices_neighbors, X, εs; w, norm)
+            ProgressMeter.next!(progress)
+        end
     end
+
+    # # OhMy version
+    # Css = @tasks for index in 1:M
+    #     @set collect = true
+    #     @local Cs = zeros(Int, length(εs))
+    #     indices_neighbors = find_neighborboxes_2(index, boxes, contents)
+    #     indices_box = contents[index]
+    #     Css[index] = inner_correlationsum_2!(Cs, indices_box, indices_neighbors, X, εs; w, norm)
+    #     ProgressMeter.next!(progress)
+    #     Cs
+    # end
+
+    # original
+    # Threads.@threads for index in 1:M
+    #     Cs = Css[Threads.threadid()]
+    #     indices_neighbors = find_neighborboxes_2(index, boxes, contents)
+    #     indices_box = contents[index]
+    #     inner_correlationsum_2!(Cs, indices_box, indices_neighbors, X, εs; w, norm)
+    #     ProgressMeter.next!(progress)
+    # end
+
     C = .+(Css...,)
     return C .* (2 / ((N - w) * (N - w - 1)))
 end

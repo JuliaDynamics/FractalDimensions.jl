@@ -1,9 +1,10 @@
 name = "FractalDimensions"
 uuid = "4665ce21-e117-4649-aed8-08bbe5ccbead"
 authors = ["George Datseris <datseris.george@gmail.com>", "Ignacio Del Amo <@PythagoreanCult>", "Anton P Braun"]
-version = "1.9.5"
+version = "1.9.6"
 
 [deps]
+ChunkSplitters = "ae650224-84b6-46f8-82ea-d812ca08434e"
 ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -19,6 +20,7 @@ StateSpaceSets = "40b095a5-5852-4c12-98c7-d43bf788e795"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
+ChunkSplitters = "3"
 ComplexityMeasures = "3"
 Distances = "0.10"
 Distributions = "0.24, 0.25"
